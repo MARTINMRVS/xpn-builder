@@ -8535,8 +8535,6 @@ function updateXPNModeGrid() {
 
   // Boot template system — runs after load (when init has finished)
   function _xpnTemplateBoot() {
-    // DEBUG: reset setup flag so welcome modal always shows fresh
-    localStorage.removeItem('xpn_setup_done');
     // Restore saved template
     try {
       var saved = JSON.parse(localStorage.getItem('xpn_template'));
@@ -8544,7 +8542,7 @@ function updateXPNModeGrid() {
     } catch(e) {}
     // Render live preview
     renderLiveTplPreview();
-    // Show welcome — always (DEBUG: bypassing localStorage check)
+    // Show welcome modal on first run (respects xpn_setup_done flag)
     setTimeout(function() { openWelcomeModal(false); }, 300);
   }
 
