@@ -25,8 +25,6 @@ Electron v33
 64 Jest tests — deben pasar todos antes de distribuir
 
 ## Pendientes conocidos
-- Git init (aun no inicializado)
-- Remover flag debug de produccion
 - Modularizacion del archivo principal
 
 ## Distribucion
