@@ -22,7 +22,7 @@ Lee _context/diagnostico_xpn.md para estado actual
 ## Stack
 Vanilla JS + HTML5 monolitico (~425KB)
 Electron v33
-62 Jest tests — deben pasar todos antes de distribuir
+64 Jest tests — deben pasar todos antes de distribuir
 
 ## Pendientes conocidos
 - Git init (aun no inicializado)
@@ -34,6 +34,6 @@ Gumroad como .dmg macOS
 Marca: Pad Works
 
 ## Fin de sesion obligatorio
-1. Verificar que 62 Jest tests siguen pasando
+1. Verificar que 64 Jest tests siguen pasando
 2. git commit si Git esta inicializado
 3. Documentar cambios en _context/

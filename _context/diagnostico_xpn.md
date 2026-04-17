@@ -19,7 +19,7 @@ samplers MPC de Akai (MPC Live, MPC X, MPC One).
 - **Demo preview track**: carga de audio o auto-generación
 - **Cadena de efectos** por pad (6 tipos de efectos)
 - **Export .zip** en formato MPC-compatible
-- **Suite de 62 tests integrados** (100% passing)
+- **Suite de 64 tests integrados** (100% passing)
 - Manual trilingüe incluido (ES / EN / FR)
 
 ### Producto comercial
@@ -67,7 +67,7 @@ xpnfull/
 │   ├── dist/                    ← Build compilado (macOS .dmg)
 │   │   └── XPN Builder-1.0.0.dmg
 │   ├── tests/
-│   │   └── xpn.test.js          ← Test suite Jest (62 tests)
+│   │   └── xpn.test.js          ← Test suite Jest (64 tests)
 │   ├── versions/                ← Versiones anteriores (vacío actualmente)
 │   └── node_modules/            ← Dependencias
 │
@@ -92,10 +92,10 @@ xpnfull/
 
 | Módulo | Estado | Notas |
 |---|---|---|
-| **Core App (HTML single-file)** | 9/10 | Funcional, probado, 62/62 tests |
+| **Core App (HTML single-file)** | 9/10 | Funcional, probado, 64/64 tests |
 | **Electron wrapper** | 8/10 | Funcional, configuración mínima pero correcta |
 | **Build / Distribución macOS** | 8/10 | .dmg universal generado correctamente |
-| **Suite de tests** | 9/10 | 62/62 passing, bien estructurada |
+| **Suite de tests** | 9/10 | 64/64 passing, bien estructurada |
 | **Manual trilingüe** | 8/10 | ES/EN/FR, bien documentado |
 | **Assets de marketing** | 7/10 | Covers y logos existen, estrategia documentada |
 | **Organización del repo** | 5/10 | Carpetas con nombres irregulares, sin .gitignore |

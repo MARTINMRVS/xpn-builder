@@ -110,7 +110,7 @@ beforeAll(async () => {
   totalTests = win.xtpAll.length;
 }, 30000);
 
-test(`all ${62} embedded XPN tests pass`, async () => {
+test(`all ${64} embedded XPN tests pass`, async () => {
   // Build the test-panel UI so per-test status elements exist
   win.xtpBuildUI();
 
