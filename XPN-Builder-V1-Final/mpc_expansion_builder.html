@@ -2235,11 +2235,13 @@ function renderModes() {
         renderModePreview();
       }
       setStatus('Mode: ' + m.name);
-      document.getElementById('activeModeName').textContent = m.name;
+      const activeModeNameEl = document.getElementById('activeModeName');
+      if (activeModeNameEl) activeModeNameEl.textContent = m.name;
     };
     bar.appendChild(btn);
   });
-  document.getElementById('activeModeName').textContent = MODES[activeMode].name;
+  const activeModeNameEl = document.getElementById('activeModeName');
+  if (activeModeNameEl) activeModeNameEl.textContent = MODES[activeMode].name;
   renderModePreview();
   // XPN Mode Grid: show for standard modes, hide for custom
   const _xpnLayoutKey = XPN_KEY_TO_LAYOUT[activeMode];
