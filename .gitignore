@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+out/
+*.dmg
+*.app
+
+# macOS
+.DS_Store
+._*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env files
+.env
+.env.local
+
+# Testing
+coverage/
+
+# Editor
+.vscode/
+.idea/
+
+# Temp
+/tmp/
+*.tmp

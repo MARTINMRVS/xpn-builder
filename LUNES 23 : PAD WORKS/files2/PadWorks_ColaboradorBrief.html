@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pad Works — Brief de Colaboración</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0D0F14;
+    --black2: #13161E;
+    --black3: #1A1D27;
+    --gold: #C8A96E;
+    --gold2: #8B6914;
+    --gold-dim: rgba(200,169,110,0.15);
+    --gold-border: rgba(200,169,110,0.25);
+    --cream: #F8F6F0;
+    --white: #ffffff;
+    --muted: #64748B;
+    --green: #22C55E;
+    --orange: #F97316;
+    --blue: #3B82F6;
+    --red: #EF4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--black);
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 32px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  .header {
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--gold-border);
+    margin-bottom: 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .header-left {}
+
+  .dot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 10px);
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .dot-grid span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--gold);
+    display: block;
+  }
+
+  .dot-grid span:nth-child(1) { opacity: 1; }
+  .dot-grid span:nth-child(2) { opacity: 0.65; }
+  .dot-grid span:nth-child(3) { opacity: 0.25; }
+  .dot-grid span:nth-child(4) { opacity: 0.65; }
+  .dot-grid span:nth-child(5) { opacity: 1; }
+  .dot-grid span:nth-child(6) { opacity: 0.45; }
+  .dot-grid span:nth-child(7) { opacity: 0.25; }
+  .dot-grid span:nth-child(8) { opacity: 0.45; }
+  .dot-grid span:nth-child(9) { opacity: 0.12; }
+
+  .brand {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--white);
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+
+  h1 span { color: var(--gold); }
+
+  .header-right {
+    text-align: right;
+  }
+
+  .badge {
+    display: inline-block;
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-border);
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .date-info {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* GOLD BAR */
+  .gold-bar {
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+    margin-bottom: 48px;
+  }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 48px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .section-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    opacity: 0.6;
+    min-width: 24px;
+  }
+
+  .section-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--gold-border);
+  }
+
+  /* CONTEXT GRID */
+  .context-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--gold-border);
+    border: 1px solid var(--gold-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .context-item {
+    background: var(--black2);
+    padding: 16px 20px;
+  }
+
+  .context-item:hover { background: var(--black3); }
+
+  .context-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--gold2);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .context-value {
+    font-size: 14px;
+    color: var(--cream);
+    font-weight: 500;
+  }
+
+  .context-item.full { grid-column: 1 / -1; }
+
+  .confidential-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--red);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    margin-top: 6px;
+  }
+
+  /* MATERIALS */
+  .materials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .material-card {
+    background: var(--black2);
+    border: 1px solid var(--gold-border);
+    border-radius: 8px;
+    padding: 16px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .material-card:hover {
+    border-color: var(--gold);
+    background: var(--black3);
+  }
+
+  .material-icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .material-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  .material-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* TIMELINE */
+  .timeline {
+    position: relative;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 68px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(180deg, var(--gold), transparent);
+  }
+
+  .timeline-item {
+    display: grid;
+    grid-template-columns: 68px 1fr;
+    gap: 0;
+    margin-bottom: 4px;
+  }
+
+  .time-col {
+    padding: 16px 16px 16px 0;
+    text-align: right;
+  }
+
+  .time {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 1px;
+    display: block;
+  }
+
+  .content-col {
+    padding: 12px 0 12px 24px;
+    border-left: none;
+    position: relative;
+  }
+
+  .content-col::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 20px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold);
+    background: var(--black);
+  }
+
+  .task-card {
+    background: var(--black2);
+    border: 1px solid var(--gold-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    transition: border-color 0.2s;
+  }
+
+  .task-card:hover { border-color: rgba(200,169,110,0.5); }
+
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+  }
+
+  .task-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--white);
+  }
+
+  .task-deliver {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--green);
+    letter-spacing: 1px;
+    text-align: right;
+    max-width: 180px;
+    line-height: 1.3;
+  }
+
+  .task-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .block-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    margin: 16px 0 4px 92px;
+    display: inline-block;
+  }
+
+  .block-redes { background: rgba(59,130,246,0.12); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .block-research { background: rgba(249,115,22,0.12); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+  .block-cierre { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+
+  /* TONE */
+  .tone-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .tone-card {
+    background: var(--black2);
+    border: 1px solid var(--gold-border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+
+  .tone-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .tone-items { list-style: none; }
+
+  .tone-items li {
+    font-size: 13px;
+    color: var(--cream);
+    padding: 3px 0;
+    display: flex;
+    gap: 8px;
+  }
+
+  .tone-items li::before { content: '—'; color: var(--gold); opacity: 0.4; }
+
+  /* DELIVERABLES */
+  .deliverables {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .deliver-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: var(--black2);
+    border: 1px solid var(--gold-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+
+  .deliver-check {
+    width: 22px;
+    height: 22px;
+    border: 1.5px solid var(--gold-border);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .deliver-title {
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 2px;
+  }
+
+  .deliver-desc {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--gold-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-brand {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    opacity: 0.4;
+    letter-spacing: 3px;
+  }
+
+  .footer-conf {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* PRINT */
+  @media print {
+    body { background: white; color: black; }
+    .header, .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="dot-grid">
+        <span></span><span></span><span></span>
+        <span></span><span></span><span></span>
+        <span></span><span></span><span></span>
+      </div>
+      <div class="brand">Pad Works · Brief de Colaboración</div>
+      <h1>Jornada de<br><span>Trabajo</span></h1>
+    </div>
+    <div class="header-right">
+      <div class="badge">CONFIDENCIAL</div>
+      <div class="date-info">Lunes 23.03.2026<br>10:10 — 13:10 hrs · Santiago</div>
+    </div>
+  </header>
+
+  <div class="gold-bar"></div>
+
+  <!-- 1. CONTEXTO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <span class="section-title">Contexto del Proyecto</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="context-grid">
+      <div class="context-item">
+        <div class="context-label">Marca</div>
+        <div class="context-value">Pad Works</div>
+      </div>
+      <div class="context-item">
+        <div class="context-label">Producto</div>
+        <div class="context-value">Pad Works XPN — Software de producción musical para MPC</div>
+      </div>
+      <div class="context-item">
+        <div class="context-label">Estado actual</div>
+        <div class="context-value">Pre-lanzamiento · Preparando presencia digital y canales de venta</div>
+      </div>
+      <div class="context-item">
+        <div class="context-label">Tu rol hoy</div>
+        <div class="context-value">Apoyo en diseño, redes sociales e investigación de mercado</div>
+      </div>
+      <div class="context-item full">
+        <div class="context-label">Objetivo de la jornada</div>
+        <div class="context-value">Dejar operativos todos los canales digitales y recopilar inteligencia de mercado para el lanzamiento.</div>
+        <div class="confidential-tag">⚠ Documento confidencial · No compartir con terceros · No usar en IAs externas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. MATERIALES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <span class="section-title">Materiales Disponibles</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="materials-grid">
+      <div class="material-card">
+        <div class="material-icon">🖤</div>
+        <div class="material-name">Logo Dark</div>
+        <div class="material-desc">padworks_logo_dark.png — Para fondos oscuros, redes sociales</div>
+      </div>
+      <div class="material-card">
+        <div class="material-icon">◀▶</div>
+        <div class="material-name">Logo Horizontal</div>
+        <div class="material-desc">padworks_logo_horizontal.svg — Para banners y headers</div>
+      </div>
+      <div class="material-card">
+        <div class="material-icon">🖼</div>
+        <div class="material-name">Cover Producto</div>
+        <div class="material-desc">padworks_gumroad_cover.png — 1280×720px imagen principal</div>
+      </div>
+      <div class="material-card">
+        <div class="material-icon">🎨</div>
+        <div class="material-name">Colores</div>
+        <div class="material-desc">#0D0F14 negro · #C8A96E dorado · #F8F6F0 crema</div>
+      </div>
+      <div class="material-card">
+        <div class="material-icon">✍️</div>
+        <div class="material-name">Tagline</div>
+        <div class="material-desc">"Built by musicians. For musicians."</div>
+      </div>
+      <div class="material-card">
+        <div class="material-icon">@</div>
+        <div class="material-name">Handle</div>
+        <div class="material-desc">@padworks en todas las plataformas · web: padworks.com</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. CALENDARIO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <span class="section-title">Calendario de Actividades</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="block-label block-redes">BLOQUE A · REDES SOCIALES</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">10:10</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">Revisión de materiales</div>
+              <div class="task-deliver">Brief leído · Archivos descargados</div>
+            </div>
+            <div class="task-desc">Leer este brief completo. Descargar todos los archivos de la carpeta compartida. Resolver dudas antes de comenzar.</div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">10:25</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">Instagram @padworks</div>
+              <div class="task-deliver">Cuenta creada · Perfil configurado</div>
+            </div>
+            <div class="task-desc">Crear cuenta en instagram.com · Usuario: padworks · Bio: "MPC expansion tools. Built by musicians, for musicians. · padworks.com" · Subir logo como foto de perfil · No publicar contenido todavía.</div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">10:40</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">TikTok @padworks</div>
+              <div class="task-deliver">Cuenta creada</div>
+            </div>
+            <div class="task-desc">Crear cuenta en tiktok.com · Usuario: padworks · Misma bio que Instagram · Subir logo · No publicar contenido todavía.</div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">10:55</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">YouTube @padworks</div>
+              <div class="task-deliver">Canal con avatar y banner</div>
+            </div>
+            <div class="task-desc">Crear canal en youtube.com · Nombre: Pad Works · Descripción: "Professional MPC expansion tools. padworks.com" · Subir logo como avatar · Banner con logo horizontal.</div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">11:15</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">Reddit + Facebook</div>
+              <div class="task-deliver">Cuentas creadas · Grupos unidos</div>
+            </div>
+            <div class="task-desc">Reddit: crear u/padworks · Unirse a r/mpcusers, r/beatmakers, r/maschine, r/edmproduction. Facebook: crear página Pad Works · Unirse a grupos MPC activos.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="block-label block-research">BLOQUE B · INVESTIGACIÓN</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">11:45</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">Research — Influencers</div>
+              <div class="task-deliver">Lista 10 creadores con contacto</div>
+            </div>
+            <div class="task-desc">Buscar en YouTube, TikTok e Instagram los 10 creadores más activos sobre MPC, finger drumming y beat making. Anotar: nombre, plataforma, seguidores, link, método de contacto.</div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">12:20</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">Research — Competencia</div>
+              <div class="task-deliver">Lista 5 herramientas con precios</div>
+            </div>
+            <div class="task-desc">Buscar herramientas similares a Pad Works XPN: builders de expansiones MPC, organizadores de samples. Anotar: nombre, precio, plataforma, qué hace.</div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">12:40</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">Research — Comunidades</div>
+              <div class="task-deliver">Lista 10 grupos con miembros</div>
+            </div>
+            <div class="task-desc">Buscar los 10 grupos de Facebook y comunidades online más activas de productores MPC. Anotar: nombre, miembros, si permiten posts de productos.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="block-label block-cierre">BLOQUE C · CIERRE</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="time-col"><span class="time">13:00</span></div>
+        <div class="content-col">
+          <div class="task-card">
+            <div class="task-header">
+              <div class="task-name">Resumen y entrega</div>
+              <div class="task-deliver">Documento completo entregado</div>
+            </div>
+            <div class="task-desc">Completar el documento de entregables. Enviar todos los accesos de cuentas creadas. Documentar problemas encontrados. Entregar antes de las 13:10.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. TONO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <span class="section-title">Tono de Comunicación</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="tone-grid">
+      <div class="tone-card">
+        <div class="tone-label">Usar</div>
+        <ul class="tone-items">
+          <li>Técnico pero cercano</li>
+          <li>Inglés en IG, TikTok y YouTube</li>
+          <li>Español en grupos Facebook latinos</li>
+          <li>"Built by musicians" · "Your kit. 10 minutes."</li>
+          <li>#mpc #mpcbeats #mpcproducer #beatmaker</li>
+        </ul>
+      </div>
+      <div class="tone-card">
+        <div class="tone-label">Evitar</div>
+        <ul class="tone-items">
+          <li>"Revolutionary" · "Game-changing"</li>
+          <li>Superlativos vacíos</li>
+          <li>Mencionar precio o estrategia</li>
+          <li>Publicar contenido sin autorización</li>
+          <li>Compartir documentos con terceros</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. ENTREGABLES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <span class="section-title">Entregables al Finalizar</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="deliverables">
+      <div class="deliver-item">
+        <div class="deliver-check"></div>
+        <div>
+          <div class="deliver-title">Cuentas creadas</div>
+          <div class="deliver-desc">Instagram, TikTok, YouTube, Reddit, Facebook — con usuario y contraseña temporal</div>
+        </div>
+      </div>
+      <div class="deliver-item">
+        <div class="deliver-check"></div>
+        <div>
+          <div class="deliver-title">Lista de influencers</div>
+          <div class="deliver-desc">10 creadores con plataforma, seguidores y método de contacto</div>
+        </div>
+      </div>
+      <div class="deliver-item">
+        <div class="deliver-check"></div>
+        <div>
+          <div class="deliver-title">Lista de competencia</div>
+          <div class="deliver-desc">Máximo 5 herramientas similares con precio y descripción</div>
+        </div>
+      </div>
+      <div class="deliver-item">
+        <div class="deliver-check"></div>
+        <div>
+          <div class="deliver-title">Lista de comunidades</div>
+          <div class="deliver-desc">10 grupos/comunidades activas con cantidad de miembros y reglas de post</div>
+        </div>
+      </div>
+      <div class="deliver-item">
+        <div class="deliver-check"></div>
+        <div>
+          <div class="deliver-title">Reporte de problemas</div>
+          <div class="deliver-desc">Cualquier cuenta que no se pudo crear o inconveniente encontrado</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-brand">PAD WORKS · 2026</div>
+    <div class="footer-conf">Documento confidencial · No distribuir · Uso interno</div>
+  </footer>
+
+</div>
+</body>
+</html>

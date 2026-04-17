@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pad Works XPN — Beta Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black: #0D0F14;
+  --black2: #13161E;
+  --black3: #1C2030;
+  --gold: #C8A96E;
+  --gold2: #8B6914;
+  --gold-dim: rgba(200,169,110,0.12);
+  --gold-border: rgba(200,169,110,0.2);
+  --cream: #F0EDE4;
+  --white: #ffffff;
+  --muted: #5A6175;
+  --green: #22C55E;
+  --orange: #F97316;
+  --blue: #3B82F6;
+  --red: #EF4444;
+  --teal: #14B8A6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* NOISE */
+body::after {
+  content:''; position:fixed; inset:0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:0;
+}
+
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 28px 100px; position:relative; z-index:1; }
+
+/* HERO */
+.hero {
+  padding: 64px 0 52px;
+  border-bottom: 1px solid var(--gold-border);
+  margin-bottom: 56px;
+}
+
+.dot-grid {
+  display:grid; grid-template-columns:repeat(3,9px); gap:5px; margin-bottom:22px;
+}
+.dot-grid span {
+  width:9px; height:9px; border-radius:50%; background:var(--gold); display:block;
+}
+.dot-grid span:nth-child(1){opacity:1} .dot-grid span:nth-child(2){opacity:.65}
+.dot-grid span:nth-child(3){opacity:.25} .dot-grid span:nth-child(4){opacity:.65}
+.dot-grid span:nth-child(5){opacity:1} .dot-grid span:nth-child(6){opacity:.45}
+.dot-grid span:nth-child(7){opacity:.25} .dot-grid span:nth-child(8){opacity:.45}
+.dot-grid span:nth-child(9){opacity:.12}
+
+.kicker {
+  font-family:'Space Mono',monospace; font-size:10px; letter-spacing:4px;
+  color:var(--gold); text-transform:uppercase; margin-bottom:12px;
+}
+
+.hero h1 {
+  font-size: clamp(36px,5vw,58px); font-weight:900; line-height:1.05;
+  letter-spacing:-2px; color:var(--white); margin-bottom:16px;
+}
+.hero h1 em { color:var(--gold); font-style:normal; }
+
+.hero-sub {
+  font-size:17px; color:var(--muted); max-width:520px; margin-bottom:28px;
+}
+
+.beta-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3);
+  border-radius:6px; padding:7px 14px;
+  font-family:'Space Mono',monospace; font-size:10px; color:var(--red);
+  letter-spacing:2px;
+}
+.beta-badge::before { content:'●'; font-size:8px; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* SECTION */
+.section { margin-bottom:56px; }
+
+.sec-header {
+  display:flex; align-items:center; gap:12px; margin-bottom:24px;
+}
+.sec-num {
+  font-family:'Space Mono',monospace; font-size:9px; color:var(--gold);
+  opacity:.5; letter-spacing:2px; width:20px;
+}
+.sec-title {
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:3px;
+  color:var(--gold); text-transform:uppercase;
+}
+.sec-line { flex:1; height:1px; background:var(--gold-border); }
+
+/* STEP CARDS */
+.steps { display:flex; flex-direction:column; gap:4px; }
+
+.step {
+  display:grid; grid-template-columns:44px 1fr; gap:0;
+  background:var(--black2); border:1px solid var(--gold-border);
+  border-radius:10px; overflow:hidden; transition:border-color .2s;
+}
+.step:hover { border-color:rgba(200,169,110,.45); }
+
+.step-num {
+  background:var(--gold-dim); display:flex; align-items:center;
+  justify-content:center; border-right:1px solid var(--gold-border);
+  font-family:'Space Mono',monospace; font-size:13px; font-weight:700;
+  color:var(--gold);
+}
+
+.step-body { padding:16px 20px; }
+.step-title { font-weight:700; color:var(--white); margin-bottom:4px; font-size:15px; }
+.step-desc { font-size:13px; color:var(--muted); line-height:1.5; }
+.step-desc code {
+  background:var(--black3); border:1px solid var(--gold-border);
+  border-radius:4px; padding:2px 7px; font-family:'Space Mono',monospace;
+  font-size:11px; color:var(--gold); white-space:nowrap;
+}
+
+/* TIP BOX */
+.tip {
+  background:rgba(200,169,110,.07); border:1px solid rgba(200,169,110,.25);
+  border-left:3px solid var(--gold); border-radius:8px;
+  padding:14px 18px; margin:16px 0;
+  font-size:13px; color:var(--cream);
+}
+.tip strong { color:var(--gold); }
+
+.warn {
+  background:rgba(249,115,22,.07); border:1px solid rgba(249,115,22,.25);
+  border-left:3px solid var(--orange); border-radius:8px;
+  padding:14px 18px; margin:16px 0; font-size:13px; color:var(--cream);
+}
+.warn strong { color:var(--orange); }
+
+/* FEATURE GRID */
+.feat-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+}
+
+.feat-card {
+  background:var(--black2); border:1px solid var(--gold-border);
+  border-radius:10px; padding:18px 20px; transition:border-color .2s;
+}
+.feat-card:hover { border-color:rgba(200,169,110,.45); }
+
+.feat-icon { font-size:22px; margin-bottom:8px; }
+.feat-name { font-weight:700; color:var(--white); margin-bottom:4px; }
+.feat-desc { font-size:12px; color:var(--muted); line-height:1.45; }
+
+/* SHORTCUT TABLE */
+.shortcuts {
+  display:grid; grid-template-columns:1fr 1fr; gap:4px;
+}
+.sc-item {
+  display:flex; justify-content:space-between; align-items:center;
+  background:var(--black2); border:1px solid var(--gold-border);
+  border-radius:6px; padding:10px 16px;
+}
+.sc-key {
+  font-family:'Space Mono',monospace; font-size:11px; color:var(--gold);
+  background:var(--black3); border:1px solid var(--gold-border);
+  border-radius:4px; padding:3px 8px; white-space:nowrap;
+}
+.sc-desc { font-size:12px; color:var(--muted); }
+
+/* WORKFLOW */
+.workflow {
+  display:flex; gap:0; position:relative;
+}
+.workflow::before {
+  content:''; position:absolute; top:24px; left:24px; right:24px; height:1px;
+  background:linear-gradient(90deg, var(--gold), transparent);
+}
+.wf-step {
+  flex:1; text-align:center; padding:0 8px; position:relative; z-index:1;
+}
+.wf-dot {
+  width:48px; height:48px; border-radius:50%; background:var(--black2);
+  border:2px solid var(--gold); display:flex; align-items:center;
+  justify-content:center; margin:0 auto 10px; font-size:18px;
+}
+.wf-label { font-size:11px; color:var(--muted); line-height:1.3; }
+.wf-title { font-size:13px; font-weight:700; color:var(--white); margin-bottom:2px; }
+
+/* BETA KEY */
+.key-box {
+  background: linear-gradient(135deg, var(--black2), var(--black3));
+  border:1px solid var(--gold); border-radius:12px; padding:28px 32px;
+  text-align:center;
+}
+.key-value {
+  font-family:'Space Mono',monospace; font-size:28px; font-weight:700;
+  color:var(--gold); letter-spacing:6px; margin:12px 0;
+  background:var(--black); border-radius:8px; padding:14px 24px;
+  display:inline-block; border:1px solid var(--gold-border);
+}
+.key-note { font-size:12px; color:var(--muted); margin-top:8px; }
+
+/* FOOTER */
+.footer {
+  margin-top:72px; padding-top:24px; border-top:1px solid var(--gold-border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.footer-brand { font-family:'Space Mono',monospace; font-size:9px; color:var(--gold); opacity:.35; letter-spacing:3px; }
+.footer-note { font-family:'Space Mono',monospace; font-size:9px; color:var(--muted); }
+
+/* NAV */
+.toc {
+  display:flex; gap:6px; flex-wrap:wrap; margin-bottom:48px;
+}
+.toc a {
+  font-family:'Space Mono',monospace; font-size:9px; letter-spacing:2px;
+  color:var(--gold); text-decoration:none; background:var(--gold-dim);
+  border:1px solid var(--gold-border); border-radius:4px; padding:5px 12px;
+  transition:background .2s;
+}
+.toc a:hover { background:rgba(200,169,110,.2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="dot-grid">
+    <span/><span/><span/><span/><span/><span/><span/><span/><span/>
+  </div>
+  <div class="kicker">Pad Works · Beta Program 2026</div>
+  <h1>XPN Builder<br><em>Quick Start Guide</em></h1>
+  <p class="hero-sub">Build professional MPC expansion kits in minutes. This guide gets you running in under 5 minutes.</p>
+  <div class="beta-badge">BETA ACCESS · CONFIDENTIAL</div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <a href="#install">01 Install</a>
+  <a href="#first-launch">02 First Launch</a>
+  <a href="#workflow">03 Workflow</a>
+  <a href="#features">04 Features</a>
+  <a href="#export">05 Export</a>
+  <a href="#shortcuts">06 Shortcuts</a>
+  <a href="#feedback">07 Feedback</a>
+</div>
+
+<!-- 01 INSTALL -->
+<div class="section" id="install">
+  <div class="sec-header">
+    <span class="sec-num">01</span>
+    <span class="sec-title">Installation</span>
+    <div class="sec-line"></div>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Download the .dmg file</div>
+        <div class="step-desc">You received a download link via email. Download <code>PadWorksXPN.dmg</code> to your Downloads folder.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Open the .dmg</div>
+        <div class="step-desc">Double-click the .dmg file. A window opens showing the Pad Works XPN icon and your Applications folder.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Drag to Applications</div>
+        <div class="step-desc">Drag the Pad Works XPN icon into the Applications folder. Wait for the copy to complete.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">First launch — bypass Gatekeeper</div>
+        <div class="step-desc">macOS may block the app on first open. Go to <code>System Settings → Privacy & Security</code> → scroll down → click <code>Open Anyway</code>. This only happens once.</div>
+      </div>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:16px">
+    <strong>macOS requirement:</strong> Ventura 13+ or Sonoma 14+. Intel and Apple Silicon (M1/M2/M3) both supported.
+  </div>
+</div>
+
+<!-- 02 FIRST LAUNCH -->
+<div class="section" id="first-launch">
+  <div class="sec-header">
+    <span class="sec-num">02</span>
+    <span class="sec-title">First Launch</span>
+    <div class="sec-line"></div>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Choose Your MPC</div>
+        <div class="step-desc">On first launch, a setup screen appears. Select your MPC model: <code>MPC Live 1/2</code> · <code>MPC One</code> · <code>MPC X</code> · <code>MPC Live 3</code> · <code>Akai Force</code></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Choose Starting Mode</div>
+        <div class="step-desc">Select your default kit mode. Each mode shows a visual 4×4 pad layout with color-coded categories. <code>BEAT</code> is recommended for first use. Select <code>CUSTOM</code> to build from scratch.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Press START</div>
+        <div class="step-desc">Both device and mode must be selected for START to activate. Your selection is saved — you won't see this screen again unless you click <code>SETUP</code> in the top bar.</div>
+      </div>
+    </div>
+  </div>
+  <div class="tip">
+    <strong>Tip:</strong> You can change your MPC target device anytime from the top bar dropdown without going back to the setup screen.
+  </div>
+</div>
+
+<!-- 03 WORKFLOW -->
+<div class="section" id="workflow">
+  <div class="sec-header">
+    <span class="sec-num">03</span>
+    <span class="sec-title">Basic Workflow</span>
+    <div class="sec-line"></div>
+  </div>
+  <div class="workflow">
+    <div class="wf-step">
+      <div class="wf-dot">📁</div>
+      <div class="wf-title">Load</div>
+      <div class="wf-label">Drag samples or use Load Folder</div>
+    </div>
+    <div class="wf-step">
+      <div class="wf-dot">⚡</div>
+      <div class="wf-title">Assign</div>
+      <div class="wf-label">Auto Assign or drag to pads manually</div>
+    </div>
+    <div class="wf-step">
+      <div class="wf-dot">🎛</div>
+      <div class="wf-title">Edit</div>
+      <div class="wf-label">Tune filters, ADSR, layers per pad</div>
+    </div>
+    <div class="wf-step">
+      <div class="wf-dot">🎹</div>
+      <div class="wf-title">Sequence</div>
+      <div class="wf-label">Build patterns in the sequencer</div>
+    </div>
+    <div class="wf-step">
+      <div class="wf-dot">📦</div>
+      <div class="wf-title">Export</div>
+      <div class="wf-label">Export for MPC 2.x or 3.x firmware</div>
+    </div>
+  </div>
+  <br>
+  <div class="tip">
+    <strong>Fastest way to start:</strong> Drag a folder of samples directly onto the pad grid or the sample pool area. Then press <code>AUTO ASSIGN</code> — Pad Works maps everything automatically based on filename tags.
+  </div>
+</div>
+
+<!-- 04 FEATURES -->
+<div class="section" id="features">
+  <div class="sec-header">
+    <span class="sec-num">04</span>
+    <span class="sec-title">Key Features</span>
+    <div class="sec-line"></div>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-icon">⚡</div>
+      <div class="feat-name">Smart Auto-Assign</div>
+      <div class="feat-desc">Reads filenames and automatically maps kick, snare, hats, etc. to the correct pads. 3 modes: LONG, KIT, FILL.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🎨</div>
+      <div class="feat-name">Template Editor</div>
+      <div class="feat-desc">Customize your pad layout visually. Drag tags onto pads, create custom tags, change category colors with MPC classic presets.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🎛</div>
+      <div class="feat-name">Sampler Edit</div>
+      <div class="feat-desc">Full per-pad control: LEVEL · PAN · PITCH · Filter · ADSR envelope · Layers (up to 4) · Voice mode.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🥁</div>
+      <div class="feat-name">Pattern Sequencer</div>
+      <div class="feat-desc">8 sequences per bank, swing control, per-step velocity, bank switching with quantization.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🏦</div>
+      <div class="feat-name">8 Banks × 16 Pads</div>
+      <div class="feat-desc">128 total pad slots. No-duplicate mode ensures each bank has unique samples by default.</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">📦</div>
+      <div class="feat-name">Dual Firmware Export</div>
+      <div class="feat-desc">Separate export buttons for MPC 2.x and 3.x. Generates .xpm, .wav, .mpcpattern, .mid and preview audio.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 05 EXPORT -->
+<div class="section" id="export">
+  <div class="sec-header">
+    <span class="sec-num">05</span>
+    <span class="sec-title">Exporting to MPC</span>
+    <div class="sec-line"></div>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Name your expansion</div>
+        <div class="step-desc">Enter a name in the <code>EXPANSION NAME</code> field in the top bar. This becomes the kit filename on the MPC.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Check firmware version</div>
+        <div class="step-desc">On your MPC: <code>Menu → About</code> — check if you're on firmware 2.x or 3.x. Use the matching export button.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Click EXPORT FOR MPC 2.X or 3.X</div>
+        <div class="step-desc">A .zip file is generated and downloaded. All banks, samples, patterns and preview are included.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Copy to MPC storage</div>
+        <div class="step-desc">Unzip the file. Copy the entire folder to your MPC's internal storage or SD card under <code>Expansions/</code>. On the MPC: <code>Menu → Expansions → Browse</code>.</div>
+      </div>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:16px">
+    <strong>Important:</strong> Do not rename folders or files after exporting. The MPC reads the exact structure Pad Works generates.
+  </div>
+</div>
+
+<!-- 06 SHORTCUTS -->
+<div class="section" id="shortcuts">
+  <div class="sec-header">
+    <span class="sec-num">06</span>
+    <span class="sec-title">Keyboard Shortcuts</span>
+    <div class="sec-line"></div>
+  </div>
+  <div class="shortcuts">
+    <div class="sc-item"><span class="sc-desc">Save project</span><span class="sc-key">⌘ S</span></div>
+    <div class="sc-item"><span class="sc-desc">Export</span><span class="sc-key">⌘ E</span></div>
+    <div class="sc-item"><span class="sc-desc">Undo</span><span class="sc-key">⌘ Z</span></div>
+    <div class="sc-item"><span class="sc-desc">Redo</span><span class="sc-key">⌘ ⇧ Z</span></div>
+    <div class="sc-item"><span class="sc-desc">Fullscreen</span><span class="sc-key">F</span></div>
+    <div class="sc-item"><span class="sc-desc">Play / Stop sequencer</span><span class="sc-key">Space</span></div>
+    <div class="sc-item"><span class="sc-desc">Zoom in</span><span class="sc-key">+</span></div>
+    <div class="sc-item"><span class="sc-desc">Zoom out</span><span class="sc-key">−</span></div>
+    <div class="sc-item"><span class="sc-desc">Screenshot</span><span class="sc-key">⌘ ⇧ S</span></div>
+    <div class="sc-item"><span class="sc-desc">Help / shortcuts</span><span class="sc-key">?</span></div>
+    <div class="sc-item"><span class="sc-desc">Delete selected</span><span class="sc-key">⌫</span></div>
+    <div class="sc-item"><span class="sc-desc">Copy / Paste / Duplicate</span><span class="sc-key">⌘ C/V/D</span></div>
+  </div>
+</div>
+
+<!-- 07 FEEDBACK -->
+<div class="section" id="feedback">
+  <div class="sec-header">
+    <span class="sec-num">07</span>
+    <span class="sec-title">Beta Feedback</span>
+    <div class="sec-line"></div>
+  </div>
+  <p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Your feedback directly shapes the final product. Please test these specific areas and report what you find.</p>
+  <div class="feat-grid" style="margin-bottom:20px">
+    <div class="feat-card">
+      <div class="feat-icon">✅</div>
+      <div class="feat-name">Test: Export compatibility</div>
+      <div class="feat-desc">Load a kit and export for your MPC firmware. Does it load correctly on hardware? Do pad colors appear?</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">✅</div>
+      <div class="feat-name">Test: Auto-assign accuracy</div>
+      <div class="feat-desc">Load 30+ samples and press Auto Assign. Are samples mapped to the right categories? Any mismatches?</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">✅</div>
+      <div class="feat-name">Test: Template editor</div>
+      <div class="feat-desc">Open TEMPLATE, change colors, create a custom tag. Does it save between sessions?</div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">✅</div>
+      <div class="feat-name">Test: No-duplicate mode</div>
+      <div class="feat-desc">Load 100+ samples across 8 banks. Are there repeated samples within the same bank?</div>
+    </div>
+  </div>
+  <div class="tip">
+    <strong>How to report:</strong> Use the feedback form at the link provided by the team. Include screenshots when possible. Press <code>⌘ ⇧ S</code> inside the app to capture the current state.
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer-brand">PAD WORKS · XPN · BETA 2026</div>
+  <div class="footer-note">Confidential · Do not distribute · Built by musicians</div>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pad Works XPN — Beta Feedback</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black:#0D0F14; --black2:#13161E; --black3:#1C2030;
+  --gold:#C8A96E; --gold2:#8B6914; --gold-dim:rgba(200,169,110,0.1);
+  --gold-border:rgba(200,169,110,0.2); --cream:#F0EDE4;
+  --white:#fff; --muted:#5A6175; --green:#22C55E;
+  --orange:#F97316; --blue:#3B82F6; --red:#EF4444;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--black);color:var(--cream);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.65;}
+.wrap{max-width:720px;margin:0 auto;padding:0 28px 80px;}
+
+.hero{padding:52px 0 40px;border-bottom:1px solid var(--gold-border);margin-bottom:40px;}
+.kicker{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;}
+h1{font-size:38px;font-weight:900;letter-spacing:-1.5px;color:var(--white);margin-bottom:10px;}
+h1 em{color:var(--gold);font-style:normal;}
+.hero-sub{font-size:14px;color:var(--muted);}
+
+.section{margin-bottom:36px;}
+.sec-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:14px;opacity:.7;}
+
+/* FORM */
+label{display:block;font-size:13px;font-weight:600;color:var(--white);margin-bottom:6px;margin-top:16px;}
+label span{color:var(--red);margin-left:2px;}
+
+input[type=text], textarea, select {
+  width:100%; background:var(--black2); border:1px solid var(--gold-border);
+  border-radius:8px; padding:12px 16px; color:var(--cream);
+  font-family:'DM Sans',sans-serif; font-size:14px; outline:none;
+  transition:border-color .2s;
+}
+input[type=text]:focus, textarea:focus, select:focus {
+  border-color:var(--gold);
+}
+textarea{resize:vertical; min-height:90px;}
+select option{background:var(--black2);}
+
+.rating-group{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.rating-btn{
+  padding:8px 16px; background:var(--black2); border:1px solid var(--gold-border);
+  border-radius:6px; color:var(--muted); font-family:'Space Mono',monospace;
+  font-size:12px; cursor:pointer; transition:all .15s;
+}
+.rating-btn:hover{border-color:var(--gold);color:var(--gold);}
+.rating-btn.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold);}
+
+.check-group{display:flex;flex-direction:column;gap:6px;margin-top:6px;}
+.check-item{
+  display:flex;align-items:center;gap:10px;
+  background:var(--black2);border:1px solid var(--gold-border);
+  border-radius:8px;padding:11px 14px;cursor:pointer;transition:border-color .2s;
+}
+.check-item:hover{border-color:rgba(200,169,110,.4);}
+.check-item input[type=checkbox]{
+  width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;
+}
+.check-item label{margin:0;font-weight:400;font-size:13px;color:var(--cream);cursor:pointer;}
+
+.divider{height:1px;background:var(--gold-border);margin:32px 0;}
+
+.submit-btn{
+  width:100%;padding:16px;background:var(--gold);border:none;border-radius:10px;
+  font-family:'Space Mono',monospace;font-size:13px;font-weight:700;
+  color:var(--black);letter-spacing:2px;cursor:pointer;transition:opacity .2s;
+  margin-top:8px;
+}
+.submit-btn:hover{opacity:.85;}
+
+.success{
+  display:none;text-align:center;padding:48px 32px;
+  background:var(--black2);border:1px solid rgba(34,197,94,.3);
+  border-radius:12px;margin-top:24px;
+}
+.success h2{font-size:28px;color:var(--green);margin-bottom:8px;}
+.success p{color:var(--muted);font-size:14px;}
+
+.tip{background:var(--gold-dim);border:1px solid var(--gold-border);border-left:3px solid var(--gold);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--cream);margin-top:16px;}
+.tip strong{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <div class="kicker">Pad Works · Beta Program</div>
+  <h1>XPN <em>Feedback</em></h1>
+  <p class="hero-sub">Your experience helps shape the final release. Be honest — all feedback is valuable.</p>
+</div>
+
+<form id="feedbackForm">
+
+  <!-- TESTER INFO -->
+  <div class="section">
+    <div class="sec-label">Tester Information</div>
+    <label>Your name or alias <span>*</span></label>
+    <input type="text" id="testerName" placeholder="e.g. DJ Ramos" required>
+
+    <label>Beta access key <span>*</span></label>
+    <input type="text" id="accessKey" placeholder="XPN-BETA-****" required>
+
+    <label>MPC device used <span>*</span></label>
+    <select id="device">
+      <option value="">Select your device</option>
+      <option>MPC Live 1</option>
+      <option>MPC Live 2</option>
+      <option>MPC Live 3</option>
+      <option>MPC One</option>
+      <option>MPC X</option>
+      <option>Akai Force</option>
+      <option>No hardware — tested in software only</option>
+    </select>
+
+    <label>macOS version</label>
+    <input type="text" id="macos" placeholder="e.g. Sonoma 14.4">
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- OVERALL -->
+  <div class="section">
+    <div class="sec-label">Overall Experience</div>
+
+    <label>How would you rate Pad Works XPN overall? <span>*</span></label>
+    <div class="rating-group" id="overallRating">
+      <div class="rating-btn" onclick="rate('overall',1,this)">1 — Poor</div>
+      <div class="rating-btn" onclick="rate('overall',2,this)">2 — Fair</div>
+      <div class="rating-btn" onclick="rate('overall',3,this)">3 — Good</div>
+      <div class="rating-btn" onclick="rate('overall',4,this)">4 — Great</div>
+      <div class="rating-btn" onclick="rate('overall',5,this)">5 — Excellent</div>
+    </div>
+
+    <label>How easy was it to build your first kit?</label>
+    <div class="rating-group" id="easeRating">
+      <div class="rating-btn" onclick="rate('ease',1,this)">1 — Very hard</div>
+      <div class="rating-btn" onclick="rate('ease',2,this)">2 — Hard</div>
+      <div class="rating-btn" onclick="rate('ease',3,this)">3 — OK</div>
+      <div class="rating-btn" onclick="rate('ease',4,this)">4 — Easy</div>
+      <div class="rating-btn" onclick="rate('ease',5,this)">5 — Effortless</div>
+    </div>
+
+    <label>Would you pay $29 for this tool?</label>
+    <div class="rating-group" id="priceRating">
+      <div class="rating-btn" onclick="rate('price','yes',this)">Yes, definitely</div>
+      <div class="rating-btn" onclick="rate('price','maybe',this)">Maybe</div>
+      <div class="rating-btn" onclick="rate('price','no',this)">No</div>
+      <div class="rating-btn" onclick="rate('price','more',this)">Worth more</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- FEATURES TESTED -->
+  <div class="section">
+    <div class="sec-label">Features Tested</div>
+    <label>Which features did you test? (check all that apply)</label>
+    <div class="check-group">
+      <div class="check-item"><input type="checkbox" id="f1" name="features" value="welcome_modal"><label for="f1">Welcome modal — Choose MPC + mode</label></div>
+      <div class="check-item"><input type="checkbox" id="f2" name="features" value="auto_assign"><label for="f2">Auto-assign samples</label></div>
+      <div class="check-item"><input type="checkbox" id="f3" name="features" value="template_editor"><label for="f3">Template editor — pad layout + colors</label></div>
+      <div class="check-item"><input type="checkbox" id="f4" name="features" value="sampler_edit"><label for="f4">Sampler edit — ADSR, filter, layers</label></div>
+      <div class="check-item"><input type="checkbox" id="f5" name="features" value="sequencer"><label for="f5">Pattern sequencer</label></div>
+      <div class="check-item"><input type="checkbox" id="f6" name="features" value="export_2x"><label for="f6">Export for MPC 2.x</label></div>
+      <div class="check-item"><input type="checkbox" id="f7" name="features" value="export_3x"><label for="f7">Export for MPC 3.x</label></div>
+      <div class="check-item"><input type="checkbox" id="f8" name="features" value="hardware_test"><label for="f8">Loaded expansion on actual MPC hardware</label></div>
+      <div class="check-item"><input type="checkbox" id="f9" name="features" value="skins"><label for="f9">Skins / visual themes</label></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- HARDWARE -->
+  <div class="section">
+    <div class="sec-label">Hardware Export Results</div>
+
+    <label>Did the exported kit load correctly on your MPC?</label>
+    <div class="rating-group" id="hwRating">
+      <div class="rating-btn" onclick="rate('hw','yes',this)">✅ Loaded perfectly</div>
+      <div class="rating-btn" onclick="rate('hw','partial',this)">⚠️ Loaded with issues</div>
+      <div class="rating-btn" onclick="rate('hw','no',this)">❌ Did not load</div>
+      <div class="rating-btn" onclick="rate('hw','skip',this)">— Did not test on hardware</div>
+    </div>
+
+    <label>If there were issues, describe them:</label>
+    <textarea id="hwIssues" placeholder="e.g. Pad colors didn't show / samples missing / wrong bank structure..."></textarea>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- OPEN FEEDBACK -->
+  <div class="section">
+    <div class="sec-label">Open Feedback</div>
+
+    <label>What worked really well? <span>*</span></label>
+    <textarea id="whatWorked" placeholder="Tell us what impressed you or felt natural..." required></textarea>
+
+    <label>What was confusing or frustrating? <span>*</span></label>
+    <textarea id="whatBroke" placeholder="Bugs, UX friction, anything that blocked your workflow..." required></textarea>
+
+    <label>What feature is missing that you need?</label>
+    <textarea id="missing" placeholder="What would make this your go-to tool for building MPC expansions?"></textarea>
+
+    <label>Any other comments?</label>
+    <textarea id="other" placeholder="Free space — anything goes"></textarea>
+  </div>
+
+  <button type="submit" class="submit-btn">SUBMIT FEEDBACK →</button>
+</form>
+
+<div class="success" id="successMsg">
+  <h2>Thank you 🎛</h2>
+  <p>Your feedback has been recorded. It will directly influence the final release of Pad Works XPN.<br><br>
+  The team will follow up if we have questions.</p>
+</div>
+
+<div class="tip" style="margin-top:24px">
+  <strong>Note:</strong> This form saves your responses locally. Screenshot it before closing or send the filled form back to the team via the channel provided.
+</div>
+
+</div>
+
+<script>
+const ratings = {};
+
+function rate(field, val, el) {
+  ratings[field] = val;
+  const group = el.closest('.rating-group');
+  group.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const name = document.getElementById('testerName').value;
+  const key = document.getElementById('accessKey').value;
+  
+  if (!name || !key) { alert('Please fill in your name and access key.'); return; }
+  if (!ratings.overall) { alert('Please rate your overall experience.'); return; }
+  if (!document.getElementById('whatWorked').value) { alert('Please fill in what worked well.'); return; }
+  if (!document.getElementById('whatBroke').value) { alert('Please fill in what was confusing.'); return; }
+
+  // Build summary
+  const features = [...document.querySelectorAll('input[name=features]:checked')].map(c => c.value);
+  
+  const summary = {
+    tester: name,
+    key: key,
+    device: document.getElementById('device').value,
+    macos: document.getElementById('macos').value,
+    ratings: ratings,
+    features_tested: features,
+    hw_issues: document.getElementById('hwIssues').value,
+    what_worked: document.getElementById('whatWorked').value,
+    what_broke: document.getElementById('whatBroke').value,
+    missing: document.getElementById('missing').value,
+    other: document.getElementById('other').value,
+    submitted_at: new Date().toISOString()
+  };
+
+  // Save locally
+  localStorage.setItem('xpn_beta_feedback_' + name, JSON.stringify(summary, null, 2));
+  
+  // Show success
+  document.getElementById('feedbackForm').style.display = 'none';
+  document.getElementById('successMsg').style.display = 'block';
+  
+  // Also log to console for easy copy
+  console.log('=== PAD WORKS XPN BETA FEEDBACK ===');
+  console.log(JSON.stringify(summary, null, 2));
+  console.log('=== Copy the above and send to the team ===');
+});
+</script>
+</body>
+</html>

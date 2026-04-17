@@ -1,0 +1,3005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Expansion Builder · MPC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0e0e10;--panel:#161618;--panel2:#1c1c1f;--panel3:#222226;
+  --border:#2a2a2e;--border2:#333338;
+  --ink:#e8e6e0;--ink2:#9a9890;--ink3:#5a5856;
+  --accent:#c8a96e;--accent2:#b89458;--accent-dim:rgba(200,169,110,0.12);
+  --red:#c0504a;--green:#5a9a6a;--blue:#4a7ab0;
+  --pad-empty:#1a1a1c;--pad-loaded:#1e1e22;
+  --radius:4px;--radius2:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink);font-size:13px;user-select:none}
+
+/* ── LAYOUT ── */
+.app{display:grid;grid-template-rows:48px 1fr 28px;height:100vh;max-height:100vh}
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;flex-shrink:0}
+.main{display:grid;grid-template-columns:240px 1fr 260px;overflow:hidden}
+.statusbar{background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:16px;font-size:10px;letter-spacing:.1em;color:var(--ink3);flex-shrink:0}
+
+/* ── TOPBAR ── */
+.app-logo{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;letter-spacing:.12em;color:var(--accent);margin-right:4px}
+.app-name{font-size:11px;letter-spacing:.18em;color:var(--ink3);text-transform:uppercase}
+.tb-sep{width:1px;height:24px;background:var(--border);margin:0 4px}
+.tb-field{display:flex;flex-direction:column;gap:2px}
+.tb-label{font-size:9px;letter-spacing:.16em;color:var(--ink3);text-transform:uppercase}
+.tb-input{background:var(--panel3);border:1px solid var(--border);padding:3px 8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);outline:none;border-radius:var(--radius2);width:180px;transition:border-color .15s}
+.tb-input:focus{border-color:var(--accent)}
+.tb-btn{padding:5px 14px;font-family:'IBM Plex Sans',sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;border-radius:var(--radius2);transition:all .15s;border:1px solid;font-weight:500}
+.tb-btn.primary{background:var(--accent);color:#0e0e10;border-color:var(--accent)}
+.tb-btn.primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.tb-btn.ghost{background:transparent;color:var(--ink2);border-color:var(--border2)}
+.tb-btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.tb-spacer{flex:1}
+.format-badge{font-size:9px;letter-spacing:.2em;color:var(--accent);background:var(--accent-dim);padding:3px 10px;border-radius:20px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace}
+
+
+
+
+/* ── PREVIEW TRACK ── */
+.pt-section{margin-top:12px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.pt-header{padding:8px 12px;background:var(--panel3);display:flex;align-items:center;gap:8px;cursor:pointer}
+.pt-header-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;color:var(--ink2);flex:1}
+.pt-toggle-icon{font-size:11px;color:var(--ink3);transition:transform .2s}
+.pt-body{padding:10px 12px;display:none}
+.pt-section.open .pt-body{display:block}
+.pt-section.open .pt-toggle-icon{transform:rotate(90deg)}
+
+.pt-tabs{display:flex;gap:4px;margin-bottom:10px}
+.pt-tab{padding:4px 10px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .14s}
+.pt-tab.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.pt-pane{display:none}.pt-pane.active{display:block}
+
+.pt-upload-zone{border:1px dashed var(--border2);border-radius:var(--radius2);padding:14px;text-align:center;cursor:pointer;transition:all .2s}
+.pt-upload-zone:hover{border-color:var(--accent);background:var(--accent-dim)}
+.pt-upload-zone p{font-size:10px;color:var(--ink3);letter-spacing:.08em;line-height:1.8}
+.pt-upload-zone.has-file{border-color:var(--green);border-style:solid;background:rgba(90,154,106,.06)}
+.pt-file-name{font-size:10px;color:var(--green);font-family:'IBM Plex Mono',monospace;margin-top:4px;word-break:break-all}
+
+.pt-gen-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pt-gen-label{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3);font-family:'IBM Plex Mono',monospace;width:56px;flex-shrink:0}
+.pt-gen-select{flex:1;background:var(--panel3);border:1px solid var(--border);padding:4px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);outline:none;border-radius:var(--radius2);cursor:pointer}
+.pt-gen-select:focus{border-color:var(--accent)}
+.pt-bpm-input{width:64px;background:var(--panel3);border:1px solid var(--border);padding:4px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);outline:none;border-radius:var(--radius2);text-align:center}
+.pt-bpm-input:focus{border-color:var(--accent)}
+
+.pt-pattern-grid{display:grid;grid-template-columns:60px repeat(16,1fr);gap:2px;margin-bottom:10px;font-size:8px;font-family:'IBM Plex Mono',monospace}
+.pt-row-label{color:var(--ink3);padding:2px 4px;display:flex;align-items:center;letter-spacing:.04em}
+.pt-step{height:16px;border-radius:2px;cursor:pointer;border:1px solid var(--border);background:var(--panel3);transition:all .1s}
+.pt-step.on{background:var(--accent);border-color:var(--accent2)}
+.pt-step.beat{border-color:var(--border2)}
+.pt-step.playing{background:var(--green)!important;border-color:var(--green)!important}
+.pt-step-nums{display:grid;grid-template-columns:60px repeat(16,1fr);gap:2px;margin-bottom:4px}
+.pt-step-num{text-align:center;font-size:7px;color:var(--ink3);font-family:'IBM Plex Mono',monospace}
+.pt-step-num.beat-num{color:var(--accent);font-weight:600}
+
+.pt-gen-actions{display:flex;gap:6px;margin-top:8px}
+.pt-btn{flex:1;padding:6px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;border-radius:var(--radius2);cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--ink2);transition:all .15s;text-align:center}
+.pt-btn:hover{border-color:var(--accent);color:var(--accent)}
+.pt-btn.primary{background:var(--accent);color:#0e0e10;border-color:var(--accent)}
+.pt-btn.primary:hover{background:var(--accent2)}
+.pt-btn.danger{color:var(--red)}.pt-btn.danger:hover{border-color:var(--red)}
+.pt-btn.playing-state{background:rgba(90,154,106,.15);border-color:var(--green);color:var(--green)}
+
+.pt-status{font-size:9px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;margin-top:6px;min-height:14px;letter-spacing:.06em}
+.pt-status.ok{color:var(--green)}.pt-status.warn{color:var(--accent)}
+
+.pt-bars-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+
+
+/* ── PATTERN EDITOR MODAL ── */
+.pe-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:900;display:none;flex-direction:column}
+.pe-modal-bg.open{display:flex}
+.pe-modal{background:var(--panel);flex:1;display:flex;flex-direction:column;overflow:hidden}
+.pe-topbar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;height:48px;flex-shrink:0}
+.pe-title{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.16em;color:var(--accent)}
+.pe-body{flex:1;display:grid;grid-template-columns:200px 1fr;overflow:hidden}
+.pe-left{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.pe-right{display:flex;flex-direction:column;padding:16px;overflow:hidden;gap:12px}
+
+/* Left pane: kit list */
+.pe-kit-header{padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.pe-kit-title{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink3);font-family:'IBM Plex Mono',monospace}
+.pe-kit-list{flex:1;overflow-y:auto;padding:4px}
+.pe-kit-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--radius2);cursor:pointer;border:1px solid transparent;margin-bottom:2px;transition:all .12s}
+.pe-kit-row:hover{background:var(--panel2)}
+.pe-kit-row.active{background:var(--accent-dim);border-color:rgba(200,169,110,.25)}
+.pe-kit-num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink3);width:20px;flex-shrink:0}
+.pe-kit-color{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.pe-kit-name{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pe-kit-type{font-size:9px;color:var(--ink3);letter-spacing:.06em}
+.pe-kit-mute{width:18px;height:18px;border-radius:var(--radius2);border:1px solid var(--border2);background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink3);font-size:9px;transition:all .12s;flex-shrink:0}
+.pe-kit-mute.muted{background:rgba(192,80,74,.15);border-color:var(--red);color:var(--red)}
+.pe-kit-mute:hover{border-color:var(--accent)}
+
+/* Sequencer grid */
+.pe-seq-wrap{flex:1;overflow:auto;min-height:0}
+.pe-seq-grid{display:grid;gap:2px;min-width:max-content}
+.pe-seq-header{display:flex;gap:2px;margin-bottom:4px;padding-left:0}
+.pe-beat-num{width:28px;text-align:center;font-size:8px;font-family:'IBM Plex Mono',monospace;color:var(--ink3)}
+.pe-beat-num.on-beat{color:var(--accent);font-weight:600}
+.pe-seq-row{display:flex;align-items:center;gap:2px;margin-bottom:2px}
+.pe-seq-row-label{width:0;overflow:visible;position:relative}
+.pe-cell{width:28px;height:28px;border-radius:2px;cursor:pointer;border:1px solid var(--border);background:var(--panel3);transition:background .08s,border-color .08s;flex-shrink:0;position:relative}
+.pe-cell:hover{border-color:var(--border2)}
+.pe-cell.on{border-color:var(--cell-color,var(--accent))}
+.pe-cell.on::after{content:'';position:absolute;inset:2px;border-radius:1px;background:var(--cell-color,var(--accent));opacity:.85}
+.pe-cell.beat-start{border-left-color:var(--border2)}
+.pe-cell.playing-step::after{background:var(--green)!important;opacity:1}
+.pe-cell.playing-step{border-color:var(--green)!important}
+
+/* Transport */
+.pe-transport{display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+.pe-tport-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--border2);background:var(--panel3);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2);transition:all .15s;flex-shrink:0}
+.pe-tport-btn:hover{border-color:var(--accent);color:var(--accent)}
+.pe-tport-btn.playing{border-color:var(--green);color:var(--green);background:rgba(90,154,106,.12)}
+.pe-tport-btn svg{width:13px;height:13px;fill:currentColor}
+.pe-tport-sep{width:1px;height:24px;background:var(--border);flex-shrink:0}
+.pe-bpm-wrap{display:flex;flex-direction:column;align-items:center;gap:2px}
+.pe-bpm-label{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);font-family:'IBM Plex Mono',monospace}
+.pe-bpm-val{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--ink);cursor:ns-resize;line-height:1}
+.pe-bars-btns{display:flex;gap:4px}
+.pe-bar-btn{padding:3px 8px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
+.pe-bar-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.pe-pattern-btns{display:flex;gap:4px;flex-wrap:wrap}
+.pe-pat-btn{padding:4px 10px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
+.pe-pat-btn:hover{border-color:var(--accent);color:var(--accent)}
+.pe-spacer{flex:1}
+.pe-set-demo-btn{padding:7px 16px;background:var(--accent);color:#0e0e10;border:none;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;border-radius:var(--radius2);transition:opacity .15s;font-weight:600}
+.pe-set-demo-btn:hover{opacity:.85}
+.pe-set-demo-btn.set{background:var(--green);color:#fff}
+.pe-close-btn{padding:7px 16px;background:transparent;color:var(--ink3);border:1px solid var(--border2);font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:var(--radius2);transition:all .15s}
+.pe-close-btn:hover{border-color:var(--ink2);color:var(--ink)}
+.pe-status{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink3);letter-spacing:.06em}
+.pe-status.ok{color:var(--green)}
+
+/* ── PREVIEW BUTTON ── */
+.preview-pad-btn{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--panel3);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--ink3);flex-shrink:0;
+  transition:all .15s;
+}
+.preview-pad-btn:hover{border-color:var(--green);color:var(--green);background:rgba(90,154,106,.12)}
+.preview-pad-btn.playing{border-color:var(--green);color:var(--green);background:rgba(90,154,106,.2);animation:pulse-ring .6s ease infinite}
+@keyframes pulse-ring{0%,100%{box-shadow:0 0 0 0 rgba(90,154,106,.4)}50%{box-shadow:0 0 0 5px rgba(90,154,106,0)}}
+
+/* ── PAD PREVIEW BUTTON on grid ── */
+.pad-preview-btn{
+  position:absolute;bottom:5px;right:5px;
+  width:18px;height:18px;border-radius:50%;
+  background:rgba(0,0,0,.5);border:1px solid var(--border2);
+  display:none;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--ink3);
+  transition:all .12s;z-index:10;
+}
+.pad:hover .pad-preview-btn{display:flex}
+.pad-preview-btn:hover{border-color:var(--green);color:var(--green)}
+.pad-preview-btn svg{width:7px;height:7px;fill:currentColor}
+
+
+/* ── CUSTOM MODE EDITOR ── */
+.custom-editor{display:none;margin-top:8px}
+.custom-editor.active{display:block}
+.custom-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:8px}
+.custom-slot{
+  border-radius:3px;padding:4px 2px;text-align:center;
+  font-size:8px;letter-spacing:.04em;font-family:'IBM Plex Mono',monospace;
+  cursor:grab;border:1px solid var(--border2);background:var(--panel3);
+  transition:all .15s;user-select:none;line-height:1.3;min-height:32px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.custom-slot:active{cursor:grabbing}
+.custom-slot.drag-over{border-color:var(--accent)!important;background:var(--accent-dim)!important}
+.custom-slot.dragging{opacity:.35}
+.custom-slot .cs-num{color:var(--ink3);font-size:7px;margin-bottom:2px}
+.custom-slot .cs-label{color:var(--ink2);font-size:9px}
+.custom-slot .cs-type{font-size:7px;color:var(--ink3);margin-top:1px;letter-spacing:.06em}
+
+.custom-palette{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px;padding:6px;
+  background:var(--panel3);border:1px solid var(--border);border-radius:var(--radius)}
+.palette-chip{
+  padding:2px 7px;border-radius:10px;font-size:9px;letter-spacing:.06em;
+  font-family:'IBM Plex Mono',monospace;cursor:grab;border:1px solid var(--border2);
+  background:var(--panel2);color:var(--ink3);transition:all .12s;user-select:none;
+}
+.palette-chip:hover{color:var(--ink2);border-color:var(--border2)}
+.palette-chip:active{cursor:grabbing;opacity:.6}
+
+.custom-name-input{
+  width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);
+  padding:2px 0;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--ink);
+  outline:none;text-align:center;margin-top:2px;
+}
+.custom-name-input:focus{border-color:var(--accent)}
+.custom-actions{display:flex;gap:4px;margin-top:6px}
+.custom-action-btn{flex:1;padding:5px;font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+  font-family:'IBM Plex Mono',monospace;border:1px solid var(--border2);background:transparent;
+  color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .14s;text-align:center}
+.custom-action-btn:hover{border-color:var(--accent);color:var(--accent)}
+.custom-action-btn.save{background:var(--accent);color:#0e0e10;border-color:var(--accent)}
+.custom-action-btn.save:hover{opacity:.85}
+
+/* ── MODES ── */
+.modes-bar{display:flex;gap:5px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--border)}
+.mode-btn{flex:1;min-width:60px;padding:5px 6px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .15s;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mode-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mode-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+.mode-section{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mode-load-row{display:flex;gap:6px;margin-top:8px}
+.mode-load-btn{flex:1;padding:6px 0;font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;border:1px solid var(--border2);background:transparent;color:var(--ink2);cursor:pointer;border-radius:var(--radius2);transition:all .15s;text-align:center}
+.mode-load-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.mode-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:8px}
+.mp-slot{background:var(--panel3);border:1px solid var(--border);border-radius:2px;padding:3px 2px;text-align:center;font-size:8px;letter-spacing:.04em;font-family:'IBM Plex Mono',monospace;color:var(--ink3);line-height:1.3;transition:all .2s}
+.mp-slot.assigned{border-color:var(--slot-color,var(--border2));color:var(--slot-color,var(--ink3));background:rgba(0,0,0,.2)}
+.mp-slot.matched{background:rgba(90,154,106,.15);border-color:var(--green);color:var(--green)}
+.mp-slot.unmatched{background:rgba(192,80,74,.08);border-color:var(--red);color:var(--red)}
+.mode-log{margin-top:8px;max-height:72px;overflow-y:auto;font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--ink3);line-height:1.6}
+.log-ok{color:var(--green)}.log-warn{color:var(--accent)}.log-err{color:var(--red)}
+
+/* ── LEFT PANEL ── */
+.left-panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-section{border-bottom:1px solid var(--border);padding:12px}
+.panel-title{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px;font-family:'IBM Plex Mono',monospace}
+
+/* artwork upload */
+.artwork-drop{width:100%;aspect-ratio:1;background:var(--panel3);border:1px dashed var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;border-radius:var(--radius)}
+.artwork-drop:hover{border-color:var(--accent);background:var(--panel2)}
+.artwork-drop.has-img{border-style:solid;border-color:var(--border)}
+.artwork-drop img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.artwork-icon{font-size:22px;margin-bottom:6px;opacity:.4}
+.artwork-hint{font-size:10px;letter-spacing:.1em;color:var(--ink3);text-align:center;position:relative;z-index:1}
+.artwork-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;font-size:10px;letter-spacing:.12em;color:var(--ink);z-index:2}
+.artwork-drop.has-img:hover .artwork-overlay{display:flex}
+
+/* groups */
+.group-list{display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto}
+.group-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--radius2);cursor:pointer;transition:background .15s;border:1px solid transparent}
+.group-item:hover{background:var(--panel2)}
+.group-item.active{background:var(--accent-dim);border-color:rgba(200,169,110,.25)}
+.group-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.group-name{font-size:11px;flex:1;font-family:'IBM Plex Mono',monospace}
+.group-count{font-size:10px;color:var(--ink3)}
+.group-add{display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;color:var(--ink3);font-size:11px;transition:color .15s;border-radius:var(--radius2)}
+.group-add:hover{color:var(--accent)}
+
+/* samples list */
+.samples-area{flex:1;overflow-y:auto;padding:8px}
+.sample-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--radius2);cursor:pointer;transition:background .15s;border:1px solid transparent;margin-bottom:2px}
+.sample-item:hover{background:var(--panel2)}
+.sample-item.selected{background:var(--accent-dim);border-color:rgba(200,169,110,.2)}
+.sample-item.playing{background:rgba(90,154,106,.12);border-color:rgba(90,154,106,.3)}
+.sample-waveform{width:32px;height:20px;flex-shrink:0;opacity:.7}
+.sample-info{flex:1;min-width:0}
+.sample-name{font-size:11px;font-family:'IBM Plex Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.sample-meta{font-size:9px;color:var(--ink3);letter-spacing:.06em}
+.sample-play{width:20px;height:20px;border-radius:50%;background:var(--panel3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0}
+.sample-play:hover{border-color:var(--green);color:var(--green)}
+.sample-play svg{width:10px;height:10px;fill:currentColor}
+
+/* drop zone */
+.drop-zone{margin:8px;border:1px dashed var(--border2);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;transition:all .2s;flex-shrink:0}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:var(--accent-dim)}
+.drop-zone p{font-size:10px;letter-spacing:.1em;color:var(--ink3)}
+.drop-zone p strong{color:var(--ink2)}
+
+/* ── CENTER: PAD GRID ── */
+.center-panel{background:var(--bg);display:flex;flex-direction:column;padding:16px;gap:12px;overflow:hidden}
+.bank-row{display:flex;align-items:center;gap:8px}
+.bank-label{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);font-family:'IBM Plex Mono',monospace;width:50px}
+.bank-btn{padding:4px 10px;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;cursor:pointer;border-radius:var(--radius2);border:1px solid var(--border2);background:transparent;color:var(--ink3);transition:all .15s}
+.bank-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.bank-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
+
+.pad-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;flex:1;max-height:calc(100% - 80px)}
+.pad{background:var(--pad-empty);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;padding:8px;transition:all .12s;position:relative;overflow:hidden;min-height:0}
+.pad:hover{border-color:var(--border2)}
+.pad.loaded{background:var(--pad-loaded);border-color:#2e2e34}
+.pad.active-group{border-color:var(--group-color,var(--accent));box-shadow:inset 0 0 0 1px var(--group-color,var(--accent)),0 0 8px rgba(0,0,0,.5)}
+.pad.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pad.triggered{background:rgba(200,169,110,.18)!important;border-color:var(--accent)!important}
+.pad-num{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.08em}
+.pad-name{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;letter-spacing:.04em}
+.pad-group-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%}
+.pad-vel-bar{position:absolute;bottom:0;left:0;height:2px;background:var(--group-color,var(--accent));width:var(--vel,80%);opacity:.6;transition:width .2s}
+.pad-empty-hint{font-size:9px;color:var(--ink3);letter-spacing:.06em;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.5}
+
+/* pad drop target */
+.pad.drag-target{border-color:var(--accent)!important;background:var(--accent-dim)!important}
+
+/* ── RIGHT PANEL ── */
+.right-panel{background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.right-panel .panel-section{flex-shrink:0}
+.no-sel{flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink3);letter-spacing:.1em;text-align:center;padding:20px;line-height:1.7}
+
+/* pad detail */
+.pad-detail{display:flex;flex-direction:column;flex:1;overflow-y:auto}
+.detail-header{padding:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.detail-pad-num{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;color:var(--accent);line-height:1;width:36px}
+.detail-pad-name-input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--border);padding:3px 0;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink);outline:none;transition:border-color .15s}
+.detail-pad-name-input:focus{border-color:var(--accent)}
+
+/* knobs row */
+.knobs-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px}
+.knob-block{display:flex;flex-direction:column;align-items:center;gap:6px}
+.knob-label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);font-family:'IBM Plex Mono',monospace}
+.knob{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--border2);position:relative;cursor:ns-resize;background:var(--panel3)}
+.knob-track{stroke:var(--border2);stroke-width:3;fill:none}
+.knob-fill{stroke:var(--accent);stroke-width:3;fill:none;stroke-linecap:round;transition:stroke-dashoffset .1s}
+.knob-val{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink2);text-align:center}
+
+/* waveform display */
+.waveform-display{margin:0 12px;height:60px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:relative}
+.waveform-canvas{width:100%;height:100%}
+.waveform-playhead{position:absolute;top:0;bottom:0;width:1px;background:var(--accent);opacity:.8;pointer-events:none;left:0;transition:left .05s}
+
+/* effects chain */
+.fx-chain{padding:12px;flex:1;overflow-y:auto}
+.fx-item{background:var(--panel3);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;overflow:hidden}
+.fx-header{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer}
+.fx-toggle{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.fx-toggle.on{border-color:var(--green);background:rgba(90,154,106,.2)}
+.fx-toggle.on::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--green)}
+.fx-name{font-size:11px;font-family:'IBM Plex Mono',monospace;flex:1;color:var(--ink2)}
+.fx-type{font-size:9px;letter-spacing:.12em;color:var(--ink3)}
+.fx-body{padding:0 10px 10px;display:none}
+.fx-item.open .fx-body{display:block}
+.fx-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.fx-param{}
+.fx-param-label{font-size:9px;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase;margin-bottom:4px}
+.fx-slider{width:100%;-webkit-appearance:none;height:1px;background:var(--border2);outline:none;cursor:pointer;display:block}
+.fx-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer}
+.fx-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer;border:none}
+.fx-val{font-size:10px;color:var(--ink2);font-family:'IBM Plex Mono',monospace;text-align:right;margin-top:2px}
+
+/* add fx */
+.add-fx-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px;border:1px dashed var(--border2);border-radius:var(--radius);cursor:pointer;color:var(--ink3);font-size:10px;letter-spacing:.1em;transition:all .15s;width:100%}
+.add-fx-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── MODALS ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-bg.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:var(--radius);width:360px;overflow:hidden}
+.modal-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;color:var(--ink)}
+.modal-close{background:none;border:none;color:var(--ink3);cursor:pointer;font-size:16px;line-height:1;padding:2px 4px;transition:color .15s}
+.modal-close:hover{color:var(--ink)}
+.modal-body{padding:16px}
+.modal-row{margin-bottom:12px}
+.modal-label{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);margin-bottom:5px;font-family:'IBM Plex Mono',monospace}
+.modal-input{width:100%;background:var(--panel3);border:1px solid var(--border);padding:7px 10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink);outline:none;border-radius:var(--radius2);transition:border-color .15s}
+.modal-input:focus{border-color:var(--accent)}
+.color-row{display:flex;gap:8px;flex-wrap:wrap}
+.color-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .15s}
+.color-swatch.selected{border-color:white}
+.modal-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* FX picker */
+.fx-picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fx-option{padding:10px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--radius2);cursor:pointer;transition:all .15s}
+.fx-option:hover{border-color:var(--accent);background:var(--accent-dim)}
+.fx-option-name{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink);margin-bottom:2px}
+.fx-option-desc{font-size:10px;color:var(--ink3)}
+
+/* export modal */
+.export-summary{background:var(--panel3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px}
+.export-row{display:flex;justify-content:space-between;margin-bottom:5px;font-size:11px}
+.export-row:last-child{margin-bottom:0}
+.export-key{color:var(--ink3);font-family:'IBM Plex Mono',monospace}
+.export-val{color:var(--ink);font-family:'IBM Plex Mono',monospace}
+.format-select{display:flex;flex-direction:column;gap:6px}
+.format-option{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius2);cursor:pointer;transition:all .15s}
+.format-option.selected{border-color:var(--accent);background:var(--accent-dim)}
+.format-option input{accent-color:var(--accent)}
+.format-info{}
+.format-name{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink)}
+.format-desc{font-size:10px;color:var(--ink3)}
+
+/* progress */
+.export-progress{display:none;margin-top:12px}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:var(--accent);width:0;transition:width .3s;border-radius:2px}
+.progress-label{font-size:10px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;margin-bottom:4px}
+
+/* scrollbars */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* context menu */
+.ctx-menu{position:fixed;background:var(--panel2);border:1px solid var(--border2);border-radius:var(--radius);padding:4px 0;z-index:500;min-width:160px;display:none}
+.ctx-item{padding:6px 14px;font-size:11px;cursor:pointer;color:var(--ink2);transition:all .15s;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em}
+.ctx-item:hover{background:var(--accent-dim);color:var(--ink)}
+.ctx-item.danger:hover{background:rgba(192,80,74,.1);color:var(--red)}
+.ctx-sep{height:1px;background:var(--border);margin:3px 0}
+
+/* status dot */
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+/* tooltip */
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--border2);color:var(--ink2);font-size:10px;padding:3px 8px;border-radius:var(--radius2);white-space:nowrap;z-index:100;pointer-events:none;font-family:'IBM Plex Sans',sans-serif}
+
+/* ── EMBEDDED TEST SUITE ── */
+#xpn-test-panel{position:fixed;inset:0;background:#0e0e10;z-index:99999;display:none;flex-direction:column;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#e8e6e0}
+#xpn-test-panel.open{display:flex}
+.xtp-hdr{background:#161618;border-bottom:1px solid #2a2a2e;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.xtp-logo{font-size:13px;font-weight:600;letter-spacing:.1em;color:#c8a96e}
+.xtp-acts{display:flex;gap:8px;align-items:center}
+.xtp-run{padding:6px 16px;background:#c8a96e;color:#0e0e10;border:none;font-family:inherit;font-size:10px;letter-spacing:.12em;cursor:pointer;border-radius:3px;font-weight:600}
+.xtp-run:hover{opacity:.85}.xtp-run:disabled{opacity:.4;cursor:not-allowed}
+.xtp-cls{padding:6px 14px;background:transparent;color:#5a5856;border:1px solid #2a2a2e;font-family:inherit;font-size:10px;letter-spacing:.1em;cursor:pointer;border-radius:3px}
+.xtp-cls:hover{color:#e8e6e0;border-color:#5a5856}
+.xtp-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px 18px;border-bottom:1px solid #2a2a2e;flex-shrink:0}
+.xtp-stat{background:#1c1c1f;border-radius:3px;padding:8px;text-align:center}
+.xtp-val{font-size:22px;font-weight:600;line-height:1}
+.xtp-lbl{font-size:8px;letter-spacing:.18em;color:#5a5856;text-transform:uppercase;margin-top:2px}
+.xtp-val.p{color:#5a9a6a}.xtp-val.f{color:#c0504a}.xtp-val.s{color:#b89020}.xtp-val.t{color:#c8a96e}
+.xtp-prog{height:2px;background:#2a2a2e;flex-shrink:0}
+.xtp-pfill{height:100%;background:#c8a96e;width:0;transition:width .15s}
+.xtp-body{display:grid;grid-template-columns:1fr 1fr;flex:1;overflow:hidden}
+.xtp-res{overflow-y:auto;padding:10px 16px;border-right:1px solid #2a2a2e}
+.xtp-logp{overflow-y:auto;padding:10px 16px;font-size:10px;color:#5a5856}
+.xtp-stitle{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#5a5856;padding:8px 0 4px;border-bottom:1px solid #2a2a2e;margin-bottom:3px}
+.xtp-row{display:flex;align-items:flex-start;gap:8px;padding:4px 2px;border-radius:2px}
+.xtp-row:hover{background:#161618}
+.xtp-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:8px;border:1px solid #2a2a2e;background:#1c1c1f}
+.xtp-dot.pass{background:rgba(90,154,106,.2);border-color:#5a9a6a;color:#5a9a6a}
+.xtp-dot.fail{background:rgba(192,80,74,.15);border-color:#c0504a;color:#c0504a}
+.xtp-dot.run{border-color:#c8a96e;color:#c8a96e;animation:xtp-pulse .5s ease infinite}
+@keyframes xtp-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.xtp-tn{flex:1;color:#9a9890;font-size:11px}.xtp-td{font-size:9px;color:#5a5856;margin-top:1px}
+.xtp-td.err{color:#c0504a}.xtp-td.ok{color:#5a9a6a}
+.xtp-ll{margin-bottom:1px;line-height:1.5}
+.xtp-ll.ok{color:#5a9a6a}.xtp-ll.err{color:#c0504a}.xtp-ll.info{color:#4a7ab0}
+.xtp-banner{display:none;margin:8px 18px;padding:10px 14px;border-radius:3px;text-align:center;font-size:11px;letter-spacing:.06em;flex-shrink:0}
+.xtp-banner.ok{background:rgba(90,154,106,.1);border:1px solid #5a9a6a;color:#5a9a6a}
+.xtp-banner.fail{background:rgba(192,80,74,.08);border:1px solid #c0504a;color:#c0504a}
+.xtp-timer{font-size:10px;color:#5a5856}
+#xpn-test-trigger{position:fixed;bottom:36px;right:12px;z-index:9998;padding:5px 10px;background:#1c1c1f;border:1px solid #2a2a2e;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;color:#5a5856;cursor:pointer;border-radius:3px;transition:all .15s}
+#xpn-test-trigger:hover{border-color:#c8a96e;color:#c8a96e}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <span class="app-logo">XPN</span>
+  <span class="app-name">Builder</span>
+  <div class="tb-sep"></div>
+  <div class="tb-field">
+    <span class="tb-label">Expansion Name</span>
+    <input class="tb-input" id="expName" placeholder="My Expansion" value="My Expansion"/>
+  </div>
+  <div class="tb-field">
+    <span class="tb-label">Author</span>
+    <input class="tb-input" id="expAuthor" placeholder="Author name" style="width:130px"/>
+  </div>
+  <div class="tb-sep"></div>
+  <span class="format-badge">MPC Live · XPN</span>
+  <div class="tb-spacer"></div>
+  <button class="tb-btn ghost" onclick="clearAll()" data-tip="Clear all pads">New</button>
+  <button class="tb-btn ghost" onclick="openExport()" data-tip="Export expansion package">Export .XPN</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn primary" onclick="openExport()">⬇ Build Expansion</button>
+</div>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- LEFT: Info + Samples -->
+  <div class="left-panel">
+
+
+    <!-- MODES BAR -->
+    <div class="modes-bar" id="modesBar"></div>
+
+    <!-- MODE LOAD SECTION -->
+    <div class="mode-section">
+      <div class="panel-title" style="margin-bottom:6px">Auto-Assign <span id="activeModeName" style="color:var(--accent)">—</span></div>
+      <div class="mode-load-row">
+        <div class="mode-load-btn" onclick="document.getElementById('folderInput').click()">📁 Load Folder (16)</div>
+        <div class="mode-load-btn" onclick="document.getElementById('audioFile').click()">🎵 Load Files</div>
+      </div>
+      <input type="file" id="folderInput" webkitdirectory multiple accept="audio/*" style="display:none" onchange="loadFolderWithMode(this.files)"/>
+      <div class="mode-preview" id="modePreview"></div>
+      <!-- CUSTOM MODE EDITOR -->
+      <div class="custom-editor" id="customEditor">
+        <div class="panel-title" style="margin-bottom:5px;font-size:8px">
+          Drag slot types onto each pad
+        </div>
+        <!-- Palette of slot types -->
+        <div class="custom-palette" id="customPalette"></div>
+        <!-- 4×4 grid -->
+        <div class="custom-grid" id="customGrid"></div>
+        <div class="custom-actions">
+          <div class="custom-action-btn" onclick="customReset()">Reset</div>
+          <div class="custom-action-btn" onclick="customCopyFrom('drummer')">From DRUM</div>
+          <div class="custom-action-btn save" onclick="customApply()">Apply</div>
+        </div>
+      </div>
+      <div class="mode-log" id="modeLog"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Artwork</div>
+      <div class="artwork-drop" id="artworkDrop" onclick="document.getElementById('artFile').click()">
+        <div class="artwork-overlay" id="artOverlay">Change Image</div>
+        <div class="artwork-icon" id="artIcon">🖼</div>
+        <div class="artwork-hint" id="artHint">Click or drop<br>PNG / JPG</div>
+      </div>
+      <input type="file" id="artFile" accept="image/*" style="display:none" onchange="loadArtwork(this)"/>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Groups</div>
+      <div class="group-list" id="groupList"></div>
+      <div class="group-add" onclick="openGroupModal()">
+        <span style="font-size:14px;line-height:1">+</span>
+        <span style="font-size:11px">Add group</span>
+      </div>
+    </div>
+
+    <div class="panel-title" style="padding:8px 12px 4px;flex-shrink:0">Samples <span style="color:var(--ink3);font-size:10px" id="sampleCount">(0)</span></div>
+    <div class="drop-zone" id="dropZone">
+      <p><strong>Drop audio files here</strong></p>
+      <p>MP3 · WAV · AIFF · FLAC</p>
+    </div>
+    <input type="file" id="audioFile" multiple accept="audio/*" style="display:none" onchange="loadAudioFiles(this.files)"/>
+    <div class="samples-area" id="sampleList"></div>
+  </div>
+
+  <!-- CENTER: Pad Grid -->
+  <div class="center-panel">
+    <div class="bank-row">
+      <span class="bank-label">Bank</span>
+      <button class="bank-btn active" onclick="switchBank(0,this)">A</button>
+      <button class="bank-btn" onclick="switchBank(1,this)">B</button>
+      <button class="bank-btn" onclick="switchBank(2,this)">C</button>
+      <button class="bank-btn" onclick="switchBank(3,this)">D</button>
+      <div class="tb-sep" style="height:18px;margin:0 2px"></div>
+      <button class="bank-btn" onclick="switchBank(4,this)">E</button>
+      <button class="bank-btn" onclick="switchBank(5,this)">F</button>
+      <button class="bank-btn" onclick="switchBank(6,this)">G</button>
+      <button class="bank-btn" onclick="switchBank(7,this)">H</button>
+      <span style="flex:1"></span>
+      <span style="font-size:10px;color:var(--ink3);font-family:'IBM Plex Mono',monospace" id="bankInfo">16 pads · Bank A</span>
+      <button class="bank-btn" onclick="openPatternEditor()" style="margin-left:8px;border-color:var(--accent);color:var(--accent)" title="Open Pattern Editor">&#8862; Pattern</button>
+    </div>
+    <div class="pad-grid" id="padGrid"></div>
+  </div>
+
+  <!-- RIGHT: Pad Detail + FX -->
+  <div class="right-panel">
+    <div class="no-sel" id="noSel">
+      Select a pad<br>to edit parameters
+    </div>
+    <div class="pad-detail" id="padDetail" style="display:none">
+      <div class="detail-header">
+        <div class="detail-pad-num" id="detPadNum">01</div>
+        <input class="detail-pad-name-input" id="detPadName" placeholder="Pad name" oninput="updatePadName(this.value)"/>
+        <button class="preview-pad-btn" id="previewPadBtn" onclick="previewSelectedPad()" title="Preview pad (Space)">
+          <svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor"><polygon points="2,1 11,6 2,11"/></svg>
+        </button>
+        <button class="preview-pad-btn" onclick="stopPreview()" title="Stop preview (Esc)" style="margin-left:4px">
+          <svg viewBox="0 0 10 10" width="8" height="8" fill="currentColor"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>
+        </button>
+      </div>
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border)">
+        <div class="waveform-display">
+          <canvas class="waveform-canvas" id="waveCanvas"></canvas>
+          <div class="waveform-playhead" id="wavePlayhead"></div>
+        </div>
+      </div>
+      <div class="knobs-row">
+        <div class="knob-block">
+          <span class="knob-label">Volume</span>
+          <div class="knob" id="knobVol" data-param="volume" data-val="100" onmousedown="startKnob(event,this)">
+            <svg viewBox="0 0 44 44" width="44" height="44"><circle class="knob-track" cx="22" cy="22" r="16" stroke-dasharray="88" stroke-dashoffset="22" transform="rotate(135 22 22)"/><circle class="knob-fill" id="kfVol" cx="22" cy="22" r="16" stroke-dasharray="88" stroke-dashoffset="22" transform="rotate(135 22 22)"/></svg>
+          </div>
+          <span class="knob-val" id="kvVol">100</span>
+        </div>
+        <div class="knob-block">
+          <span class="knob-label">Pitch</span>
+          <div class="knob" id="knobPitch" data-param="pitch" data-val="50" onmousedown="startKnob(event,this)">
+            <svg viewBox="0 0 44 44" width="44" height="44"><circle class="knob-track" cx="22" cy="22" r="16" stroke-dasharray="88" stroke-dashoffset="22" transform="rotate(135 22 22)"/><circle class="knob-fill" id="kfPitch" cx="22" cy="22" r="16" stroke-dasharray="88" stroke-dashoffset="22" transform="rotate(135 22 22)"/></svg>
+          </div>
+          <span class="knob-val" id="kvPitch">0 st</span>
+        </div>
+        <div class="knob-block">
+          <span class="knob-label">Pan</span>
+          <div class="knob" id="knobPan" data-param="pan" data-val="50" onmousedown="startKnob(event,this)">
+            <svg viewBox="0 0 44 44" width="44" height="44"><circle class="knob-track" cx="22" cy="22" r="16" stroke-dasharray="88" stroke-dashoffset="22" transform="rotate(135 22 22)"/><circle class="knob-fill" id="kfPan" cx="22" cy="22" r="16" stroke-dasharray="88" stroke-dashoffset="22" transform="rotate(135 22 22)"/></svg>
+          </div>
+          <span class="knob-val" id="kvPan">C</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding:10px 12px 6px">
+        <div class="panel-title" style="margin-bottom:8px">Effects Chain</div>
+        <div class="fx-chain" id="fxChain"></div>
+        <button class="add-fx-btn" onclick="openFxPicker()">+ Add Effect</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── STATUS BAR ── -->
+<div class="statusbar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusMsg">Ready — drop samples onto pads or into the sample list</span>
+  <span style="flex:1"></span>
+  <span id="statPads">0/128 pads used</span>
+  <div class="tb-sep" style="height:14px"></div>
+  <span id="statSize">0 MB</span>
+  <div class="tb-sep" style="height:14px"></div>
+  <span>Web Audio API · JSZip 3.10 · 100% local</span>
+</div>
+
+</div><!-- /app -->
+
+<!-- ── CONTEXT MENU ── -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" onclick="ctxAssignSample()">Assign sample</div>
+  <div class="ctx-item" onclick="ctxPreviewPad()">Preview</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxCopyPad()">Copy pad</div>
+  <div class="ctx-item" onclick="ctxPastePad()">Paste pad</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxClearPad()">Clear pad</div>
+</div>
+
+<!-- ── GROUP MODAL ── -->
+<div class="modal-bg" id="groupModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Group</span>
+      <button class="modal-close" onclick="closeModal('groupModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <div class="modal-label">Group Name</div>
+        <input class="modal-input" id="groupNameInput" placeholder="e.g. Drums, Bass, FX..."/>
+      </div>
+      <div class="modal-row">
+        <div class="modal-label">Color</div>
+        <div class="color-row" id="colorRow"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn ghost" onclick="closeModal('groupModal')">Cancel</button>
+      <button class="tb-btn primary" onclick="addGroup()">Add Group</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FX PICKER MODAL ── -->
+<div class="modal-bg" id="fxModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add Effect</span>
+      <button class="modal-close" onclick="closeModal('fxModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="fx-picker-grid" id="fxPickerGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── EXPORT MODAL ── -->
+<div class="modal-bg" id="exportModal">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <span class="modal-title">Export Expansion</span>
+      <button class="modal-close" onclick="closeModal('exportModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="export-summary" id="exportSummary"></div>
+      <div class="modal-row">
+        <div class="modal-label">Export Format</div>
+        <div class="format-select" id="formatSelect">
+          <div class="format-option selected" data-fmt="mpc" onclick="selectFormat(this)">
+            <input type="radio" name="fmt" checked/>
+            <div class="format-info">
+              <div class="format-name">MPC Live / X / One</div>
+              <div class="format-desc">Standard .xpn expansion package</div>
+            </div>
+          </div>
+          <div class="format-option" data-fmt="maschine" onclick="selectFormat(this)" style="opacity:.5;cursor:not-allowed" title="Coming soon">
+            <input type="radio" name="fmt" disabled/>
+            <div class="format-info">
+              <div class="format-name">Maschine NI <span style="font-size:9px;color:var(--ink3)">(soon)</span></div>
+              <div class="format-desc">.mxgrp + NKS metadata</div>
+            </div>
+          </div>
+          <div class="format-option" data-fmt="ableton" onclick="selectFormat(this)" style="opacity:.5;cursor:not-allowed" title="Coming soon">
+            <input type="radio" name="fmt" disabled/>
+            <div class="format-info">
+              <div class="format-name">Ableton Rack <span style="font-size:9px;color:var(--ink3)">(soon)</span></div>
+              <div class="format-desc">.adg instrument rack</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- PREVIEW TRACK -->
+      <div class="pt-section" id="ptSection">
+        <div class="pt-header" onclick="togglePtSection()">
+          <span class="pt-header-title">Demo Preview Track</span>
+          <span style="font-size:9px;color:var(--accent);letter-spacing:.1em;font-family:'IBM Plex Mono',monospace" id="ptStatusBadge">optional</span>
+          <span class="pt-toggle-icon">›</span>
+        </div>
+        <div class="pt-body">
+          <div class="pt-tabs">
+            <div class="pt-tab active" onclick="ptSwitchTab('upload',this)">Upload Track</div>
+            <div class="pt-tab" onclick="ptSwitchTab('generate',this)">Auto-Generate</div>
+          </div>
+
+          <!-- UPLOAD PANE -->
+          <div class="pt-pane active" id="pt-pane-upload">
+            <div class="pt-upload-zone" id="ptDropZone" onclick="document.getElementById('ptAudioFile').click()">
+              <p><strong>Drop MP3 / WAV here</strong><br>or click to browse</p>
+              <div class="pt-file-name" id="ptFileName"></div>
+            </div>
+            <input type="file" id="ptAudioFile" accept="audio/*" style="display:none" onchange="loadDemoTrack(this)"/>
+            <div class="pt-status" id="ptUploadStatus"></div>
+          </div>
+
+          <!-- GENERATE PANE -->
+          <div class="pt-pane" id="pt-pane-generate">
+            <div class="pt-gen-row">
+              <span class="pt-gen-label">Pattern</span>
+              <select class="pt-gen-select" id="ptPatternSel">
+                <option value="classic44">Classic 4/4</option>
+                <option value="trap">Trap / Hi-hat rolls</option>
+                <option value="hiphop">Hip-Hop Boom Bap</option>
+                <option value="electronic">Electronic / Techno</option>
+                <option value="mode">Follow active mode</option>
+              </select>
+            </div>
+            <div class="pt-gen-row">
+              <span class="pt-gen-label">BPM</span>
+              <input class="pt-bpm-input" type="number" id="ptBpm" min="60" max="200" value="90"/>
+              <span class="pt-gen-label" style="width:auto;margin-left:8px">Bars</span>
+              <select class="pt-gen-select" id="ptBars" style="width:64px">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+            <div style="margin-bottom:6px">
+              <div class="pt-step-nums" id="ptStepNums"></div>
+              <div class="pt-pattern-grid" id="ptPatternGrid"></div>
+            </div>
+            <div class="pt-gen-actions">
+              <div class="pt-btn" onclick="ptAutoFill()">Auto Fill</div>
+              <div class="pt-btn" onclick="ptClearPattern()">Clear</div>
+              <div class="pt-btn primary" id="ptPlayBtn" onclick="ptTogglePlay()">▶ Play</div>
+              <div class="pt-btn" onclick="ptRenderDone()" id="ptRenderBtn">✓ Use This</div>
+            </div>
+            <div class="pt-status" id="ptGenStatus"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="export-progress" id="exportProgress">
+        <div class="progress-label" id="progressLabel">Building...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn ghost" onclick="closeModal('exportModal')">Cancel</button>
+      <button class="tb-btn primary" id="exportBtn" onclick="buildExpansion()">Export Now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+const NUM_BANKS = 8, PADS_PER_BANK = 16;
+let currentBank = 0;
+let selectedPad = null;
+let copiedPad = null;
+let ctxTargetPad = null;
+let dragSample = null;
+let selectedFormat = 'mpc';
+
+// Banks: 4 × 16 pads
+const banks = Array.from({length: NUM_BANKS}, () =>
+  Array.from({length: PADS_PER_BANK}, (_, i) => ({
+    name: '', sampleId: null, volume: 100, pitch: 0, pan: 0,
+    group: null, effects: []
+  }))
+);
+
+let samples = []; // {id, name, file, buffer, duration, size}
+let groups = [];
+let artworkDataUrl = null;
+let totalSizeBytes = 0;
+let audioCtx = null;
+let activeSource = null;
+
+const GROUP_COLORS = ['#c8a96e','#5a9a6a','#4a7ab0','#a06ab0','#c04a4a','#4a9ab0','#b0804a','#8a9a4a'];
+let colorPalette = GROUP_COLORS;
+
+
+// ════════════════════════════════════════════
+// MODES — DEFINITIONS
+// ════════════════════════════════════════════
+// Each mode maps pad index (0-based) to a slot type
+// Pad display is 4×4: row4=pads13-16, row3=pads9-12, row2=pads5-8, row1=pads1-4
+// Index = padNumber - 1
+
+const SLOT_COLORS = {
+  kick:'#c8a96e', snare:'#c06060', clap:'#c06060', rim:'#b05050',
+  hihat_close:'#4a9ab0', hihat_open:'#5ab0c8', hihat_pedal:'#3a7a90',
+  tom:'#5a9a6a', cymbal:'#a06ab0', percussion:'#8a7a4a',
+  bass:'#4a7ab0', sampler:'#7a6ab0', fx:'#906040', empty:'#333'
+};
+
+const SLOT_LABELS = {
+  kick:'KICK', snare:'SNARE', clap:'CLAP', rim:'RIM',
+  hihat_close:'HH CL', hihat_open:'HH OP', hihat_pedal:'HH PD',
+  tom:'TOM', cymbal:'CYMBAL', percussion:'PERC',
+  bass:'BASS', sampler:'SMPLR', fx:'FX', empty:'—'
+};
+
+const MODES = {
+  // ── UNIVERSAL LAYOUT RULE (same grid logic for all modes):
+  //   01-04  Primary hits  → kick · snare · rim · clap (or variant)
+  //   05-08  Hat row       → kick-alt · hh_close · hh_open · hh_close/pedal
+  //   09-12  Specialty     → toms / samplers / bass / percs (per mode)
+  //   13-16  Color/Texture → cymbal / perc / fx / extra (per mode)
+
+  drummer: {
+    name:'Drummer',
+    short:'DRUM',
+    description:'Classic drum kit — kick, snare, rim, clap, hats, toms, percs',
+    slots: {
+      0:'kick',        1:'snare',       2:'rim',         3:'clap',
+      4:'kick',        5:'hihat_close', 6:'hihat_open',  7:'hihat_close',
+      8:'tom',         9:'tom',         10:'tom',        11:'tom',
+      12:'percussion', 13:'percussion', 14:'cymbal',     15:'cymbal'
+    }
+  },
+  beatmaker: {
+    name:'Beat Maker',
+    short:'BEAT',
+    description:'Beat production — same kit grid, samplers & bass on top',
+    slots: {
+      // 01-04  Primary hits (same as DRUM)
+      0:'kick',        1:'snare',       2:'rim',         3:'clap',
+      // 05-08  Hat row (same as DRUM)
+      4:'kick',        5:'hihat_close', 6:'hihat_open',  7:'hihat_close',
+      // 09-12  Specialty: samplers + bass
+      8:'sampler',     9:'sampler',     10:'sampler',    11:'bass',
+      // 13-16  Color: percs + extras
+      12:'percussion', 13:'percussion', 14:'sampler',    15:'fx'
+    }
+  },
+  live: {
+    name:'Live Perf.',
+    short:'LIVE',
+    description:'Live performance — same kit grid, melodic phrases on top',
+    slots: {
+      // 01-04  Primary hits (same as DRUM)
+      0:'kick',        1:'snare',       2:'rim',         3:'clap',
+      // 05-08  Hat row (same as DRUM)
+      4:'kick',        5:'hihat_close', 6:'hihat_open',  7:'hihat_pedal',
+      // 09-12  Specialty: bass + FX
+      8:'bass',        9:'bass',        10:'fx',         11:'fx',
+      // 13-16  Color: melodic phrases
+      12:'sampler',    13:'sampler',    14:'sampler',    15:'sampler'
+    }
+  },
+  hiphop: {
+    name:'Hip Hop',
+    short:'H·HOP',
+    description:'Boom bap — same kit grid, 808 & chops on top',
+    slots: {
+      // 01-04  Primary hits (same as DRUM)
+      0:'kick',        1:'snare',       2:'rim',         3:'clap',
+      // 05-08  Hat row (same as DRUM)
+      4:'kick',        5:'hihat_close', 6:'hihat_open',  7:'hihat_close',
+      // 09-12  Specialty: 808 bass + percs
+      8:'bass',        9:'bass',        10:'percussion', 11:'percussion',
+      // 13-16  Color: sample chops
+      12:'sampler',    13:'sampler',    14:'sampler',    15:'sampler'
+    }
+  },
+  electronic: {
+    name:'Electronic',
+    short:'ELEC',
+    description:'Techno / electronic — same kit grid, bass & FX on top',
+    slots: {
+      // 01-04  Primary hits (kick · snare · clap · cymbal)
+      0:'kick',        1:'snare',       2:'clap',        3:'cymbal',
+      // 05-08  Hat row (same as DRUM)
+      4:'kick',        5:'hihat_close', 6:'hihat_open',  7:'hihat_close',
+      // 09-12  Specialty: rim + percs
+      8:'rim',         9:'percussion',  10:'percussion', 11:'fx',
+      // 13-16  Color: bass + synth FX
+      12:'bass',       13:'sampler',    14:'fx',         15:'fx'
+    }
+  }
+};
+
+let activeMode = 'drummer';
+
+// Custom mode is virtual — its slots come from customSlots (user-defined)
+// We add it to the MODES map dynamically so the rest of the system works
+Object.defineProperty(MODES, 'custom', {
+  get() {
+    return {
+      name: 'Custom',
+      short: 'CSTM',
+      description: 'Your own layout — drag and customize',
+      slots: customSlots
+    };
+  },
+  configurable: true,
+  enumerable: true
+});
+
+// ════════════════════════════════════════════
+// SYNONYM TABLE — smart filename matching
+// ════════════════════════════════════════════
+const SYNONYMS = {
+  kick:        ['kick','bombo','kk','bd','bassdrum','bass_drum','bass drum','kd','bd_','_bd','_kick','kick_','k_','_k_','_kk'],
+  snare:       ['snare','snr','sn_','_sn','sd','caja','redoblante','rimshot','snr_','snare_','snare1','snare2','main_sn','sn1','sn2'],
+  clap:        ['clap','cp','clp','handclap','hand_clap','palma'],
+  rim:         ['rim','rimshot','rim_shot','rs','sidestick','side_stick','rim_'],
+  hihat_close: ['hhc','hh_c','hat_c','ch','closed','close_hat','hat_close','hh_close','hihat_close','hat_closed','hh_cl','chi','hihatclose'],
+  hihat_open:  ['hho','hh_o','oh','open_hat','hat_open','hh_open','hihat_open','hat_open','hh_op','ohi','hihatopen'],
+  hihat_pedal: ['hhp','ph','pedal_hat','hat_pedal','hh_pedal','foot_hat'],
+  tom:         ['tom','t1','t2','t3','t4','tom1','tom2','tom3','tom4','toms','floor_tom','hi_tom','mid_tom','low_tom','lowtom','hightom','floortom'],
+  percussion:  ['perc','percussion','shaker','tamb','conga','bongo','cabasa','woodblock','agogo','cowbell','tambourine','claves','triangle'],
+  cymbal:      ['cymbal','crash','ride','splash','platillo','cym','china','crash1','crash2','ride1'],
+  bass:        ['bass','bajo','808','sub','bassline','base','bass_','_bass','low_end'],
+  sampler:     ['sample','chop','loop','phrase','melody','lead','chord','stab_','melodic','vox','vocal','keys'],
+  fx:          ['fx','riser','sweep','noise','effect','stab','trans','transition','impact','hit_','reverse'],
+  // Generic fallbacks — broad matching
+  hihat_close_broad: ['hat','hats','hh','hihat','hi_hat','hi-hat'],
+};
+
+// Order matters: more specific first
+const MATCH_ORDER = [
+  'kick','snare','clap','rim',
+  'hihat_close','hihat_open','hihat_pedal',
+  'tom','cymbal','percussion',
+  'bass','sampler','fx',
+  'hihat_close_broad'   // broad hat fallback last
+];
+
+// Normalize: map broad hat to hihat_close
+const BROAD_MAP = { hihat_close_broad: 'hihat_close' };
+
+function detectSlotType(filename) {
+  const base = filename.toLowerCase()
+    .replace(/\.[^.]+$/, '')   // remove extension
+    .replace(/[_\-\s]+/g, '_')// normalize separators
+    .replace(/[^a-z0-9_]/g, '');// strip symbols
+
+  for (const key of MATCH_ORDER) {
+    const terms = SYNONYMS[key];
+    for (const term of terms) {
+      const t = term.replace(/[_\-\s]+/g, '_').replace(/[^a-z0-9_]/g, '');
+      if (base === t || base.startsWith(t+'_') || base.endsWith('_'+t) ||
+          base.includes('_'+t+'_') || base.includes(t)) {
+        return BROAD_MAP[key] || key;
+      }
+    }
+  }
+  return null;
+}
+
+// ════════════════════════════════════════════
+// RENDER MODES
+// ════════════════════════════════════════════
+function renderModes() {
+  const bar = document.getElementById('modesBar');
+  bar.innerHTML = '';
+  Object.entries(MODES).forEach(([key, m]) => {
+    const btn = document.createElement('button');
+    btn.className = 'mode-btn' + (activeMode === key ? ' active' : '');
+    btn.textContent = m.short;
+    btn.title = m.description;
+    btn.onclick = () => {
+      activeMode = key;
+      renderModes();
+      if (key === 'custom') {
+        toggleCustomEditor(true);
+      } else {
+        toggleCustomEditor(false);
+        renderModePreview();
+      }
+      setStatus('Mode: ' + m.name);
+      document.getElementById('activeModeName').textContent = m.name;
+    };
+    bar.appendChild(btn);
+  });
+  document.getElementById('activeModeName').textContent = MODES[activeMode].name;
+  renderModePreview();
+}
+
+function renderModePreview(matchMap) {
+  const mode = MODES[activeMode];
+  const preview = document.getElementById('modePreview');
+  preview.innerHTML = '';
+  // MPC layout: show rows 4→1 (pads 13-16, 9-12, 5-8, 1-4) top to bottom
+  const rowOrder = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
+  rowOrder.forEach(idx => {
+    const slotType = mode.slots[idx] || 'empty';
+    const color = SLOT_COLORS[slotType] || '#333';
+    const label = SLOT_LABELS[slotType] || '—';
+    const padNum = String(idx+1).padStart(2,'0');
+    const el = document.createElement('div');
+    el.className = 'mp-slot';
+    let extraClass = '';
+    if (matchMap) {
+      if (matchMap.matched && matchMap.matched.includes(idx)) extraClass = ' matched';
+      else if (matchMap.unmatched && matchMap.unmatched.includes(idx)) extraClass = ' unmatched';
+      else if (slotType !== 'empty') extraClass = ' assigned';
+    } else if (slotType !== 'empty') {
+      extraClass = ' assigned';
+    }
+    el.className = 'mp-slot' + extraClass;
+    el.style.setProperty('--slot-color', color);
+    el.innerHTML = '<div style="color:var(--ink3);font-size:7px">' + padNum + '</div><div>' + label + '</div>';
+    preview.appendChild(el);
+  });
+}
+
+// ════════════════════════════════════════════
+// LOAD FOLDER → AUTO-ASSIGN
+// ════════════════════════════════════════════
+async function loadFolderWithMode(fileList) {
+  if (!fileList || fileList.length === 0) return;
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  const log = document.getElementById('modeLog');
+  log.innerHTML = '';
+  const addLog = (msg, cls) => { log.innerHTML += `<div class="${cls}">${msg}</div>`; log.scrollTop = 9999; };
+
+  const mode = MODES[activeMode];
+  addLog(`Mode: ${mode.name} — scanning ${fileList.length} files...`, 'log-warn');
+
+  // Filter audio files
+  const audioFiles = Array.from(fileList).filter(f =>
+    f.type.startsWith('audio/') || /\.(mp3|wav|aiff|aif|flac|ogg)$/i.test(f.name)
+  );
+
+  if (audioFiles.length === 0) { addLog('No audio files found in folder.', 'log-err'); return; }
+
+  // Detect type of each file
+  const detected = audioFiles.map(f => ({
+    file: f,
+    detected: detectSlotType(f.name),
+    name: f.name
+  }));
+
+  // Build slot→file assignments
+  // Group detected files by type
+  const byType = {};
+  detected.forEach(d => {
+    const t = d.detected || 'sampler';
+    if (!byType[t]) byType[t] = [];
+    byType[t].push(d);
+  });
+
+  // Find which pad indices need which type in this mode
+  const slotNeeds = {};
+  Object.entries(mode.slots).forEach(([padIdx, slotType]) => {
+    if (!slotNeeds[slotType]) slotNeeds[slotType] = [];
+    slotNeeds[slotType].push(parseInt(padIdx));
+  });
+
+  const matchedIdxs = [];
+  const unmatchedIdxs = [];
+  const assignments = {}; // padIdx → sample
+
+  // Assign matched files first
+  Object.entries(slotNeeds).forEach(([slotType, padIdxList]) => {
+    const available = byType[slotType] || [];
+    padIdxList.forEach((padIdx, i) => {
+      if (available[i]) {
+        assignments[padIdx] = available[i];
+        matchedIdxs.push(padIdx);
+      } else {
+        unmatchedIdxs.push(padIdx);
+      }
+    });
+  });
+
+  // Undetected files → fill unmatched slots sequentially
+  const undetected = detected.filter(d => !d.detected);
+  let ui = 0;
+  unmatchedIdxs.forEach(padIdx => {
+    if (undetected[ui]) {
+      assignments[padIdx] = undetected[ui];
+      ui++;
+    }
+  });
+
+  // Load all needed audio files into samples list, then assign to pads
+  const bank = banks[currentBank];
+  let loaded = 0;
+  for (const [padIdx, item] of Object.entries(assignments)) {
+    const f = item.file;
+    // Check if already in samples
+    let existing = samples.find(s => s.name === f.name);
+    if (!existing) {
+      const arrBuf = await f.arrayBuffer();
+      let buffer = null;
+      try { buffer = await audioCtx.decodeAudioData(arrBuf.slice(0)); } catch(e) {}
+      const id = Date.now() + Math.random();
+      existing = { id, name: f.name, file: f, buffer, duration: buffer ? buffer.duration : 0, size: f.size };
+      samples.push(existing);
+      totalSizeBytes += f.size;
+    }
+    bank[parseInt(padIdx)].sampleId = existing.id;
+    bank[parseInt(padIdx)].name = '';
+    loaded++;
+  }
+
+  // Log results
+  addLog(`✓ ${Object.keys(assignments).length} samples assigned to pads`, 'log-ok');
+  const unassigned = detected.filter(d => !Object.values(assignments).find(a => a.file === d.file));
+  if (unassigned.length) addLog(`⚠ ${unassigned.length} files not matched (added to sample list)`, 'log-warn');
+
+  // Load unassigned into sample pool
+  for (const item of unassigned) {
+    if (!samples.find(s => s.name === item.file.name)) {
+      const arrBuf = await item.file.arrayBuffer();
+      let buffer = null;
+      try { buffer = await audioCtx.decodeAudioData(arrBuf.slice(0)); } catch(e) {}
+      const id = Date.now() + Math.random();
+      samples.push({ id, name: item.file.name, file: item.file, buffer, duration: buffer ? buffer.duration : 0, size: item.file.size });
+      totalSizeBytes += item.file.size;
+    }
+  }
+
+  detected.forEach(d => {
+    const typeLabel = d.detected ? `→ ${(SLOT_LABELS[d.detected]||d.detected)}` : '→ pool';
+    const cls = d.detected ? 'log-ok' : 'log-warn';
+    addLog(`${d.name.substring(0,24).padEnd(24)} ${typeLabel}`, cls);
+  });
+
+  renderPadGrid();
+  renderSampleList();
+  renderModePreview({ matched: matchedIdxs, unmatched: unmatchedIdxs });
+  updateStatus();
+  setStatus(`Mode ${mode.name}: ${loaded} pads assigned on Bank ${'ABCD'[currentBank]}`);
+}
+
+
+
+// ════════════════════════════════════════════
+// CUSTOM MODE
+// ════════════════════════════════════════════
+
+// Custom mode state — persists during session
+let customSlots = {
+  0:'kick',  1:'snare',      2:'rim',         3:'clap',
+  4:'kick',  5:'hihat_close',6:'hihat_open',  7:'hihat_close',
+  8:'tom',   9:'tom',        10:'tom',        11:'tom',
+  12:'percussion',13:'percussion',14:'cymbal',15:'cymbal'
+};
+let customNames = {}; // padIdx → custom display name (optional)
+let customDragType = null;  // type being dragged from palette
+let customDragIdx  = null;  // pad index being dragged (swap)
+
+const ALL_SLOT_TYPES = [
+  'kick','snare','clap','rim',
+  'hihat_close','hihat_open','hihat_pedal',
+  'tom','cymbal','percussion',
+  'bass','sampler','fx','empty'
+];
+
+function initCustomMode() {
+  renderCustomPalette();
+  renderCustomGrid();
+}
+
+function renderCustomPalette() {
+  const pal = document.getElementById('customPalette');
+  pal.innerHTML = '';
+  ALL_SLOT_TYPES.forEach(type => {
+    const chip = document.createElement('div');
+    chip.className = 'palette-chip';
+    chip.textContent = SLOT_LABELS[type] || type.toUpperCase();
+    chip.style.borderColor = SLOT_COLORS[type] || '#333';
+    chip.style.color = SLOT_COLORS[type] || 'var(--ink3)';
+    chip.draggable = true;
+    chip.ondragstart = (e) => {
+      customDragType = type;
+      customDragIdx  = null;
+      e.dataTransfer.effectAllowed = 'copy';
+    };
+    pal.appendChild(chip);
+  });
+}
+
+function renderCustomGrid() {
+  const grid = document.getElementById('customGrid');
+  grid.innerHTML = '';
+  // MPC order: top row first on screen = pads 13-16
+  const MPC_ORDER = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
+  MPC_ORDER.forEach(idx => {
+    const type  = customSlots[idx] || 'empty';
+    const color = SLOT_COLORS[type] || '#444';
+    const label = SLOT_LABELS[type] || '—';
+    const name  = customNames[idx] || '';
+
+    const cell = document.createElement('div');
+    cell.className = 'custom-slot';
+    cell.style.borderColor = color;
+    cell.style.setProperty('--slot-color', color);
+    cell.dataset.idx = idx;
+    cell.draggable = true;
+
+    cell.innerHTML = `
+      <div class="cs-num">${String(idx+1).padStart(2,'0')}</div>
+      <input class="custom-name-input" value="${name}"
+        placeholder="${label}"
+        onchange="customNames[${idx}]=this.value"
+        onclick="event.stopPropagation()"
+        ondragstart="event.stopPropagation()"
+      />
+      <div class="cs-type">${label}</div>
+    `;
+
+    // Drag FROM this cell (swap)
+    cell.ondragstart = (e) => {
+      if (e.target.tagName === 'INPUT') { e.stopPropagation(); return; }
+      customDragIdx  = idx;
+      customDragType = null;
+      cell.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    };
+    cell.ondragend = () => cell.classList.remove('dragging');
+
+    // Drop ON this cell
+    cell.ondragover = (e) => { e.preventDefault(); cell.classList.add('drag-over'); };
+    cell.ondragleave = () => cell.classList.remove('drag-over');
+    cell.ondrop = (e) => {
+      e.preventDefault();
+      cell.classList.remove('drag-over');
+      if (customDragType !== null) {
+        // Palette chip dropped → assign type
+        customSlots[idx] = customDragType;
+        customDragType = null;
+      } else if (customDragIdx !== null && customDragIdx !== idx) {
+        // Cell swapped → swap types and names
+        const tmpType = customSlots[idx];
+        const tmpName = customNames[idx] || '';
+        customSlots[idx]      = customSlots[customDragIdx];
+        customNames[idx]      = customNames[customDragIdx] || '';
+        customSlots[customDragIdx] = tmpType;
+        customNames[customDragIdx] = tmpName;
+        customDragIdx = null;
+      }
+      renderCustomGrid();
+    };
+
+    grid.appendChild(cell);
+  });
+}
+
+function customReset() {
+  customSlots = {
+    0:'kick',  1:'snare',      2:'rim',         3:'clap',
+    4:'kick',  5:'hihat_close',6:'hihat_open',  7:'hihat_close',
+    8:'tom',   9:'tom',        10:'tom',        11:'tom',
+    12:'percussion',13:'percussion',14:'cymbal',15:'cymbal'
+  };
+  customNames = {};
+  renderCustomGrid();
+}
+
+function customCopyFrom(modeKey) {
+  const src = MODES[modeKey];
+  if (!src) return;
+  customSlots = {...src.slots};
+  customNames = {};
+  renderCustomGrid();
+  setStatus('Custom: copied from ' + src.name);
+}
+
+function customApply() {
+  // Apply custom names to pad display names in current bank
+  const bankPads = banks[currentBank];
+  for (const [idx, name] of Object.entries(customNames)) {
+    if (name && name.trim()) {
+      bankPads[parseInt(idx)].name = name.trim();
+    }
+  }
+  // Trigger a re-render of the main pad grid and mode preview
+  renderPadGrid();
+  renderModePreview();
+  setStatus('Custom applied to Bank ' + 'ABCDEFGH'[currentBank]);
+}
+
+function toggleCustomEditor(show) {
+  const ed = document.getElementById('customEditor');
+  const preview = document.getElementById('modePreview');
+  if (show) {
+    ed.classList.add('active');
+    preview.style.display = 'none';
+    initCustomMode();
+  } else {
+    ed.classList.remove('active');
+    preview.style.display = '';
+  }
+}
+
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+function init() {
+  renderModes();
+  renderPadGrid();
+  renderGroupList();
+  setupDrop();
+  setupColorPicker();
+  buildFxPicker();
+  updateStatus();
+
+  // Default groups
+  groups = [
+    {id:1, name:'Drums', color:'#c8a96e'},
+    {id:2, name:'Bass', color:'#5a9a6a'},
+    {id:3, name:'Synth', color:'#4a7ab0'},
+  ];
+  renderGroupList();
+}
+
+// ════════════════════════════════════════════
+// PAD GRID
+// ════════════════════════════════════════════
+function renderPadGrid() {
+  const grid = document.getElementById('padGrid');
+  grid.innerHTML = '';
+  const pads = banks[currentBank];
+  const MPC_ORDER = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
+  MPC_ORDER.forEach(i => {
+    const pad = pads[i];
+    const padNum = String(i + 1).padStart(2, '0');
+    const group = groups.find(g => g.id === pad.group);
+    const el = document.createElement('div');
+    el.className = 'pad' + (pad.sampleId !== null ? ' loaded' : '') + (selectedPad === i ? ' selected' : '');
+    if (group) { el.style.setProperty('--group-color', group.color); el.classList.add('active-group'); }
+    el.dataset.idx = i;
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <span class="pad-num">${padNum}</span>
+        ${group ? `<div class="pad-group-dot" style="background:${group.color}"></div>` : ''}
+      </div>
+      ${pad.sampleId !== null
+        ? `<span class="pad-name">${pad.name || getSampleName(pad.sampleId)}</span>`
+        : `<span class="pad-empty-hint">empty</span>`}
+      ${pad.sampleId !== null ? `<div class="pad-vel-bar" style="--vel:${pad.volume}%"></div>` : ''}
+      ${pad.sampleId !== null ? `<div class="pad-preview-btn" onclick="event.stopPropagation();previewPad(${i})"><svg viewBox="0 0 10 10"><polygon points="1,1 9,5 1,9"/></svg></div>` : ''}
+    `;
+    el.onclick = (e) => { e.stopPropagation(); selectPad(i); };
+    el.ondblclick = () => triggerPad(i);
+    el.oncontextmenu = (e) => { e.preventDefault(); showCtxMenu(e, i); };
+    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag-target'); };
+    el.ondragleave = () => el.classList.remove('drag-target');
+    el.ondrop = (e) => { e.preventDefault(); el.classList.remove('drag-target'); dropSampleOnPad(i); };
+    grid.appendChild(el);
+  });
+  document.getElementById('bankInfo').textContent = `16 pads · Bank ${'ABCDEFGH'[currentBank]}  (${banks.flat().filter(p=>p.sampleId!==null).length}/128 total)`;
+}
+
+function selectPad(idx) {
+  selectedPad = idx;
+  renderPadGrid();
+  showPadDetail(idx);
+}
+
+function switchBank(idx, btn) {
+  currentBank = idx;
+  selectedPad = null;
+  document.querySelectorAll('.bank-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPadGrid();
+  hidePadDetail();
+}
+
+function triggerPad(idx) {
+  const pad = banks[currentBank][idx];
+  if (pad.sampleId === null) return;
+  const sample = samples.find(s => s.id === pad.sampleId);
+  if (!sample || !sample.buffer) return;
+  playBuffer(sample.buffer, pad.volume / 100, (pad.pitch / 100) * 2 - 1, pad.pan / 100);
+  const el = document.querySelectorAll('.pad')[idx];
+  el.classList.add('triggered');
+  setTimeout(() => el.classList.remove('triggered'), 120);
+}
+
+function getSampleName(id) {
+  const s = samples.find(s => s.id === id);
+  return s ? s.name.replace(/\.[^.]+$/, '') : '—';
+}
+
+// ── PREVIEW (pad grid button + detail button + Space key) ──
+let previewTimeout = null;
+
+function previewPad(idx) {
+  const pad = banks[currentBank][idx];
+  if (pad.sampleId === null) return;
+  const sample = samples.find(s => s.id === pad.sampleId);
+  if (!sample || !sample.buffer) { setStatus('No audio buffer — try reloading the sample'); return; }
+
+  // Visual flash on grid pad
+  const padEls = document.querySelectorAll('.pad');
+  const gridIdxOf = Array.from(document.querySelectorAll('.pad')).findIndex(el => parseInt(el.dataset.idx) === idx);
+  if (gridIdxOf !== -1) {
+    padEls[gridIdxOf].classList.add('triggered');
+    setTimeout(() => padEls[gridIdxOf].classList.remove('triggered'), 200);
+  }
+
+  // Visual on detail preview button
+  const btn = document.getElementById('previewPadBtn');
+  if (btn && selectedPad === idx) {
+    btn.classList.add('playing');
+    clearTimeout(previewTimeout);
+    previewTimeout = setTimeout(() => btn.classList.remove('playing'), Math.min((sample.duration || 1) * 1000, 3000));
+  }
+
+  playBuffer(sample.buffer, pad.volume / 100, (pad.pitch / 100) * 2 - 1, pad.pan / 100);
+  setStatus('Preview: ' + sample.name.replace(/\.[^.]+$/, ''));
+}
+
+function previewSelectedPad() {
+  if (selectedPad !== null) previewPad(selectedPad);
+}
+
+function stopPreview() {
+  if (activeSource) { try { activeSource.stop(); } catch(e){} activeSource = null; }
+  const btn = document.getElementById('previewPadBtn');
+  if (btn) btn.classList.remove('playing');
+}
+
+// ════════════════════════════════════════════
+// PAD DETAIL
+// ════════════════════════════════════════════
+function showPadDetail(idx) {
+  const pad = banks[currentBank][idx];
+  document.getElementById('noSel').style.display = 'none';
+  document.getElementById('padDetail').style.display = 'flex';
+  document.getElementById('detPadNum').textContent = String(idx + 1).padStart(2, '0');
+  document.getElementById('detPadName').value = pad.name;
+  setKnob('Vol', pad.volume, v => v + '', 0, 100);
+  setKnob('Pitch', (pad.pitch + 12) / 24 * 100, v => {
+    const st = Math.round((v / 100) * 24 - 12);
+    return (st > 0 ? '+' : '') + st + ' st';
+  }, -12, 12);
+  setKnob('Pan', ((pad.pan + 100) / 2), v => {
+    if (Math.abs(v) < 3) return 'C';
+    return (v < 0 ? 'L' : 'R') + Math.abs(Math.round(v));
+  }, -100, 100);
+  drawWaveform(pad.sampleId);
+  renderFxChain(idx);
+}
+
+function hidePadDetail() {
+  document.getElementById('noSel').style.display = 'flex';
+  document.getElementById('padDetail').style.display = 'none';
+}
+
+function updatePadName(v) {
+  if (selectedPad === null) return;
+  banks[currentBank][selectedPad].name = v;
+  renderPadGrid();
+}
+
+// ════════════════════════════════════════════
+// KNOBS
+// ════════════════════════════════════════════
+let knobState = null;
+
+function startKnob(e, el) {
+  e.preventDefault();
+  const param = el.dataset.param;
+  const startVal = parseFloat(el.dataset.val);
+  const startY = e.clientY;
+  knobState = { el, param, startVal, startY };
+  document.onmousemove = moveKnob;
+  document.onmouseup = stopKnob;
+}
+
+function moveKnob(e) {
+  if (!knobState) return;
+  const {el, param, startVal, startY} = knobState;
+  const delta = (startY - e.clientY) * 0.8;
+  let newVal = Math.max(0, Math.min(100, startVal + delta));
+  el.dataset.val = newVal;
+  if (selectedPad === null) return;
+  const pad = banks[currentBank][selectedPad];
+  if (param === 'volume') { pad.volume = Math.round(newVal); setKnob('Vol', newVal, v => Math.round(v) + '', 0, 100); }
+  else if (param === 'pitch') { const st = Math.round((newVal / 100) * 24 - 12); pad.pitch = st; setKnob('Pitch', newVal, v => { const s = Math.round((v/100)*24-12); return (s>0?'+':'')+s+' st'; }, -12, 12); }
+  else if (param === 'pan') { const p = Math.round((newVal / 100) * 200 - 100); pad.pan = p; setKnob('Pan', newVal, v => { const vv = Math.round((v/100)*200-100); if(Math.abs(vv)<3) return 'C'; return (vv<0?'L':'R')+Math.abs(vv); }, -100, 100); }
+  renderPadGrid();
+}
+
+function stopKnob() { knobState = null; document.onmousemove = null; document.onmouseup = null; }
+
+function setKnob(id, pct, fmtFn, min, max) {
+  const arc = 66; // 75% of 88
+  const offset = 88 - (pct / 100) * arc;
+  const fill = document.getElementById('kf' + id);
+  if (fill) fill.setAttribute('stroke-dashoffset', offset + 22);
+  const val = document.getElementById('kv' + id);
+  if (val) val.textContent = fmtFn(pct);
+}
+
+// ════════════════════════════════════════════
+// WAVEFORM
+// ════════════════════════════════════════════
+function drawWaveform(sampleId) {
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 200;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio || 60;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (sampleId === null) {
+    ctx.fillStyle = '#2a2a2e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#5a5856';
+    ctx.font = '10px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('no sample', canvas.width/2, canvas.height/2 + 4);
+    return;
+  }
+  const sample = samples.find(s => s.id === sampleId);
+  if (!sample || !sample.buffer) return;
+  const data = sample.buffer.getChannelData(0);
+  const step = Math.floor(data.length / canvas.width);
+  ctx.fillStyle = '#1c1c1f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#c8a96e';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const mid = canvas.height / 2;
+  for (let x = 0; x < canvas.width; x++) {
+    const s = data[x * step] || 0;
+    ctx.moveTo(x, mid - s * mid * 0.85);
+    ctx.lineTo(x, mid + s * mid * 0.85);
+  }
+  ctx.stroke();
+}
+
+// ════════════════════════════════════════════
+// EFFECTS CHAIN
+// ════════════════════════════════════════════
+const FX_TYPES = {
+  lowpass:  {name:'Low-Pass Filter', params: [{id:'freq',label:'Cutoff',def:80,fmt:v=>Math.round(20+v*19980)+'Hz'},{id:'res',label:'Resonance',def:10,fmt:v=>Math.round(v*20).toFixed(1)}]},
+  highpass: {name:'High-Pass Filter', params: [{id:'freq',label:'Cutoff',def:20,fmt:v=>Math.round(20+v*4980)+'Hz'},{id:'res',label:'Resonance',def:10,fmt:v=>Math.round(v*20).toFixed(1)}]},
+  reverb:   {name:'Reverb', params: [{id:'size',label:'Size',def:40,fmt:v=>Math.round(v)+'%'},{id:'mix',label:'Mix',def:30,fmt:v=>Math.round(v)+'%'}]},
+  delay:    {name:'Delay', params: [{id:'time',label:'Time',def:25,fmt:v=>(v*800).toFixed(0)+'ms'},{id:'feedback',label:'Feedback',def:30,fmt:v=>Math.round(v)+'%'}]},
+  bitcrush: {name:'Bit Crusher', params: [{id:'bits',label:'Bits',def:70,fmt:v=>Math.round(4+v*12/100)+'bit'},{id:'mix',label:'Mix',def:50,fmt:v=>Math.round(v)+'%'}]},
+  pitch:    {name:'Pitch Shift', params: [{id:'semi',label:'Semitones',def:50,fmt:v=>{ const s=Math.round((v/100)*24-12); return (s>0?'+':'')+s+'st';}},{id:'mix',label:'Mix',def:100,fmt:v=>Math.round(v)+'%'}]},
+};
+
+function renderFxChain(idx) {
+  const pad = banks[currentBank][idx];
+  const chain = document.getElementById('fxChain');
+  chain.innerHTML = '';
+  pad.effects.forEach((fx, fi) => {
+    const def = FX_TYPES[fx.type];
+    if (!def) return;
+    const item = document.createElement('div');
+    item.className = 'fx-item' + (fx.open ? ' open' : '');
+    const paramsHtml = def.params.map((p, pi) => `
+      <div class="fx-param">
+        <div class="fx-param-label">${p.label}</div>
+        <input class="fx-slider" type="range" min="0" max="100" value="${fx.params[pi]}"
+          oninput="updateFxParam(${fi},${pi},this.value,this)" />
+        <div class="fx-val" id="fxv_${fi}_${pi}">${def.params[pi].fmt(fx.params[pi])}</div>
+      </div>`).join('');
+    item.innerHTML = `
+      <div class="fx-header" onclick="toggleFx(${fi})">
+        <div class="fx-toggle ${fx.on?'on':''}" onclick="event.stopPropagation();toggleFxOn(${fi})"></div>
+        <span class="fx-name">${def.name}</span>
+        <span class="fx-type">${fx.type.toUpperCase()}</span>
+        <span style="color:var(--ink3);font-size:14px;cursor:pointer;padding:0 4px" onclick="event.stopPropagation();removeFx(${fi})">×</span>
+      </div>
+      <div class="fx-body"><div class="fx-row">${paramsHtml}</div></div>
+    `;
+    chain.appendChild(item);
+  });
+}
+
+function toggleFx(fi) {
+  if (selectedPad === null) return;
+  banks[currentBank][selectedPad].effects[fi].open ^= true;
+  renderFxChain(selectedPad);
+}
+function toggleFxOn(fi) {
+  if (selectedPad === null) return;
+  banks[currentBank][selectedPad].effects[fi].on ^= true;
+  renderFxChain(selectedPad);
+}
+function removeFx(fi) {
+  if (selectedPad === null) return;
+  banks[currentBank][selectedPad].effects.splice(fi, 1);
+  renderFxChain(selectedPad);
+}
+function updateFxParam(fi, pi, val, input) {
+  if (selectedPad === null) return;
+  const fx = banks[currentBank][selectedPad].effects[fi];
+  fx.params[pi] = parseFloat(val);
+  const def = FX_TYPES[fx.type];
+  const valEl = document.getElementById(`fxv_${fi}_${pi}`);
+  if (valEl && def) valEl.textContent = def.params[pi].fmt(parseFloat(val));
+}
+
+function buildFxPicker() {
+  const grid = document.getElementById('fxPickerGrid');
+  grid.innerHTML = '';
+  Object.entries(FX_TYPES).forEach(([key, def]) => {
+    const el = document.createElement('div');
+    el.className = 'fx-option';
+    el.innerHTML = `<div class="fx-option-name">${def.name}</div><div class="fx-option-desc">${key.toUpperCase()}</div>`;
+    el.onclick = () => addFx(key);
+    grid.appendChild(el);
+  });
+}
+
+function addFx(type) {
+  if (selectedPad === null) return;
+  const def = FX_TYPES[type];
+  banks[currentBank][selectedPad].effects.push({
+    type, on: true, open: true,
+    params: def.params.map(p => p.def)
+  });
+  renderFxChain(selectedPad);
+  closeModal('fxModal');
+  setStatus(`Added ${def.name}`);
+}
+
+// ════════════════════════════════════════════
+// GROUPS
+// ════════════════════════════════════════════
+let activeGroup = null;
+
+function renderGroupList() {
+  const list = document.getElementById('groupList');
+  list.innerHTML = '';
+  groups.forEach(g => {
+    const count = banks.flat().filter(p => p.group === g.id).length;
+    const el = document.createElement('div');
+    el.className = 'group-item' + (activeGroup === g.id ? ' active' : '');
+    el.innerHTML = `<div class="group-dot" style="background:${g.color}"></div><span class="group-name">${g.name}</span><span class="group-count">${count}</span>`;
+    el.onclick = () => { activeGroup = activeGroup === g.id ? null : g.id; renderGroupList(); };
+    list.appendChild(el);
+  });
+}
+
+function openGroupModal() {
+  document.getElementById('groupNameInput').value = '';
+  const cr = document.getElementById('colorRow');
+  cr.querySelectorAll('.color-swatch').forEach((s, i) => {
+    s.classList.toggle('selected', i === 0);
+  });
+  openModal('groupModal');
+  setTimeout(() => document.getElementById('groupNameInput').focus(), 50);
+}
+
+function addGroup() {
+  const name = document.getElementById('groupNameInput').value.trim();
+  if (!name) return;
+  const selectedColor = document.querySelector('.color-swatch.selected');
+  const color = selectedColor ? selectedColor.dataset.color : GROUP_COLORS[0];
+  const id = Date.now();
+  groups.push({id, name, color});
+  renderGroupList();
+  closeModal('groupModal');
+  setStatus(`Group "${name}" added`);
+}
+
+function setupColorPicker() {
+  const cr = document.getElementById('colorRow');
+  GROUP_COLORS.forEach((c, i) => {
+    const s = document.createElement('div');
+    s.className = 'color-swatch' + (i === 0 ? ' selected' : '');
+    s.style.background = c;
+    s.dataset.color = c;
+    s.onclick = () => {
+      cr.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('selected'));
+      s.classList.add('selected');
+    };
+    cr.appendChild(s);
+  });
+}
+
+// ════════════════════════════════════════════
+// SAMPLES
+// ════════════════════════════════════════════
+function setupDrop() {
+  const dz = document.getElementById('dropZone');
+  dz.onclick = () => document.getElementById('audioFile').click();
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('drag-over'); };
+  dz.ondragleave = () => dz.classList.remove('drag-over');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('drag-over'); loadAudioFiles(e.dataTransfer.files); };
+
+  // Artwork drop
+  const ad = document.getElementById('artworkDrop');
+  ad.ondragover = e => { e.preventDefault(); ad.classList.add('drag-over'); };
+  ad.ondragleave = () => ad.classList.remove('drag-over');
+  ad.ondrop = e => { e.preventDefault(); ad.classList.remove('drag-over'); if(e.dataTransfer.files[0]) { const inp = document.getElementById('artFile'); inp.files = e.dataTransfer.files; loadArtwork(inp); }};
+}
+
+async function loadAudioFiles(files) {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  for (const file of files) {
+    if (!file.type.startsWith('audio/') && !file.name.match(/\.(mp3|wav|aiff|aif|flac|ogg)$/i)) continue;
+    const id = Date.now() + Math.random();
+    const arrBuf = await file.arrayBuffer();
+    let buffer = null;
+    try { buffer = await audioCtx.decodeAudioData(arrBuf.slice(0)); } catch(e) {}
+    const sample = {
+      id, name: file.name, file,
+      buffer, duration: buffer ? buffer.duration : 0,
+      size: file.size
+    };
+    samples.push(sample);
+    totalSizeBytes += file.size;
+    renderSampleList();
+    updateStatus();
+    setStatus(`Loaded: ${file.name}`);
+    // Auto-assign to next empty pad
+    autoAssignPad(sample);
+  }
+}
+
+function autoAssignPad(sample) {
+  const pads = banks[currentBank];
+  const emptyIdx = pads.findIndex(p => p.sampleId === null);
+  if (emptyIdx !== -1) {
+    pads[emptyIdx].sampleId = sample.id;
+    renderPadGrid();
+  }
+}
+
+function renderSampleList() {
+  const list = document.getElementById('sampleList');
+  list.innerHTML = '';
+  document.getElementById('sampleCount').textContent = `(${samples.length})`;
+  samples.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'sample-item';
+    el.draggable = true;
+    el.ondragstart = () => { dragSample = s.id; };
+    el.innerHTML = `
+      <svg class="sample-waveform" viewBox="0 0 32 20"><polyline points="${miniWave(s.buffer)}" fill="none" stroke="#c8a96e" stroke-width="1"/></svg>
+      <div class="sample-info">
+        <div class="sample-name">${s.name}</div>
+        <div class="sample-meta">${s.duration > 0 ? s.duration.toFixed(2)+'s' : '—'} · ${(s.size/1024).toFixed(1)}KB</div>
+      </div>
+      <div class="sample-play" onclick="playSample('${s.id}')">
+        <svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9"/></svg>
+      </div>`;
+    el.onclick = () => { if (selectedPad !== null) { banks[currentBank][selectedPad].sampleId = s.id; renderPadGrid(); showPadDetail(selectedPad); } };
+    list.appendChild(el);
+  });
+}
+
+function miniWave(buffer) {
+  if (!buffer) return '0,10 32,10';
+  const data = buffer.getChannelData(0);
+  const step = Math.floor(data.length / 32);
+  let pts = '';
+  for (let x = 0; x < 32; x++) {
+    const v = data[x * step] || 0;
+    pts += `${x},${10 - v * 8} `;
+  }
+  return pts.trim();
+}
+
+function dropSampleOnPad(idx) {
+  if (dragSample === null) return;
+  banks[currentBank][idx].sampleId = dragSample;
+  dragSample = null;
+  renderPadGrid();
+  if (selectedPad === idx) showPadDetail(idx);
+  setStatus('Sample assigned to pad ' + (idx + 1));
+}
+
+// ════════════════════════════════════════════
+// AUDIO PLAYBACK
+// ════════════════════════════════════════════
+function playSample(id) {
+  const s = samples.find(s => s.id == id);
+  if (!s || !s.buffer) return;
+  playBuffer(s.buffer, 1, 0, 0);
+}
+
+function playBuffer(buffer, volume, pitch, pan) {
+  if (!audioCtx) return;
+  if (activeSource) { try { activeSource.stop(); } catch(e){} }
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.playbackRate.value = Math.pow(2, pitch);
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = volume;
+  const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  if (panNode) { panNode.pan.value = pan; source.connect(gainNode); gainNode.connect(panNode); panNode.connect(audioCtx.destination); }
+  else { source.connect(gainNode); gainNode.connect(audioCtx.destination); }
+  source.start();
+  activeSource = source;
+}
+
+// ════════════════════════════════════════════
+// ARTWORK
+// ════════════════════════════════════════════
+function loadArtwork(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    artworkDataUrl = e.target.result;
+    const drop = document.getElementById('artworkDrop');
+    drop.classList.add('has-img');
+    drop.style.backgroundImage = `url(${artworkDataUrl})`;
+    drop.style.backgroundSize = 'cover';
+    document.getElementById('artIcon').style.display = 'none';
+    document.getElementById('artHint').style.display = 'none';
+    document.getElementById('artOverlay').textContent = 'Change Artwork';
+    setStatus('Artwork loaded');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ════════════════════════════════════════════
+// CONTEXT MENU
+// ════════════════════════════════════════════
+function showCtxMenu(e, idx) {
+  ctxTargetPad = idx;
+  const menu = document.getElementById('ctxMenu');
+  menu.style.display = 'block';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 160) + 'px';
+  document.addEventListener('click', closeCtxMenu, {once: true});
+}
+function closeCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; }
+function ctxAssignSample() { if (ctxTargetPad !== null && selectedPad !== ctxTargetPad) selectPad(ctxTargetPad); }
+function ctxPreviewPad() { if (ctxTargetPad !== null) triggerPad(ctxTargetPad); closeCtxMenu(); }
+function ctxCopyPad() { if (ctxTargetPad !== null) { copiedPad = JSON.parse(JSON.stringify(banks[currentBank][ctxTargetPad])); setStatus('Pad copied'); } closeCtxMenu(); }
+function ctxPastePad() { if (ctxTargetPad !== null && copiedPad) { banks[currentBank][ctxTargetPad] = JSON.parse(JSON.stringify(copiedPad)); renderPadGrid(); setStatus('Pad pasted'); } closeCtxMenu(); }
+function ctxClearPad() { if (ctxTargetPad !== null) { banks[currentBank][ctxTargetPad] = {name:'',sampleId:null,volume:100,pitch:0,pan:0,group:null,effects:[]}; renderPadGrid(); if (selectedPad === ctxTargetPad) hidePadDetail(); } closeCtxMenu(); }
+
+// ════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════
+function openExport() {
+  const usedPads = banks.flat().filter(p => p.sampleId !== null).length;
+  const summary = document.getElementById('exportSummary');
+  summary.innerHTML = `
+    <div class="export-row"><span class="export-key">Name</span><span class="export-val">${document.getElementById('expName').value || 'My Expansion'}</span></div>
+    <div class="export-row"><span class="export-key">Author</span><span class="export-val">${document.getElementById('expAuthor').value || '—'}</span></div>
+    <div class="export-row"><span class="export-key">Banks</span><span class="export-val">A · B · C · D (4 × 16)</span></div>
+    <div class="export-row"><span class="export-key">Pads loaded</span><span class="export-val">${usedPads} / 64</span></div>
+    <div class="export-row"><span class="export-key">Samples</span><span class="export-val">${samples.length} files</span></div>
+    <div class="export-row"><span class="export-key">Total size</span><span class="export-val">${(totalSizeBytes/1024/1024).toFixed(2)} MB</span></div>
+    <div class="export-row"><span class="export-key">Artwork</span><span class="export-val">${artworkDataUrl ? '✓ included' : '— none'}</span></div>
+    <div class="export-row"><span class="export-key">Demo track</span><span class="export-val">${demoTrackFile ? '✓ upload: '+demoTrackFile.name.substring(0,20) : demoTrackBuffer === '__generate__' ? '✓ auto-generate' : '— none'}</span></div>
+  `;
+  document.getElementById('exportProgress').style.display = 'none';
+  document.getElementById('exportBtn').disabled = false;
+  document.getElementById('exportBtn').textContent = 'Export Now';
+  openModal('exportModal');
+}
+
+function selectFormat(el) {
+  if (el.style.opacity === '0.5') return;
+  document.querySelectorAll('.format-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedFormat = el.dataset.fmt;
+}
+
+async function buildExpansion() {
+  const expName = document.getElementById('expName').value.trim() || 'MyExpansion';
+  const author = document.getElementById('expAuthor').value.trim() || 'Unknown';
+  const prog = document.getElementById('exportProgress');
+  const fill = document.getElementById('progressFill');
+  const label = document.getElementById('progressLabel');
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true;
+  prog.style.display = 'block';
+  const setP = (p, msg) => { fill.style.width = p + '%'; label.textContent = msg; };
+
+  try {
+    setP(5, 'Initializing ZIP...');
+    const zip = new JSZip();
+    const root = zip.folder(expName);
+
+    setP(10, 'Writing metadata...');
+    // MPC expansion manifest (simplified .plist format)
+    const plist = buildPlist(expName, author);
+    root.file('Expansion.plist', plist);
+
+    setP(20, 'Adding artwork...');
+    if (artworkDataUrl) {
+      const imgData = artworkDataUrl.split(',')[1];
+      root.folder('Artwork').file('thumbnail.jpg', imgData, {base64: true});
+      root.folder('Artwork').file('preview.jpg', imgData, {base64: true});
+    }
+
+    setP(30, 'Packaging samples...');
+    const samplesFolder = root.folder('Samples');
+    const groupFolders = {};
+    groups.forEach(g => { groupFolders[g.id] = samplesFolder.folder(g.name); });
+    const defaultFolder = samplesFolder.folder('All');
+
+    let si = 0;
+    for (const sample of samples) {
+      setP(30 + (si / samples.length) * 40, `Packing: ${sample.name}`);
+      const dest = groups.length > 0 ? defaultFolder : defaultFolder;
+      if (sample.file) {
+        const buf = await sample.file.arrayBuffer();
+        dest.file(sample.name, buf);
+      }
+      si++;
+    }
+
+    setP(65, 'Packing demo track...');
+    const demosFolder = root.folder('Demos');
+    if (demoTrackFile) {
+      // User uploaded a file
+      const demoBuf = await demoTrackFile.arrayBuffer();
+      const ext = demoTrackFile.name.split('.').pop().toLowerCase();
+      demosFolder.file('preview.' + ext, demoBuf);
+    } else if (demoTrackBuffer === '__generate__') {
+      // Render pattern to WAV
+      try {
+        const wavBuf = await renderPatternToWav();
+        demosFolder.file('preview.wav', wavBuf);
+      } catch(e) { console.warn('Demo render failed:', e); }
+    }
+
+    setP(70, 'Writing pad map...');
+    const padMap = buildPadMap(expName);
+    root.file('PadMap.xml', padMap);
+
+    setP(80, 'Writing presets...');
+    const presetsFolder = root.folder('Presets');
+    banks.forEach((bankPads, bi) => {
+      const bankName = 'ABCDEFGH'[bi];
+      const presetXml = buildPresetXml(bankPads, bankName);
+      presetsFolder.file(`Bank_${bankName}.xpm`, presetXml);
+    });
+
+    setP(90, 'Compressing...');
+    const blob = await zip.generateAsync({
+      type: 'blob', compression: 'DEFLATE',
+      compressionOptions: {level: 6}
+    }, meta => setP(90 + meta.percent / 10, 'Compressing...'));
+
+    setP(100, 'Done!');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = expName.replace(/\s+/g, '_') + '.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus(`Exported: ${expName}.zip`);
+    setTimeout(() => closeModal('exportModal'), 1200);
+
+  } catch(err) {
+    label.textContent = 'Error: ' + err.message;
+    console.error(err);
+  }
+}
+
+function buildPlist(name, author) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>ExpansionName</key><string>${name}</string>
+  <key>Author</key><string>${author}</string>
+  <key>Version</key><string>1.0</string>
+  <key>Format</key><string>MPC Expansion</string>
+  <key>ContentType</key><string>DrumKit</string>
+  <key>NumBanks</key><integer>8</integer>
+  <key>NumPads</key><integer>16</integer>
+  <key>CreatedBy</key><string>XPN Builder</string>
+  <key>Groups</key>
+  <array>
+${groups.map(g => `    <dict><key>Name</key><string>${g.name}</string><key>Color</key><string>${g.color}</string></dict>`).join('\n')}
+  </array>
+</dict>
+</plist>`;
+}
+
+function buildPadMap(name) {
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<PadMap expansion="${name}">\n`;
+  banks.forEach((bankPads, bi) => {
+    xml += `  <Bank id="${bi}" name="${'ABCD'[bi]}">\n`;
+    bankPads.forEach((pad, pi) => {
+      const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
+      xml += `    <Pad id="${pi}" name="${pad.name || ''}" sample="${sample ? sample.name : ''}" volume="${pad.volume}" pitch="${pad.pitch}" pan="${pad.pan}"/>\n`;
+    });
+    xml += `  </Bank>\n`;
+  });
+  xml += `</PadMap>`;
+  return xml;
+}
+
+function buildPresetXml(pads, bankName) {
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<MPCVObject>\n  <Version>2.8</Version>\n  <Instrument type="AIR Drum Synth">\n    <ProgramName>Bank_${bankName}</ProgramName>\n    <Pads>\n`;
+  pads.forEach((pad, i) => {
+    const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
+    xml += `      <Pad number="${i}">\n`;
+    xml += `        <Name>${pad.name || ''}</Name>\n`;
+    xml += `        <Sample>${sample ? 'Samples/All/' + sample.name : ''}</Sample>\n`;
+    xml += `        <Volume>${(pad.volume / 100).toFixed(3)}</Volume>\n`;
+    xml += `        <Pitch>${pad.pitch}</Pitch>\n`;
+    xml += `        <Pan>${(pad.pan / 100).toFixed(3)}</Pan>\n`;
+    if (pad.effects.length > 0) {
+      xml += `        <Effects>\n`;
+      pad.effects.forEach(fx => {
+        xml += `          <Effect type="${fx.type}" on="${fx.on}">\n`;
+        fx.params.forEach((v, pi) => { xml += `            <Param id="${pi}" value="${v}"/>\n`; });
+        xml += `          </Effect>\n`;
+      });
+      xml += `        </Effects>\n`;
+    }
+    xml += `      </Pad>\n`;
+  });
+  xml += `    </Pads>\n  </Instrument>\n</MPCVObject>`;
+  return xml;
+}
+
+
+// ════════════════════════════════════════════
+// PREVIEW TRACK — Upload + Auto-Generate
+// ════════════════════════════════════════════
+let demoTrackBuffer = null;   // uploaded or rendered WAV ArrayBuffer
+let demoTrackFile   = null;   // original File if uploaded
+let ptPlaying       = false;
+let ptPlaybackSrc   = null;
+let ptScheduled     = [];
+let ptStartTime     = 0;
+let ptAnimFrame     = null;
+let ptCurrentStep   = -1;
+
+// ── PATTERN DEFINITIONS (16 steps per row) ──
+// 1=on, 0=off. Rows: kick, snare, hihat_close, hihat_open, clap
+const PT_PATTERNS = {
+  classic44: {
+    kick:        [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+    snare:       [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+    hihat_close: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+    hihat_open:  [0,0,0,0, 0,0,0,1, 0,0,0,0, 0,0,0,1],
+    clap:        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+  },
+  trap: {
+    kick:        [1,0,0,0, 0,0,1,0, 0,0,0,0, 1,0,0,0],
+    snare:       [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+    hihat_close: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,0],
+    hihat_open:  [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,1],
+    clap:        [0,0,0,0, 1,0,0,1, 0,0,0,0, 1,0,0,0],
+  },
+  hiphop: {
+    kick:        [1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,0,0],
+    snare:       [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+    hihat_close: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0],
+    hihat_open:  [0,0,0,0, 0,0,0,1, 0,0,0,0, 0,0,0,0],
+    clap:        [0,0,0,0, 1,0,0,0, 0,0,1,0, 1,0,0,0],
+  },
+  electronic: {
+    kick:        [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+    snare:       [0,0,0,0, 1,0,0,0, 0,0,1,0, 1,0,0,0],
+    hihat_close: [1,1,0,1, 1,1,0,1, 1,1,0,1, 1,1,0,1],
+    hihat_open:  [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,1,0],
+    clap:        [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+  },
+};
+
+// mode → pattern mapping
+const MODE_PATTERN_MAP = {
+  drummer:'classic44', beatmaker:'hiphop',
+  live:'classic44', hiphop:'hiphop', electronic:'electronic'
+};
+
+const PT_ROWS = ['kick','snare','hihat_close','hihat_open','clap'];
+const PT_ROW_LABELS = {kick:'KICK',snare:'SNARE',hihat_close:'HH CL',hihat_open:'HH OP',clap:'CLAP'};
+
+// Live pattern state (user can edit steps)
+let ptPattern = { kick:[...Array(16).fill(0)], snare:[...Array(16).fill(0)], hihat_close:[...Array(16).fill(0)], hihat_open:[...Array(16).fill(0)], clap:[...Array(16).fill(0)] };
+
+function togglePtSection() {
+  const s = document.getElementById('ptSection');
+  s.classList.toggle('open');
+  if (s.classList.contains('open')) { ptInitGrid(); }
+}
+
+function ptSwitchTab(tab, el) {
+  document.querySelectorAll('.pt-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.pt-pane').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pt-pane-'+tab).classList.add('active');
+  if (tab === 'generate') ptInitGrid();
+}
+
+// ── UPLOAD ──
+function loadDemoTrack(input) {
+  const file = input.files[0];
+  if (!file) return;
+  demoTrackFile = file;
+  demoTrackBuffer = null; // will be read on export
+  const fn = document.getElementById('ptFileName');
+  fn.textContent = file.name;
+  const dz = document.getElementById('ptDropZone');
+  dz.classList.add('has-file');
+  document.getElementById('ptUploadStatus').className = 'pt-status ok';
+  document.getElementById('ptUploadStatus').textContent = 'Track ready — will be packed as Demos/preview.mp3';
+  document.getElementById('ptStatusBadge').textContent = 'upload ready';
+  document.getElementById('ptStatusBadge').style.color = 'var(--green)';
+}
+
+// ── GENERATE: GRID ──
+function ptInitGrid() {
+  const grid = document.getElementById('ptPatternGrid');
+  const nums = document.getElementById('ptStepNums');
+  if (!grid) return;
+  grid.innerHTML = ''; nums.innerHTML = '';
+  // Step numbers row
+  const emptyLabel = document.createElement('div');
+  emptyLabel.className = 'pt-step-num';
+  nums.appendChild(emptyLabel);
+  for (let s = 0; s < 16; s++) {
+    const n = document.createElement('div');
+    n.className = 'pt-step-num' + ([0,4,8,12].includes(s) ? ' beat-num' : '');
+    n.textContent = s + 1;
+    nums.appendChild(n);
+  }
+  // Rows
+  PT_ROWS.forEach(rowKey => {
+    const label = document.createElement('div');
+    label.className = 'pt-row-label';
+    label.textContent = PT_ROW_LABELS[rowKey];
+    grid.appendChild(label);
+    for (let s = 0; s < 16; s++) {
+      const cell = document.createElement('div');
+      cell.className = 'pt-step' + (ptPattern[rowKey][s] ? ' on' : '') + ([0,4,8,12].includes(s) ? ' beat' : '');
+      cell.dataset.row = rowKey;
+      cell.dataset.step = s;
+      cell.onclick = () => { ptPattern[rowKey][s] ^= 1; cell.classList.toggle('on'); };
+      grid.appendChild(cell);
+    }
+  });
+}
+
+function ptAutoFill() {
+  const sel = document.getElementById('ptPatternSel').value;
+  const patKey = sel === 'mode' ? (MODE_PATTERN_MAP[activeMode] || 'classic44') : sel;
+  const src = PT_PATTERNS[patKey] || PT_PATTERNS.classic44;
+  PT_ROWS.forEach(r => { ptPattern[r] = [...src[r]]; });
+  ptInitGrid();
+  document.getElementById('ptGenStatus').className = 'pt-status ok';
+  document.getElementById('ptGenStatus').textContent = 'Pattern loaded: ' + patKey;
+}
+
+function ptClearPattern() {
+  PT_ROWS.forEach(r => { ptPattern[r] = Array(16).fill(0); });
+  ptInitGrid();
+}
+
+// ── SEQUENCER PLAYBACK (Web Audio API) ──
+function ptTogglePlay() {
+  if (ptPlaying) { ptStopPlay(); return; }
+  ptStartPlay();
+}
+
+function ptStartPlay() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  ptPlaying = true;
+  const btn = document.getElementById('ptPlayBtn');
+  btn.textContent = '■ Stop';
+  btn.classList.add('playing-state');
+  const bpm = parseInt(document.getElementById('ptBpm').value) || 90;
+  const bars = parseInt(document.getElementById('ptBars').value) || 2;
+  const stepSec = 60 / bpm / 4;     // 16th note duration
+  const totalSteps = 16 * bars;
+  let step = 0;
+  ptStartTime = audioCtx.currentTime + 0.05;
+
+  function scheduleNext() {
+    if (!ptPlaying) return;
+    const t = ptStartTime + step * stepSec;
+    const stepInBar = step % 16;
+    // Schedule all row hits for this step
+    PT_ROWS.forEach(rowKey => {
+      if (!ptPattern[rowKey][stepInBar]) return;
+      const sampleId = findPadSampleByType(rowKey);
+      if (sampleId === null) return;
+      const sample = samples.find(s => s.id === sampleId);
+      if (!sample || !sample.buffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = sample.buffer;
+      const gain = audioCtx.createGain();
+      gain.gain.value = rowKey === 'kick' ? 1.0 : rowKey === 'snare' ? 0.9 : 0.65;
+      src.connect(gain); gain.connect(audioCtx.destination);
+      src.start(t);
+      ptScheduled.push(src);
+    });
+    // Visual step highlight
+    const delay = (t - audioCtx.currentTime) * 1000;
+    setTimeout(() => {
+      if (!ptPlaying) return;
+      ptHighlightStep(stepInBar);
+    }, Math.max(0, delay));
+    step++;
+    if (step < totalSteps) {
+      const nextAt = ptStartTime + step * stepSec;
+      const msUntil = (nextAt - audioCtx.currentTime) * 1000 - 20;
+      setTimeout(scheduleNext, Math.max(0, msUntil));
+    } else {
+      // Loop
+      ptStartTime = ptStartTime + totalSteps * stepSec;
+      step = 0;
+      const nextAt = ptStartTime;
+      const msUntil = (nextAt - audioCtx.currentTime) * 1000 - 20;
+      setTimeout(scheduleNext, Math.max(0, msUntil));
+    }
+  }
+  scheduleNext();
+}
+
+function ptStopPlay() {
+  ptPlaying = false;
+  ptScheduled.forEach(s => { try { s.stop(); } catch(e){} });
+  ptScheduled = [];
+  const btn = document.getElementById('ptPlayBtn');
+  if (btn) { btn.textContent = '▶ Play'; btn.classList.remove('playing-state'); }
+  ptHighlightStep(-1);
+}
+
+function ptHighlightStep(step) {
+  document.querySelectorAll('.pt-step').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    el.classList.toggle('playing', s === step);
+  });
+}
+
+function findPadSampleByType(slotType) {
+  const mode = MODES[activeMode];
+  for (const [padIdx, st] of Object.entries(mode.slots)) {
+    if (st === slotType) {
+      const sampleId = banks[currentBank][parseInt(padIdx)].sampleId;
+      if (sampleId !== null) return sampleId;
+    }
+  }
+  return null;
+}
+
+// ── RENDER TO WAV ArrayBuffer ──
+function ptRenderDone() {
+  // Mark the current pattern as ready for export
+  document.getElementById('ptStatusBadge').textContent = 'generate ready';
+  document.getElementById('ptStatusBadge').style.color = 'var(--green)';
+  document.getElementById('ptGenStatus').className = 'pt-status ok';
+  document.getElementById('ptGenStatus').textContent = 'Pattern confirmed — will be rendered and packed on export';
+  demoTrackFile = null; // use generate, not upload
+  demoTrackBuffer = '__generate__'; // signal to export
+}
+
+async function renderPatternToWav() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const bpm = parseInt(document.getElementById('ptBpm').value) || 90;
+  const bars = parseInt(document.getElementById('ptBars').value) || 2;
+  const stepSec = 60 / bpm / 4;
+  const totalSteps = 16 * bars;
+  const totalSec = totalSteps * stepSec + 0.5; // +0.5s tail
+  const sr = 44100;
+  const offlineCtx = new OfflineAudioContext(2, Math.ceil(totalSec * sr), sr);
+
+  PT_ROWS.forEach(rowKey => {
+    const sampleId = findPadSampleByType(rowKey);
+    if (sampleId === null) return;
+    const sample = samples.find(s => s.id === sampleId);
+    if (!sample || !sample.buffer) return;
+    for (let step = 0; step < totalSteps; step++) {
+      const stepInBar = step % 16;
+      if (!ptPattern[rowKey][stepInBar]) continue;
+      const t = step * stepSec;
+      const src = offlineCtx.createBufferSource();
+      src.buffer = sample.buffer;
+      const gain = offlineCtx.createGain();
+      gain.gain.value = rowKey === 'kick' ? 1.0 : rowKey === 'snare' ? 0.85 : 0.65;
+      src.connect(gain); gain.connect(offlineCtx.destination);
+      src.start(t);
+    }
+  });
+
+  const rendered = await offlineCtx.startRendering();
+  return audioBufferToWav(rendered);
+}
+
+function audioBufferToWav(buffer) {
+  const numCh = buffer.numberOfChannels;
+  const sr = buffer.sampleRate;
+  const len = buffer.length;
+  const ab = new ArrayBuffer(44 + len * numCh * 2);
+  const view = new DataView(ab);
+  const writeStr = (o, s) => { for (let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); };
+  writeStr(0,'RIFF');
+  view.setUint32(4, 36 + len * numCh * 2, true);
+  writeStr(8,'WAVE'); writeStr(12,'fmt ');
+  view.setUint32(16,16,true); view.setUint16(20,1,true);
+  view.setUint16(22,numCh,true); view.setUint32(24,sr,true);
+  view.setUint32(28,sr*numCh*2,true); view.setUint16(32,numCh*2,true);
+  view.setUint16(34,16,true); writeStr(36,'data');
+  view.setUint32(40, len*numCh*2, true);
+  let offset = 44;
+  for (let i = 0; i < len; i++) {
+    for (let ch = 0; ch < numCh; ch++) {
+      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+      view.setInt16(offset, s < 0 ? s*32768 : s*32767, true);
+      offset += 2;
+    }
+  }
+  return ab;
+}
+
+
+
+// ════════════════════════════════════════════
+// PATTERN EDITOR ENGINE
+// ════════════════════════════════════════════
+let peBars = 1;
+let peBpm  = 90;
+let pePattern = {};   // padIdx → [0..1] × (16*bars)
+let peMuted   = {};   // padIdx → bool
+let peRows    = [];   // ordered list of {padIdx, label, type, color}
+let pePlaying = false;
+let peScheduled = [];
+let peStartTime  = 0;
+let peTotalSteps = 16;
+let peCurrentStep = -1;
+let peBpmDrag = null;
+let peDemoConfirmed = false;
+
+const PE_ROW_COLORS = {
+  kick:'#c8a96e', snare:'#c06868', clap:'#c06868', rim:'#a05858',
+  hihat_close:'#4a9ab0', hihat_open:'#5ab0c8', hihat_pedal:'#3a7a90',
+  tom:'#5a9a6a', cymbal:'#a06ab0', percussion:'#8a7a4a',
+  bass:'#4a7ab0', sampler:'#7a6ab0', fx:'#906040', empty:'#444'
+};
+
+function openPatternEditor() {
+  // Build row list from current bank slots ordered by pad index
+  peRows = [];
+  const mode = MODES[activeMode];
+  const bankPads = banks[currentBank];
+
+  // Build in pad-number order (0..15)
+  for (let i = 0; i < 16; i++) {
+    const pad = bankPads[i];
+    const slotType = mode.slots[i] || 'empty';
+    const name = pad.sampleId ? getSampleName(pad.sampleId) : (slotType !== 'empty' ? SLOT_LABELS[slotType] : '—');
+    peRows.push({
+      padIdx: i,
+      label: name,
+      type: slotType,
+      color: PE_ROW_COLORS[slotType] || '#444',
+      hasSample: pad.sampleId !== null
+    });
+    if (!(i in pePattern)) {
+      pePattern[i] = Array(64).fill(0);
+    }
+    if (!(i in peMuted)) peMuted[i] = false;
+  }
+  peTotalSteps = 16 * peBars;
+  document.getElementById('peKitBank').textContent = 'ABCDEFGH'[currentBank];
+  document.getElementById('peBpmVal').textContent = peBpm;
+  renderPeKitList();
+  renderPeGrid();
+  document.getElementById('peModal').classList.add('open');
+  document.getElementById('peSetDemoBtn').classList.toggle('set', peDemoConfirmed);
+  document.getElementById('peSetDemoBtn').textContent = peDemoConfirmed ? '✓ Demo Set' : 'Set as Demo Preview';
+}
+
+function closePatternEditor() {
+  peStop();
+  document.getElementById('peModal').classList.remove('open');
+}
+
+function renderPeKitList() {
+  const list = document.getElementById('peKitList');
+  list.innerHTML = '';
+  peRows.forEach(row => {
+    const el = document.createElement('div');
+    el.className = 'pe-kit-row' + (row.hasSample ? '' : ' ' );
+    el.style.opacity = row.hasSample ? '1' : '0.4';
+    el.innerHTML = `
+      <span class="pe-kit-num">${String(row.padIdx+1).padStart(2,'0')}</span>
+      <div class="pe-kit-color" style="background:${row.color}"></div>
+      <span class="pe-kit-name">${row.label}</span>
+      <span class="pe-kit-type">${(SLOT_LABELS[row.type]||row.type||'').substring(0,5)}</span>
+      <div class="pe-kit-mute ${peMuted[row.padIdx]?'muted':''}" onclick="event.stopPropagation();peMuteToggle(${row.padIdx})" title="Mute">M</div>
+    `;
+    el.onclick = () => peScrollToRow(row.padIdx);
+    list.appendChild(el);
+  });
+}
+
+function peMuteToggle(idx) {
+  peMuted[idx] = !peMuted[idx];
+  renderPeKitList();
+}
+
+function renderPeGrid() {
+  peTotalSteps = 16 * peBars;
+  const header = document.getElementById('peSeqHeader');
+  const grid   = document.getElementById('peSeqGrid');
+  header.innerHTML = '';
+  grid.innerHTML   = '';
+
+  // Header: step numbers
+  const ph = document.createElement('div');
+  ph.style.cssText = 'width:0;flex-shrink:0';
+  header.appendChild(ph);
+  for (let s = 0; s < peTotalSteps; s++) {
+    const n = document.createElement('div');
+    n.className = 'pe-beat-num' + (s % 4 === 0 ? ' on-beat' : '');
+    n.textContent = (s % 16) + 1;
+    header.appendChild(n);
+  }
+
+  // Rows
+  peRows.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'pe-seq-row';
+    rowEl.id = 'pe-row-' + row.padIdx;
+
+    for (let s = 0; s < peTotalSteps; s++) {
+      const cell = document.createElement('div');
+      cell.className = 'pe-cell' + (pePattern[row.padIdx][s] ? ' on' : '') + (s % 4 === 0 ? ' beat-start' : '');
+      cell.style.setProperty('--cell-color', row.color);
+      cell.dataset.pad  = row.padIdx;
+      cell.dataset.step = s;
+      cell.id = `pe-cell-${row.padIdx}-${s}`;
+
+      // click = toggle; drag = paint
+      let painting = false;
+      let paintVal = 0;
+      cell.onmousedown = (e) => {
+        e.preventDefault();
+        painting = true;
+        paintVal = pePattern[row.padIdx][s] ? 0 : 1;
+        peSetStep(row.padIdx, s, paintVal);
+        // preview sound on click
+        if (paintVal && row.hasSample) {
+          const pad = banks[currentBank][row.padIdx];
+          const sample = samples.find(x => x.id === pad.sampleId);
+          if (sample && sample.buffer) playBuffer(sample.buffer, pad.volume/100, 0, 0);
+        }
+      };
+      cell.onmouseenter = (e) => { if (e.buttons === 1 && painting) peSetStep(row.padIdx, s, paintVal); };
+      cell.onmouseup   = () => { painting = false; };
+      rowEl.appendChild(cell);
+    }
+    grid.appendChild(rowEl);
+  });
+
+  document.onmouseup = () => {};
+}
+
+function peSetStep(padIdx, step, val) {
+  pePattern[padIdx][step] = val;
+  const cell = document.getElementById(`pe-cell-${padIdx}-${step}`);
+  if (cell) cell.classList.toggle('on', val === 1);
+}
+
+function peScrollToRow(padIdx) {
+  const row = document.getElementById('pe-row-' + padIdx);
+  if (row) row.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function peSetBars(n, btn) {
+  peBars = n;
+  peTotalSteps = 16 * n;
+  document.querySelectorAll('.pe-bar-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPeGrid();
+}
+
+// ── Fill from PT_PATTERNS ──
+function peFill(patKey) {
+  const key = patKey === 'mode' ? (MODE_PATTERN_MAP[activeMode] || 'classic44') : patKey;
+  const src = PT_PATTERNS[key] || PT_PATTERNS.classic44;
+  const mode = MODES[activeMode];
+
+  // Map pattern rows to pad indices via slot type
+  const typeToIdx = {};
+  Object.entries(mode.slots).forEach(([idx, type]) => {
+    if (!typeToIdx[type]) typeToIdx[type] = [];
+    typeToIdx[type].push(parseInt(idx));
+  });
+
+  // Fill each pattern row
+  Object.entries(src).forEach(([rowType, steps]) => {
+    const indices = typeToIdx[rowType] || [];
+    indices.forEach((padIdx, instN) => {
+      if (instN > 0) return; // only first pad of each type gets the full pattern; others get variation
+      for (let s = 0; s < peTotalSteps; s++) {
+        pePattern[padIdx][s] = steps[s % 16];
+      }
+    });
+    // second instance of same type (e.g. second kick) gets a variation
+    if (indices.length > 1) {
+      const pad2 = indices[1];
+      for (let s = 0; s < peTotalSteps; s++) {
+        pePattern[pad2][s] = steps[(s + 8) % 16] * (s % 4 === 2 ? 1 : 0);
+      }
+    }
+  });
+  renderPeGrid();
+  setPeStatus('Pattern: ' + key);
+}
+
+function peClearAll() {
+  peRows.forEach(r => { pePattern[r.padIdx] = Array(64).fill(0); });
+  renderPeGrid();
+  setPeStatus('Cleared');
+}
+
+function setPeStatus(msg, cls) {
+  const el = document.getElementById('peStatus');
+  el.textContent = msg;
+  el.className = 'pe-status' + (cls ? ' '+cls : '');
+}
+
+// ── PLAYBACK ──
+function peTogglePlay() {
+  if (pePlaying) peStop(); else pePlay();
+}
+
+function pePlay() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  pePlaying = true;
+  const btn = document.getElementById('peTportPlay');
+  btn.classList.add('playing');
+  btn.innerHTML = '<svg viewBox="0 0 10 10" style="width:13px;height:13px;fill:currentColor"><rect x="1" y="1" width="3" height="8" rx="1"/><rect x="6" y="1" width="3" height="8" rx="1"/></svg>';
+
+  const stepSec = 60 / peBpm / 4;
+  peStartTime = audioCtx.currentTime + 0.05;
+  let step = 0;
+
+  function tick() {
+    if (!pePlaying) return;
+    const t = peStartTime + step * stepSec;
+    const stepInLoop = step % peTotalSteps;
+
+    peRows.forEach(row => {
+      if (!row.hasSample) return;
+      if (peMuted[row.padIdx]) return;
+      if (!pePattern[row.padIdx][stepInLoop]) return;
+      const pad = banks[currentBank][row.padIdx];
+      const sample = samples.find(x => x.id === pad.sampleId);
+      if (!sample || !sample.buffer) return;
+      const src = audioCtx.createBufferSource();
+      src.buffer = sample.buffer;
+      const gain = audioCtx.createGain();
+      gain.gain.value = pad.volume / 100;
+      src.connect(gain); gain.connect(audioCtx.destination);
+      src.start(t);
+      peScheduled.push(src);
+    });
+
+    // Visual playhead
+    const vizDelay = (t - audioCtx.currentTime) * 1000;
+    setTimeout(() => {
+      if (!pePlaying) return;
+      const s = step % peTotalSteps;
+      document.querySelectorAll('.pe-cell').forEach(c => c.classList.remove('playing-step'));
+      peRows.forEach(r => {
+        const c = document.getElementById(`pe-cell-${r.padIdx}-${s}`);
+        if (c) c.classList.add('playing-step');
+      });
+    }, Math.max(0, vizDelay));
+
+    step++;
+    const nextT = peStartTime + step * stepSec;
+    const msUntil = (nextT - audioCtx.currentTime) * 1000 - 25;
+    setTimeout(tick, Math.max(0, msUntil));
+  }
+  tick();
+  setPeStatus('Playing · ' + peBpm + ' BPM', 'ok');
+}
+
+function peStop() {
+  pePlaying = false;
+  peScheduled.forEach(s => { try { s.stop(); } catch(e){} });
+  peScheduled = [];
+  const btn = document.getElementById('peTportPlay');
+  if (btn) { btn.classList.remove('playing'); btn.innerHTML = '<svg viewBox="0 0 12 12" style="width:13px;height:13px;fill:currentColor"><polygon points="2,1 11,6 2,11"/></svg>'; }
+  document.querySelectorAll('.pe-cell').forEach(c => c.classList.remove('playing-step'));
+  setPeStatus('Stopped');
+}
+
+// ── BPM drag ──
+function startBpmDrag(e) {
+  e.preventDefault();
+  peBpmDrag = { startY: e.clientY, startBpm: peBpm };
+  document.onmousemove = moveBpmDrag;
+  document.onmouseup   = stopBpmDrag;
+}
+function moveBpmDrag(e) {
+  if (!peBpmDrag) return;
+  const delta = Math.round((peBpmDrag.startY - e.clientY) * 0.5);
+  peBpm = Math.max(40, Math.min(240, peBpmDrag.startBpm + delta));
+  document.getElementById('peBpmVal').textContent = peBpm;
+  // sync to export modal bpm
+  const expBpm = document.getElementById('ptBpm');
+  if (expBpm) expBpm.value = peBpm;
+}
+function stopBpmDrag() { peBpmDrag = null; document.onmousemove = null; document.onmouseup = null; }
+
+// ── Set as Demo Preview ──
+function peSetAsDemo() {
+  // Sync pattern to PT system then mark as generate
+  ptPattern = {};
+  PT_ROWS.forEach(r => { ptPattern[r] = Array(16).fill(0); });
+  // Copy pePattern row by row, mapping padIdx → slot type → PT row
+  const mode = MODES[activeMode];
+  peRows.forEach(row => {
+    const t = row.type;
+    if (PT_ROWS.includes(t)) {
+      for (let s = 0; s < 16; s++) {
+        if (pePattern[row.padIdx][s]) ptPattern[t][s] = 1;
+      }
+    }
+  });
+  // Sync bpm
+  const expBpm = document.getElementById('ptBpm');
+  if (expBpm) expBpm.value = peBpm;
+  const expBars = document.getElementById('ptBars');
+  if (expBars) expBars.value = Math.min(peBars, 4);
+  demoTrackBuffer = '__generate__';
+  demoTrackFile = null;
+  peDemoConfirmed = true;
+  document.getElementById('peSetDemoBtn').textContent = '✓ Demo Set';
+  document.getElementById('peSetDemoBtn').classList.add('set');
+  document.getElementById('ptStatusBadge').textContent = 'pattern ready';
+  document.getElementById('ptStatusBadge').style.color = 'var(--green)';
+  setPeStatus('Pattern set as demo preview — will render on export', 'ok');
+}
+
+// Space key inside pattern editor
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('peModal').classList.contains('open')) return;
+  if (e.code === 'Space') { e.preventDefault(); peTogglePlay(); }
+  if (e.code === 'Escape') { peStop(); closePatternEditor(); }
+});
+
+
+// ════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openFxPicker() { openModal('fxModal'); }
+
+function updateStatus() {
+  const used = banks.flat().filter(p => p.sampleId !== null).length;
+  document.getElementById('statPads').textContent = `${used}/128 pads used`;
+  document.getElementById('statSize').textContent = (totalSizeBytes / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+  updateStatus();
+}
+
+function clearAll() {
+  if (!confirm('Clear all pads and samples?')) return;
+  banks.forEach(bank => bank.forEach((pad, i) => {
+    banks[banks.indexOf(bank)][i] = {name:'',sampleId:null,volume:100,pitch:0,pan:0,group:null,effects:[]};
+  }));
+  samples = [];
+  totalSizeBytes = 0;
+  selectedPad = null;
+  renderPadGrid();
+  renderSampleList();
+  hidePadDetail();
+  updateStatus();
+  setStatus('Cleared — ready for new expansion');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && selectedPad !== null) { e.preventDefault(); previewPad(selectedPad); }
+  if (e.code === 'Escape') {
+    ptStopPlay();
+    stopPreview();
+    closeModal('groupModal'); closeModal('fxModal'); closeModal('exportModal');
+    document.getElementById('ctxMenu').style.display = 'none';
+  }
+});
+
+document.addEventListener('click', () => { document.getElementById('ctxMenu').style.display = 'none'; });
+
+window.addEventListener('load', init);
+
+
+// ════════════════════════════════════════════
+// XPN BUILDER · EMBEDDED TEST SUITE
+// Runs inside the app — full access to all vars
+// ════════════════════════════════════════════
+function xtpOpen(){
+  document.getElementById('xpn-test-panel').classList.add('open');
+  xtpBuildUI();
+}
+
+const XTP_SUITES=[
+  {name:'Core Init',tests:[
+    {id:'i1',name:'banks: 8 banks × 16 pads',fn:()=>banks.length===8&&banks[0].length===16},
+    {id:'i2',name:'all pads start empty',fn:()=>banks.flat().every(p=>p.sampleId===null)},
+    {id:'i3',name:'samples array exists',fn:()=>Array.isArray(samples)},
+    {id:'i4',name:'groups initialized (≥3)',fn:()=>Array.isArray(groups)&&groups.length>=3},
+    {id:'i5',name:'currentBank = 0',fn:()=>currentBank===0},
+    {id:'i6',name:'16 pad elements in DOM',fn:()=>document.querySelectorAll('.pad').length===16},
+    {id:'i7',name:'8 bank buttons in DOM (A-H)',fn:()=>[...document.querySelectorAll('.bank-btn')].filter(b=>['A','B','C','D','E','F','G','H'].includes(b.textContent.trim())).length===8},
+    {id:'i8',name:'JSZip loaded',fn:()=>typeof JSZip!=='undefined'},
+  ]},
+  {name:'MPC Layout',tests:[
+    {id:'l1',name:'pad 01 = bottom-left',fn:()=>document.querySelectorAll('.pad')[12]?.dataset.idx==='0'},
+    {id:'l2',name:'pad 16 = top-right',fn:()=>document.querySelectorAll('.pad')[3]?.dataset.idx==='15'},
+    {id:'l3',name:'pad 13 = top-left',fn:()=>document.querySelectorAll('.pad')[0]?.dataset.idx==='12'},
+    {id:'l4',name:'pad 01 label = "01"',fn:()=>document.querySelectorAll('.pad')[12]?.querySelector('.pad-num')?.textContent.trim()==='01'},
+    {id:'l5',name:'pad 09 = row 2 left (idx=8)',fn:()=>document.querySelectorAll('.pad')[4]?.dataset.idx==='8'},
+  ]},
+  {name:'Bank Switching',tests:[
+    {id:'b1',name:'switch to B → currentBank=1',fn:()=>{switchBank(1,document.querySelectorAll('.bank-btn')[1]);const ok=currentBank===1;switchBank(0,document.querySelectorAll('.bank-btn')[0]);return ok;}},
+    {id:'b2',name:'switch to H → currentBank=7',fn:()=>{switchBank(7,document.querySelectorAll('.bank-btn')[7]);const ok=currentBank===7;switchBank(0,document.querySelectorAll('.bank-btn')[0]);return ok;}},
+    {id:'b3',name:'bankInfo label updates',fn:()=>{switchBank(2,document.querySelectorAll('.bank-btn')[2]);const ok=document.getElementById('bankInfo').textContent.includes('C');switchBank(0,document.querySelectorAll('.bank-btn')[0]);return ok;}},
+    {id:'b4',name:'banks isolated from each other',fn:()=>{banks[0][0].sampleId='iso';const ok=banks[1][0].sampleId===null;banks[0][0].sampleId=null;return ok;}},
+  ]},
+  {name:'Pad Operations',tests:[
+    {id:'p1',name:'selectPad → selectedPad updated',fn:()=>{selectPad(5);return selectedPad===5;}},
+    {id:'p2',name:'detail panel shows after select',fn:()=>{selectPad(0);return document.getElementById('padDetail').style.display!=='none';}},
+    {id:'p3',name:'detail pad number correct',fn:()=>{selectPad(2);return document.getElementById('detPadNum').textContent==='03';}},
+    {id:'p4',name:'copy/paste transfers sampleId',fn:()=>{banks[0][3].sampleId='cp';ctxTargetPad=3;ctxCopyPad();ctxTargetPad=7;ctxPastePad();const ok=banks[0][7].sampleId==='cp';banks[0][3].sampleId=null;banks[0][7].sampleId=null;return ok;}},
+    {id:'p5',name:'clear pad removes sampleId',fn:()=>{banks[0][1].sampleId='cl';ctxTargetPad=1;ctxClearPad();return banks[0][1].sampleId===null;}},
+  ]},
+  {name:'Modes',tests:[
+    {id:'m1',name:'DRUM: 01=kick 02=snare 03=rim 04=clap',fn:()=>{const s=MODES.drummer.slots;return s[0]==='kick'&&s[1]==='snare'&&s[2]==='rim'&&s[3]==='clap';}},
+    {id:'m2',name:'all 5 modes: pad 06=hihat_close',fn:()=>['drummer','beatmaker','live','hiphop','electronic'].every(k=>MODES[k].slots[5]==='hihat_close')},
+    {id:'m3',name:'all 5 modes: pad 05=kick alt',fn:()=>['drummer','beatmaker','live','hiphop','electronic'].every(k=>MODES[k].slots[4]==='kick')},
+    {id:'m4',name:'beatmaker: 09=sampler',fn:()=>MODES.beatmaker.slots[8]==='sampler'},
+    {id:'m5',name:'live: 09=bass, 13=sampler',fn:()=>MODES.live.slots[8]==='bass'&&MODES.live.slots[12]==='sampler'},
+    {id:'m6',name:'electronic: 13=bass',fn:()=>MODES.electronic.slots[12]==='bass'},
+    {id:'m7',name:'MODES.custom accessible',fn:()=>!!MODES.custom&&typeof MODES.custom.slots==='object'},
+  ]},
+  {name:'Synonym Detection',tests:[
+    {id:'s1',name:'"bombo_main.wav" → kick',fn:()=>detectSlotType('bombo_main.wav')==='kick'},
+    {id:'s2',name:'"snr_01.wav" → snare',fn:()=>detectSlotType('snr_01.wav')==='snare'},
+    {id:'s3',name:'"hh_close.wav" → hihat_close',fn:()=>detectSlotType('hh_close.wav')==='hihat_close'},
+    {id:'s4',name:'"oh_open.wav" → hihat_open',fn:()=>detectSlotType('oh_open.wav')==='hihat_open'},
+    {id:'s5',name:'"t1_floor.wav" → tom',fn:()=>detectSlotType('t1_floor.wav')==='tom'},
+    {id:'s6',name:'"808_sub.wav" → bass',fn:()=>detectSlotType('808_sub.wav')==='bass'},
+    {id:'s7',name:'"crash1.wav" → cymbal',fn:()=>detectSlotType('crash1.wav')==='cymbal'},
+    {id:'s8',name:'unknown → null',fn:()=>detectSlotType('zzz_xyz.wav')===null},
+  ]},
+  {name:'Custom Mode',tests:[
+    {id:'c1',name:'customSlots has 16 entries',fn:()=>Object.keys(customSlots).length===16},
+    {id:'c2',name:'default: slot 0 = kick',fn:()=>customSlots[0]==='kick'},
+    {id:'c3',name:'customReset restores kick at 0',fn:()=>{customSlots[0]='bass';customReset();return customSlots[0]==='kick';}},
+    {id:'c4',name:'customCopyFrom copies slots',fn:()=>{customCopyFrom('beatmaker');const ok=customSlots[8]==='sampler';customReset();return ok;}},
+    {id:'c5',name:'palette has + button',fn:()=>{renderCustomPalette();return !!document.getElementById('customPalette')?.querySelector('.palette-add-btn');}},
+    {id:'c6',name:'ALL_SLOT_TYPES ≥14',fn:()=>ALL_SLOT_TYPES.length>=14},
+  ]},
+  {name:'Effects',tests:[
+    {id:'e1',name:'6 FX types defined',fn:()=>Object.keys(FX_TYPES).length===6},
+    {id:'e2',name:'all FX have 2 params',fn:()=>Object.values(FX_TYPES).every(f=>f.params.length===2)},
+    {id:'e3',name:'addFx adds to pad',fn:()=>{selectedPad=0;banks[0][0].effects=[];addFx('reverb');const ok=banks[0][0].effects.length===1;banks[0][0].effects=[];return ok;}},
+    {id:'e4',name:'toggleFxOn flips on/off',fn:()=>{selectedPad=0;banks[0][0].effects=[{type:'reverb',on:true,open:false,params:[40,30]}];toggleFxOn(0);const ok=!banks[0][0].effects[0].on;banks[0][0].effects=[];return ok;}},
+    {id:'e5',name:'removeFx clears chain',fn:()=>{selectedPad=0;banks[0][0].effects=[{type:'delay',on:true,open:false,params:[25,30]}];removeFx(0);return banks[0][0].effects.length===0;}},
+  ]},
+  {name:'Export XML',tests:[
+    {id:'x1',name:'buildPlist: NumBanks=8',fn:()=>buildPlist('T','A').includes('<integer>8</integer>')},
+    {id:'x2',name:'buildPadMap: 8 banks',fn:()=>(buildPadMap('T').match(/<Bank/g)||[]).length===8},
+    {id:'x3',name:'buildPresetXml: 16 pads',fn:()=>(buildPresetXml(banks[0],'A').match(/<Pad /g)||[]).length===16},
+    {id:'x4',name:'pad count tracking',fn:()=>{banks[0][0].sampleId='x';banks[0][1].sampleId='x';const n=banks.flat().filter(p=>p.sampleId!==null).length;banks[0][0].sampleId=null;banks[0][1].sampleId=null;return n===2;}},
+  ]},
+  {name:'Pattern Editor',tests:[
+    {id:'q1',name:'PT_PATTERNS ≥4 styles',fn:()=>PT_PATTERNS&&Object.keys(PT_PATTERNS).length>=4},
+    {id:'q2',name:'PT_ROWS has 5 rows',fn:()=>PT_ROWS&&PT_ROWS.length===5},
+    {id:'q3',name:'MODE_PATTERN_MAP has 5 entries',fn:()=>MODE_PATTERN_MAP&&Object.keys(MODE_PATTERN_MAP).length===5},
+    {id:'q4',name:'classic44: kick on step 0',fn:()=>PT_PATTERNS.classic44.kick[0]===1},
+    {id:'q5',name:'classic44: snare on step 4',fn:()=>PT_PATTERNS.classic44.snare[4]===1},
+    {id:'q6',name:'peClearAll zeros pattern',fn:()=>{pePattern[0]=Array(16).fill(1);peRows=[{padIdx:0,hasSample:false,type:'kick',color:'#c8a96e',label:'KICK'}];peClearAll();return pePattern[0].every(v=>v===0);}},
+    {id:'q7',name:'audioBufferToWav: RIFF header',fn:async()=>{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const buf=audioCtx.createBuffer(2,4410,44100);const wav=audioBufferToWav(buf);const v=new DataView(wav);return String.fromCharCode(v.getUint8(0),v.getUint8(1),v.getUint8(2),v.getUint8(3))==='RIFF';},async:true},
+  ]},
+  {name:'UI & Status',tests:[
+    {id:'u1',name:'setStatus updates bar',fn:()=>{setStatus('XTP_OK_TEST');return document.getElementById('statusMsg').textContent.includes('XTP_OK_TEST');}},
+    {id:'u2',name:'statPads shows 2/128',fn:()=>{banks[0][0].sampleId='u';banks[0][1].sampleId='u';updateStatus();const t=document.getElementById('statPads').textContent;banks[0][0].sampleId=null;banks[0][1].sampleId=null;updateStatus();return t.includes('2/128');}},
+    {id:'u3',name:'clearAll resets everything',fn:()=>{banks[0][0].sampleId='z';samples.push({id:'z',name:'t.wav'});const orig=window.confirm;window.confirm=()=>true;clearAll();window.confirm=orig;return banks.flat().every(p=>p.sampleId===null)&&samples.length===0;}},
+  ]},
+];
+
+const xtpAll=XTP_SUITES.flatMap(s=>s.tests.map(t=>({...t,suite:s.name})));
+let _xtpP=0,_xtpF=0;
+
+function xtpBuildUI(){
+  const res=document.getElementById('xtpRes');
+  if(!res)return;
+  res.innerHTML='';
+  document.getElementById('xtpTotal').textContent=xtpAll.length;
+  document.getElementById('xtpPass').textContent=0;
+  document.getElementById('xtpFail').textContent=0;
+  document.getElementById('xtpSkip').textContent=0;
+  document.getElementById('xtpPFill').style.width='0%';
+  document.getElementById('xtpBanner').style.display='none';
+  document.getElementById('xtpTimer').textContent='';
+  document.getElementById('xtpLogP').innerHTML='<div class="xtp-ll info">Click ▶ Run All Tests to begin</div>';
+  XTP_SUITES.forEach(suite=>{
+    const sec=document.createElement('div');
+    sec.innerHTML='<div class="xtp-stitle">'+suite.name+'</div>';
+    suite.tests.forEach(t=>{
+      const row=document.createElement('div');
+      row.className='xtp-row';
+      row.innerHTML='<div class="xtp-dot" id="xtp-st-'+t.id+'"></div><div><div class="xtp-tn">'+t.name+'</div><div class="xtp-td" id="xtp-det-'+t.id+'"></div></div>';
+      sec.appendChild(row);
+    });
+    res.appendChild(sec);
+  });
+}
+
+function _xtpSet(id,st,det){
+  const s=document.getElementById('xtp-st-'+id);
+  const d=document.getElementById('xtp-det-'+id);
+  if(s){s.className='xtp-dot '+st;s.textContent=st==='pass'?'✓':st==='fail'?'✗':'…';}
+  if(d&&det){d.className='xtp-td'+(st==='fail'?' err':st==='pass'?' ok':'');d.textContent=det;}
+}
+
+function _xtpLog(msg,cls){
+  const el=document.getElementById('xtpLogP');
+  if(!el)return;
+  const l=document.createElement('div');
+  l.className='xtp-ll '+(cls||'');l.textContent=msg;
+  el.appendChild(l);el.scrollTop=el.scrollHeight;
+}
+
+async function xtpRunAll(){
+  _xtpP=0;_xtpF=0;
+  const btn=document.getElementById('xtpRunBtn');
+  if(btn){btn.disabled=true;btn.textContent='⟳ Running…';}
+  document.getElementById('xtpLogP').innerHTML='';
+  document.getElementById('xtpBanner').style.display='none';
+  _xtpLog('Running '+xtpAll.length+' tests…','info');
+  const t0=Date.now();
+  for(const t of xtpAll){
+    _xtpSet(t.id,'run','');
+    await new Promise(r=>setTimeout(r,12));
+    try{
+      const r=t.async?await t.fn():t.fn();
+      if(r===true){_xtpSet(t.id,'pass','OK');_xtpP++;}
+      else{_xtpSet(t.id,'fail','→ '+JSON.stringify(r));_xtpF++;_xtpLog('FAIL: '+t.name,'err');}
+    }catch(e){
+      _xtpSet(t.id,'fail',e.message.slice(0,55));_xtpF++;_xtpLog('ERR: '+t.name+' — '+e.message,'err');
+    }
+    document.getElementById('xtpPass').textContent=_xtpP;
+    document.getElementById('xtpFail').textContent=_xtpF;
+    document.getElementById('xtpPFill').style.width=((_xtpP+_xtpF)/xtpAll.length*100)+'%';
+  }
+  const elapsed=((Date.now()-t0)/1000).toFixed(2)+'s';
+  document.getElementById('xtpTimer').textContent=elapsed;
+  _xtpLog('Done '+elapsed+' — '+_xtpP+' passed, '+_xtpF+' failed',_xtpF?'err':'ok');
+  const banner=document.getElementById('xtpBanner');
+  banner.style.display='block';
+  if(_xtpF===0){banner.className='xtp-banner ok';banner.textContent='✓ All '+_xtpP+' tests passed in '+elapsed+' — XPN Builder V1 ready';}
+  else{banner.className='xtp-banner fail';banner.textContent=_xtpF+' test'+(_xtpF>1?'s':'')+' failed — check results';}
+  if(btn){btn.disabled=false;btn.textContent='▶ Run Again';}
+}
+
+</script>
+
+<!-- ══ PATTERN EDITOR MODAL ══ -->
+<div class="pe-modal-bg" id="peModal">
+  <div class="pe-modal">
+    <div class="pe-topbar">
+      <span class="pe-title">Pattern Editor</span>
+      <div class="tb-sep"></div>
+      <div class="pe-transport">
+        <div class="pe-tport-btn" id="peTportPlay" onclick="peTogglePlay()" title="Play/Stop (Space)">
+          <svg viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11"/></svg>
+        </div>
+        <div class="pe-tport-btn" onclick="peStop()" title="Stop">
+          <svg viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1"/></svg>
+        </div>
+        <div class="pe-tport-sep"></div>
+        <div class="pe-bpm-wrap">
+          <span class="pe-bpm-label">BPM</span>
+          <span class="pe-bpm-val" id="peBpmVal" onmousedown="startBpmDrag(event)">90</span>
+        </div>
+        <div class="pe-tport-sep"></div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:8px;letter-spacing:.18em;color:var(--ink3);font-family:'IBM Plex Mono',monospace">BARS</span>
+          <div class="pe-bars-btns">
+            <div class="pe-bar-btn active" onclick="peSetBars(1,this)">1</div>
+            <div class="pe-bar-btn" onclick="peSetBars(2,this)">2</div>
+            <div class="pe-bar-btn" onclick="peSetBars(4,this)">4</div>
+          </div>
+        </div>
+        <div class="pe-tport-sep"></div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:8px;letter-spacing:.18em;color:var(--ink3);font-family:'IBM Plex Mono',monospace">FILL PATTERN</span>
+          <div class="pe-pattern-btns">
+            <div class="pe-pat-btn" onclick="peFill('classic44')">4/4</div>
+            <div class="pe-pat-btn" onclick="peFill('trap')">Trap</div>
+            <div class="pe-pat-btn" onclick="peFill('hiphop')">Boom</div>
+            <div class="pe-pat-btn" onclick="peFill('electronic')">Electro</div>
+            <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
+            <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
+          </div>
+        </div>
+        <div class="pe-spacer"></div>
+        <span class="pe-status" id="peStatus">Select a pad row to edit</span>
+        <div class="pe-tport-sep"></div>
+        <button class="pe-set-demo-btn" id="peSetDemoBtn" onclick="peSetAsDemo()">Set as Demo Preview</button>
+        <button class="pe-close-btn" onclick="closePatternEditor()">Close ✕</button>
+      </div>
+    </div>
+    <div class="pe-body">
+      <div class="pe-left">
+        <div class="pe-kit-header"><span class="pe-kit-title">Kit — Bank <span id="peKitBank">A</span></span></div>
+        <div class="pe-kit-list" id="peKitList"></div>
+      </div>
+      <div class="pe-right">
+        <div class="pe-seq-wrap">
+          <div id="peSeqHeader" class="pe-seq-header"></div>
+          <div id="peSeqGrid" class="pe-seq-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="xpn-test-panel">
+  <div class="xtp-hdr">
+    <span class="xtp-logo">XPN BUILDER · Test Suite v1.0</span>
+    <div class="xtp-acts">
+      <span class="xtp-timer" id="xtpTimer"></span>
+      <button class="xtp-run" id="xtpRunBtn" onclick="xtpRunAll()">▶ Run All Tests</button>
+      <button class="xtp-cls" onclick="document.getElementById('xpn-test-panel').classList.remove('open')">Close ✕</button>
+    </div>
+  </div>
+  <div class="xtp-sum">
+    <div class="xtp-stat"><div class="xtp-val t" id="xtpTotal">—</div><div class="xtp-lbl">Total</div></div>
+    <div class="xtp-stat"><div class="xtp-val p" id="xtpPass">0</div><div class="xtp-lbl">Pass</div></div>
+    <div class="xtp-stat"><div class="xtp-val f" id="xtpFail">0</div><div class="xtp-lbl">Fail</div></div>
+    <div class="xtp-stat"><div class="xtp-val s" id="xtpSkip">0</div><div class="xtp-lbl">Skip</div></div>
+  </div>
+  <div class="xtp-banner" id="xtpBanner"></div>
+  <div class="xtp-prog"><div class="xtp-pfill" id="xtpPFill"></div></div>
+  <div class="xtp-body">
+    <div class="xtp-res" id="xtpRes"></div>
+    <div class="xtp-logp" id="xtpLogP"><div class="xtp-ll info">Click ▶ Run All Tests to begin</div></div>
+  </div>
+</div>
+<button id="xpn-test-trigger" onclick="xtpOpen()">⊞ Tests</button>
+
+</body>
+</html>

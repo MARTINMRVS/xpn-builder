@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pad Works — Beta Keys · Interno</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --black:#0D0F14;--black2:#13161E;--black3:#1C2030;
+  --gold:#C8A96E;--gold2:#8B6914;--gold-dim:rgba(200,169,110,0.1);
+  --gold-border:rgba(200,169,110,0.2);--cream:#F0EDE4;
+  --white:#fff;--muted:#5A6175;--green:#22C55E;
+  --orange:#F97316;--red:#EF4444;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--black);color:var(--cream);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.65;}
+.wrap{max-width:800px;margin:0 auto;padding:0 28px 80px;}
+
+.hero{padding:48px 0 36px;border-bottom:1px solid var(--gold-border);margin-bottom:40px;}
+.kicker{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:4px;color:var(--red);text-transform:uppercase;margin-bottom:8px;}
+h1{font-size:32px;font-weight:900;letter-spacing:-1px;color:var(--white);margin-bottom:8px;}
+.hero-sub{font-size:13px;color:var(--muted);}
+
+.conf-bar{
+  background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);
+  border-radius:8px;padding:12px 18px;margin-bottom:36px;
+  font-family:'Space Mono',monospace;font-size:10px;color:var(--red);
+  letter-spacing:2px;display:flex;align-items:center;gap:8px;
+}
+.conf-bar::before{content:'⚠';font-size:14px;}
+
+.sec-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:14px;opacity:.7;}
+
+/* KEY TABLE */
+.key-table{width:100%;border-collapse:collapse;margin-bottom:32px;}
+.key-table th{
+  background:var(--black2);padding:10px 14px;text-align:left;
+  font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;
+  color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--gold-border);
+}
+.key-table td{
+  padding:14px;border-bottom:1px solid rgba(200,169,110,0.08);
+  font-size:13px;vertical-align:top;
+}
+.key-table tr:hover td{background:var(--black2);}
+
+.key-code{
+  font-family:'Space Mono',monospace;font-size:13px;font-weight:700;
+  color:var(--gold);letter-spacing:3px;
+  background:var(--black3);border:1px solid var(--gold-border);
+  border-radius:5px;padding:5px 10px;display:inline-block;
+}
+
+.status-badge{
+  display:inline-block;border-radius:4px;padding:3px 10px;
+  font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;
+}
+.status-active{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--green);}
+.status-pending{background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3);color:var(--orange);}
+.status-used{background:rgba(90,97,117,.1);border:1px solid rgba(90,97,117,.3);color:var(--muted);}
+
+.divider{height:1px;background:var(--gold-border);margin:32px 0;}
+
+/* INSTRUCTIONS */
+.instr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.instr-card{
+  background:var(--black2);border:1px solid var(--gold-border);
+  border-radius:10px;padding:18px 20px;
+}
+.instr-num{
+  font-family:'Space Mono',monospace;font-size:22px;font-weight:700;
+  color:var(--gold);opacity:.3;margin-bottom:6px;
+}
+.instr-title{font-weight:700;color:var(--white);margin-bottom:4px;font-size:14px;}
+.instr-desc{font-size:12px;color:var(--muted);line-height:1.5;}
+
+/* NOTES */
+.note-box{
+  background:var(--black2);border:1px solid var(--gold-border);
+  border-radius:10px;padding:20px;margin-bottom:12px;
+}
+.note-tester{font-weight:700;color:var(--gold);margin-bottom:8px;font-size:13px;}
+.note-lines{display:flex;flex-direction:column;gap:4px;}
+.note-line{
+  height:28px;border-bottom:1px solid rgba(200,169,110,0.1);
+  font-size:11px;color:var(--muted);display:flex;align-items:flex-end;
+  padding-bottom:2px;
+}
+
+.tip{background:var(--gold-dim);border:1px solid var(--gold-border);border-left:3px solid var(--gold);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--cream);margin:16px 0;}
+.tip strong{color:var(--gold);}
+
+.footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--gold-border);display:flex;justify-content:space-between;}
+.footer-brand{font-family:'Space Mono',monospace;font-size:9px;color:var(--gold);opacity:.3;letter-spacing:3px;}
+.footer-note{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <div class="kicker">Documento Interno · No Distribuir</div>
+  <h1>Beta Keys & Testers</h1>
+  <p class="hero-sub">Pad Works XPN · Beta Cerrada · Marzo 2026 · 3 testers</p>
+</div>
+
+<div class="conf-bar">CONFIDENCIAL — Solo para uso interno del equipo Pad Works</div>
+
+<!-- KEYS TABLE -->
+<div class="sec-label">Claves de Acceso</div>
+<table class="key-table">
+  <thead>
+    <tr>
+      <th>Tester</th>
+      <th>Clave de acceso</th>
+      <th>Dispositivo</th>
+      <th>Estado</th>
+      <th>Fecha envío</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Tester 01</strong><br><span style="color:var(--muted);font-size:11px;">Nombre: ___________</span></td>
+      <td><span class="key-code">XPN-BETA-T01A</span></td>
+      <td style="color:var(--muted);font-size:12px;">___________</td>
+      <td><span class="status-pending">PENDIENTE</span></td>
+      <td style="color:var(--muted);font-size:12px;">___/___/2026</td>
+    </tr>
+    <tr>
+      <td><strong>Tester 02</strong><br><span style="color:var(--muted);font-size:11px;">Nombre: ___________</span></td>
+      <td><span class="key-code">XPN-BETA-T02B</span></td>
+      <td style="color:var(--muted);font-size:12px;">___________</td>
+      <td><span class="status-pending">PENDIENTE</span></td>
+      <td style="color:var(--muted);font-size:12px;">___/___/2026</td>
+    </tr>
+    <tr>
+      <td><strong>Tester 03</strong><br><span style="color:var(--muted);font-size:11px;">Nombre: ___________</span></td>
+      <td><span class="key-code">XPN-BETA-T03C</span></td>
+      <td style="color:var(--muted);font-size:12px;">___________</td>
+      <td><span class="status-pending">PENDIENTE</span></td>
+      <td style="color:var(--muted);font-size:12px;">___/___/2026</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="tip">
+  <strong>Cómo usar las claves:</strong> Cada tester ingresa su clave en el formulario de feedback. Esto nos permite identificar de quién viene cada reporte y cruzar con su dispositivo MPC específico.
+</div>
+
+<div class="divider"></div>
+
+<!-- WHAT TO SEND -->
+<div class="sec-label">Paquete para cada Tester</div>
+<div class="instr-grid">
+  <div class="instr-card">
+    <div class="instr-num">01</div>
+    <div class="instr-title">PadWorksXPN.dmg</div>
+    <div class="instr-desc">El instalador del software. Compilado con Electron, firmado para macOS.</div>
+  </div>
+  <div class="instr-card">
+    <div class="instr-num">02</div>
+    <div class="instr-title">BetaGuide.html</div>
+    <div class="instr-desc">Guía rápida de instalación y uso. Abrir en cualquier navegador.</div>
+  </div>
+  <div class="instr-card">
+    <div class="instr-num">03</div>
+    <div class="instr-title">BetaFeedback.html</div>
+    <div class="instr-desc">Formulario de feedback. Llenar y devolver con sus respuestas.</div>
+  </div>
+  <div class="instr-card">
+    <div class="instr-num">04</div>
+    <div class="instr-title">Clave personal</div>
+    <div class="instr-desc">Enviar la clave XPN-BETA-T0X de forma privada — no incluir en el paquete público.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- MENSAJE DE ENVÍO -->
+<div class="sec-label">Mensaje de Envío (Plantilla)</div>
+<div class="note-box">
+  <div style="font-size:13px; line-height:1.7; color:var(--cream);">
+    <p>Hey [nombre],</p><br>
+    <p>Te comparto acceso anticipado a <strong style="color:var(--gold)">Pad Works XPN</strong> — una herramienta que construimos para crear expansiones MPC de forma profesional en minutos.</p><br>
+    <p>En el paquete encontrarás:</p>
+    <p style="color:var(--muted)">→ El software (.dmg para macOS)<br>
+    → Guía rápida de uso<br>
+    → Formulario de feedback</p><br>
+    <p>Tu clave de acceso beta es: <strong style="color:var(--gold); font-family:'Space Mono',monospace;">[XPN-BETA-T0X]</strong></p><br>
+    <p>Úsala en el formulario cuando nos envíes tu feedback. No hace falta activar nada en el software — es solo para identificar tu reporte.</p><br>
+    <p>Sería muy valioso que puedas probar el export en tu MPC y contarnos si los kits cargan correctamente.</p><br>
+    <p>Gracias de verdad,<br>MRVS / Pad Works</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- NOTAS DE SEGUIMIENTO -->
+<div class="sec-label">Notas de Seguimiento por Tester</div>
+
+<div class="note-box">
+  <div class="note-tester">Tester 01 — XPN-BETA-T01A</div>
+  <div class="note-lines">
+    <div class="note-line">Feedback recibido: ___/___</div>
+    <div class="note-line">Hardware testeado: ___________</div>
+    <div class="note-line">Issues reportados: ___________</div>
+    <div class="note-line">Seguimiento: ___________</div>
+  </div>
+</div>
+
+<div class="note-box">
+  <div class="note-tester">Tester 02 — XPN-BETA-T02B</div>
+  <div class="note-lines">
+    <div class="note-line">Feedback recibido: ___/___</div>
+    <div class="note-line">Hardware testeado: ___________</div>
+    <div class="note-line">Issues reportados: ___________</div>
+    <div class="note-line">Seguimiento: ___________</div>
+  </div>
+</div>
+
+<div class="note-box">
+  <div class="note-tester">Tester 03 — XPN-BETA-T03C</div>
+  <div class="note-lines">
+    <div class="note-line">Feedback recibido: ___/___</div>
+    <div class="note-line">Hardware testeado: ___________</div>
+    <div class="note-line">Issues reportados: ___________</div>
+    <div class="note-line">Seguimiento: ___________</div>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer-brand">PAD WORKS · INTERNO · 2026</div>
+  <div class="footer-note">No distribuir · Confidencial</div>
+</footer>
+
+</div>
+</body>
+</html>

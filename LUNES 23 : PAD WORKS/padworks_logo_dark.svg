@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <rect width="1000" height="1000" fill="#0D0F14"/>
+  <rect x="0" y="0" width="1000" height="8" fill="#C8A96E"/>
+  
+  <!-- Dot grid 3x3 centered -->
+  <circle cx="460" cy="310" r="26" fill="#C8A96E"/>
+  <circle cx="530" cy="310" r="26" fill="#C8A96E" opacity="0.65"/>
+  <circle cx="600" cy="310" r="26" fill="#C8A96E" opacity="0.25"/>
+  <circle cx="460" cy="380" r="26" fill="#C8A96E" opacity="0.65"/>
+  <circle cx="530" cy="380" r="26" fill="#C8A96E"/>
+  <circle cx="600" cy="380" r="26" fill="#C8A96E" opacity="0.45"/>
+  <circle cx="460" cy="450" r="26" fill="#C8A96E" opacity="0.25"/>
+  <circle cx="530" cy="450" r="26" fill="#C8A96E" opacity="0.45"/>
+  <circle cx="600" cy="450" r="26" fill="#C8A96E" opacity="0.12"/>
+
+  <!-- PAD WORKS -->
+  <text x="500" y="600" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="88" font-weight="700" fill="#FFFFFF" letter-spacing="10">PAD WORKS</text>
+  
+  <!-- XPN BUILDER -->
+  <text x="500" y="665" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="30" font-weight="300" fill="#C8A96E" letter-spacing="16">XPN BUILDER</text>
+</svg>

@@ -1,0 +1,56 @@
+{
+  "name": "xpn-builder",
+  "version": "1.0.0",
+  "description": "MPC Expansion Builder",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac dmg",
+    "test": "jest"
+  },
+  "build": {
+    "appId": "com.xpnbuilder.app",
+    "productName": "XPN Builder",
+    "files": [
+      "main.js",
+      "mpc_expansion_builder.html",
+      "xpn_manual_v1.html",
+      "icon.png"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "icon.png"
+    },
+    "dmg": {
+      "title": "XPN Builder",
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "jest": "^30.3.0",
+    "jest-environment-jsdom": "^30.3.0",
+    "jszip": "^3.10.1"
+  }
+}

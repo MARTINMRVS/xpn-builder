@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>XPN Builder — Manual</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0e0e10; --panel:#161618; --panel2:#1c1c1f; --panel3:#222226;
+  --border:#2a2a2e; --border2:#333338;
+  --ink:#e8e6e0; --ink2:#9a9890; --ink3:#5a5856;
+  --accent:#c8a96e; --accent2:#b89458; --accent-dim:rgba(200,169,110,.1);
+  --green:#5a9a6a; --blue:#4a7ab0; --red:#c0504a;
+  --radius:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;font-weight:300;line-height:1.7;min-height:100vh}
+
+/* ── LANG BAR ── */
+.lang-bar{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:10px 24px}
+.lang-brand{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;letter-spacing:.12em;color:var(--accent)}
+.lang-btns{display:flex;gap:6px}
+.lang-btn{padding:5px 14px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;cursor:pointer;border-radius:var(--radius);border:1px solid var(--border2);background:transparent;color:var(--ink3);transition:all .15s;text-transform:uppercase}
+.lang-btn:hover{border-color:var(--accent);color:var(--accent)}
+.lang-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:500}
+
+/* ── LAYOUT ── */
+.wrapper{display:grid;grid-template-columns:220px 1fr;max-width:1100px;margin:0 auto;min-height:calc(100vh - 48px)}
+.sidebar{position:sticky;top:48px;height:calc(100vh - 48px);overflow-y:auto;padding:24px 16px;border-right:1px solid var(--border);flex-shrink:0}
+.content{padding:40px 48px 80px;max-width:720px}
+
+/* ── SIDEBAR ── */
+.sidebar-section{margin-bottom:20px}
+.sidebar-label{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink3);font-family:'IBM Plex Mono',monospace;margin-bottom:8px;padding:0 8px}
+.sidebar-link{display:block;padding:5px 8px;border-radius:4px;font-size:12px;color:var(--ink3);text-decoration:none;cursor:pointer;transition:all .14s;border:1px solid transparent;line-height:1.4}
+.sidebar-link:hover{color:var(--ink2);background:var(--panel2)}
+.sidebar-link.active{color:var(--accent);background:var(--accent-dim);border-color:rgba(200,169,110,.2)}
+.sidebar-link .num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink3);margin-right:6px}
+
+/* ── CONTENT ── */
+.lang-section{display:none}
+.lang-section.active{display:block}
+
+/* cover */
+.cover{padding:48px 0 56px;border-bottom:1px solid var(--border);margin-bottom:48px}
+.cover-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.28em;color:var(--accent);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.cover-eyebrow::before{content:'';display:block;width:24px;height:1px;background:var(--accent)}
+.cover-title{font-family:'IBM Plex Serif',serif;font-size:36px;font-weight:300;line-height:1.15;color:var(--ink);margin-bottom:12px}
+.cover-title em{font-style:italic;color:var(--ink2)}
+.cover-subtitle{font-size:14px;color:var(--ink3);line-height:1.8;max-width:480px}
+.cover-version{margin-top:20px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--ink3)}
+
+/* chapter */
+.chapter{margin-bottom:52px}
+.chapter-num{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.28em;color:var(--accent);text-transform:uppercase;margin-bottom:8px}
+.chapter-title{font-family:'IBM Plex Serif',serif;font-size:24px;font-weight:300;color:var(--ink);margin-bottom:20px;line-height:1.25;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.chapter-title em{font-style:italic}
+.section{margin-bottom:32px}
+.section-title{font-size:13px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px;font-family:'IBM Plex Mono',monospace}
+p{margin-bottom:12px;color:var(--ink2);line-height:1.75}
+p strong{color:var(--ink);font-weight:500}
+p em{font-style:italic;color:var(--ink)}
+
+/* tip box */
+.tip{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:12px 16px;margin:16px 0}
+.tip-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:5px}
+.tip p{margin:0;font-size:13px}
+.note{border-left-color:var(--blue)}
+.note .tip-label{color:var(--blue)}
+.warn{border-left-color:var(--red)}
+.warn .tip-label{color:var(--red)}
+
+/* key caps */
+kbd{display:inline-block;background:var(--panel2);border:1px solid var(--border2);border-bottom:2px solid var(--border2);border-radius:4px;padding:1px 7px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink2);letter-spacing:.04em}
+
+/* step list */
+.steps{counter-reset:step;list-style:none;margin:12px 0 20px}
+.steps li{counter-increment:step;display:flex;gap:14px;margin-bottom:12px;align-items:flex-start}
+.steps li::before{content:counter(step);font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(200,169,110,.3);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;font-weight:500}
+.steps li p{margin:0;font-size:13px;color:var(--ink2)}
+
+/* bullet list */
+ul.bullets{list-style:none;margin:10px 0 18px;padding:0}
+ul.bullets li{display:flex;gap:10px;margin-bottom:7px;font-size:13px;color:var(--ink2);align-items:flex-start}
+ul.bullets li::before{content:'·';color:var(--accent);font-size:16px;line-height:1.3;flex-shrink:0}
+
+/* shortcut table */
+.shortcut-table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:12px}
+.shortcut-table th{text-align:left;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);padding:6px 10px;border-bottom:1px solid var(--border);font-weight:400;font-family:'IBM Plex Mono',monospace}
+.shortcut-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--ink2);vertical-align:top}
+.shortcut-table td:first-child{font-family:'IBM Plex Mono',monospace;color:var(--ink);white-space:nowrap}
+.shortcut-table tr:last-child td{border-bottom:none}
+
+/* mode table */
+.mode-table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:12px}
+.mode-table th{text-align:left;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);padding:6px 10px;border-bottom:1px solid var(--border);font-weight:400;font-family:'IBM Plex Mono',monospace}
+.mode-table td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--ink2);vertical-align:top;font-size:12px}
+.mode-table td:first-child{color:var(--accent);font-family:'IBM Plex Mono',monospace;font-weight:500}
+.mode-table tr:last-child td{border-bottom:none}
+.mode-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+/* synonym chip */
+.chip{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:1px 8px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink3);margin:2px}
+
+/* pad layout diagram */
+.pad-diagram{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:280px;margin:12px 0 20px;padding:12px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius)}
+.pd-cell{background:var(--panel2);border:1px solid var(--border2);border-radius:3px;padding:6px 4px;text-align:center;font-size:9px;font-family:'IBM Plex Mono',monospace;line-height:1.3}
+.pd-cell .num{color:var(--ink3);font-size:8px;display:block;margin-bottom:2px}
+.pd-cell .label{color:var(--ink2)}
+.pd-cell.kick{border-color:rgba(200,169,110,.5);color:var(--accent)}
+.pd-cell.snare{border-color:rgba(192,96,96,.4);color:#c06868}
+.pd-cell.hat{border-color:rgba(74,154,176,.4);color:#4a9ab0}
+.pd-cell.tom{border-color:rgba(90,154,106,.4);color:#5a9a6a}
+.pd-cell.perc{border-color:rgba(138,122,74,.4);color:#8a7a4a}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* footer */
+.manual-footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);font-size:11px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.06em}
+
+@media(max-width:700px){
+  .wrapper{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .content{padding:24px 20px 60px}
+}
+</style>
+</head>
+<body>
+
+<div class="lang-bar">
+  <span class="lang-brand">XPN Builder · Manual</span>
+  <div class="lang-btns">
+    <button class="lang-btn active" onclick="setLang('es')">ES</button>
+    <button class="lang-btn" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('fr')">FR</button>
+  </div>
+</div>
+
+<div class="wrapper">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="content">
+
+<!-- ══════════════════════════════════════════
+     ESPAÑOL
+══════════════════════════════════════════ -->
+<div class="lang-section active" id="lang-es">
+
+  <div class="cover">
+    <div class="cover-eyebrow">Manual de usuario</div>
+    <h1 class="cover-title">XPN Builder<br><em>Crea tu expansión MPC</em></h1>
+    <p class="cover-subtitle">Una herramienta hecha para productores que necesitan velocidad sin perder control. Sin servidores, sin internet, sin complicaciones.</p>
+    <div class="cover-version">Versión 1.0 · MPC Live / X / One</div>
+  </div>
+
+  <div class="chapter" id="es-c1">
+    <div class="chapter-num">Capítulo 01</div>
+    <h2 class="chapter-title">Primeros pasos</h2>
+
+    <div class="section">
+      <div class="section-title">¿Qué es XPN Builder?</div>
+      <p>XPN Builder es una herramienta de escritorio que te permite crear <strong>expansiones de sonido para MPC</strong> de manera rápida y organizada. Cargas tus samples, los asignas a los pads, agregas efectos si lo necesitas, y exportas un archivo <strong>.zip listo para cargar en tu MPC</strong>.</p>
+      <p>Todo el procesamiento ocurre en tu computador. Ningún audio viaja a internet. Tus muestras son tuyas.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">La interfaz de un vistazo</div>
+      <ul class="bullets">
+        <li><strong>Panel izquierdo</strong> — Modos, artwork de la expansión, grupos de color y lista de samples.</li>
+        <li><strong>Centro</strong> — La grilla de 16 pads con los 8 bancos (A–H = 128 pads en total).</li>
+        <li><strong>Panel derecho</strong> — Detalle del pad seleccionado: nombre, volumen, pitch, pan y cadena de efectos.</li>
+        <li><strong>Barra superior</strong> — Nombre de la expansión, autor y botón de exportación.</li>
+        <li><strong>Barra inferior</strong> — Estado general: pads usados, tamaño total y confirmación de modo offline.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Cargar samples</div>
+      <ol class="steps">
+        <li><p>Arrastra archivos de audio directamente a la <strong>zona de drop</strong> en el panel izquierdo (MP3, WAV, AIFF, FLAC).</p></li>
+        <li><p>Los samples aparecen en la lista con su forma de onda, duración y tamaño.</p></li>
+        <li><p>Haz clic en un sample de la lista para asignarlo al <strong>pad seleccionado</strong>.</p></li>
+        <li><p>También puedes arrastrar un sample directamente sobre cualquier pad.</p></li>
+      </ol>
+      <div class="tip">
+        <div class="tip-label">Consejo</div>
+        <p>El botón de play en cada sample de la lista reproduce el audio directamente. Útil para auditar sin tener que asignarlo.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chapter" id="es-c2">
+    <div class="chapter-num">Capítulo 02</div>
+    <h2 class="chapter-title">La grilla de pads</h2>
+
+    <div class="section">
+      <div class="section-title">Orden de los pads</div>
+      <p>El layout sigue la numeración estándar de MPC: <strong>pad 01 está abajo a la izquierda</strong> y avanza de izquierda a derecha, de abajo hacia arriba.</p>
+      <div class="pad-diagram">
+        <div class="pd-cell perc"><span class="num">13</span><span class="label">PERC</span></div>
+        <div class="pd-cell perc"><span class="num">14</span><span class="label">PERC</span></div>
+        <div class="pd-cell perc"><span class="num">15</span><span class="label">CYM</span></div>
+        <div class="pd-cell perc"><span class="num">16</span><span class="label">CYM</span></div>
+        <div class="pd-cell tom"><span class="num">09</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">10</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">11</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">12</span><span class="label">TOM</span></div>
+        <div class="pd-cell kick"><span class="num">05</span><span class="label">KICK</span></div>
+        <div class="pd-cell hat"><span class="num">06</span><span class="label">HH CL</span></div>
+        <div class="pd-cell hat"><span class="num">07</span><span class="label">HH OP</span></div>
+        <div class="pd-cell hat"><span class="num">08</span><span class="label">HH CL</span></div>
+        <div class="pd-cell kick"><span class="num">01</span><span class="label">KICK</span></div>
+        <div class="pd-cell snare"><span class="num">02</span><span class="label">SNARE</span></div>
+        <div class="pd-cell snare"><span class="num">03</span><span class="label">RIM</span></div>
+        <div class="pd-cell snare"><span class="num">04</span><span class="label">CLAP</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Bancos A–H</div>
+      <p>Tienes <strong>8 bancos de 16 pads cada uno</strong> = 128 pads en total por expansión. Los bancos A–D son tu kit principal; E–H son ideales para variaciones, layers o contenido adicional.</p>
+      <div class="tip note">
+        <div class="tip-label">Nota</div>
+        <p>Cada banco se exporta como un preset independiente dentro del paquete .xpn.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Acciones en los pads</div>
+      <ul class="bullets">
+        <li><strong>Clic</strong> — Selecciona el pad y muestra su detalle en el panel derecho.</li>
+        <li><strong>Doble clic</strong> — Reproduce el sample del pad.</li>
+        <li><strong>Clic derecho</strong> — Menú contextual: asignar, copiar, pegar, limpiar.</li>
+        <li><strong>Arrastrar</strong> — Arrastra un sample desde la lista directo al pad.</li>
+        <li><strong>Space</strong> — Preview del pad seleccionado.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="chapter" id="es-c3">
+    <div class="chapter-num">Capítulo 03</div>
+    <h2 class="chapter-title">Modos de asignación</h2>
+
+    <div class="section">
+      <div class="section-title">¿Qué son los modos?</div>
+      <p>Los <strong>modos de asignación</strong> son plantillas inteligentes que definen qué tipo de sonido va en cada pad. Cuando cargas una carpeta de 16 samples, el builder los detecta por nombre y los coloca automáticamente en los pads correctos.</p>
+      <p>Todos los modos comparten la <strong>misma lógica de grid</strong>:</p>
+      <ul class="bullets">
+        <li>Pads 01–04: golpes primarios (kick, snare, rim, clap)</li>
+        <li>Pads 05–08: fila de hats (kick alt, hh close, hh open, hh close/pedal)</li>
+        <li>Pads 09–12: especialidad del modo</li>
+        <li>Pads 13–16: color y textura</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Los 5 modos disponibles</div>
+      <table class="mode-table">
+        <tr><th>Modo</th><th>09–12</th><th>13–16</th><th>Ideal para</th></tr>
+        <tr><td>DRUM</td><td>Toms × 4</td><td>Perc · Perc · Cymbal · Cymbal</td><td>Batería acústica / completa</td></tr>
+        <tr><td>BEAT</td><td>Sampler × 3 · Bass</td><td>Perc · Perc · Sampler · FX</td><td>Producción beatmaker</td></tr>
+        <tr><td>LIVE</td><td>Bass × 2 · FX × 2</td><td>Sampler × 4</td><td>Performance en vivo</td></tr>
+        <tr><td>H·HOP</td><td>Bass × 2 · Perc × 2</td><td>Sampler × 4</td><td>Boom bap / hip-hop</td></tr>
+        <tr><td>ELEC</td><td>Rim · Perc × 2 · FX</td><td>Bass · Sampler · FX × 2</td><td>Techno / electrónica</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Sinónimos reconocidos</div>
+      <p>El builder detecta el tipo de sonido leyendo el nombre del archivo. Estas palabras son reconocidas automáticamente:</p>
+      <p><strong>Kick:</strong> <span class="chip">kick</span><span class="chip">bombo</span><span class="chip">kk</span><span class="chip">bd</span><span class="chip">bassdrum</span></p>
+      <p><strong>Snare:</strong> <span class="chip">snare</span><span class="chip">snr</span><span class="chip">sn</span><span class="chip">caja</span><span class="chip">redoblante</span></p>
+      <p><strong>HH Close:</strong> <span class="chip">hhc</span><span class="chip">ch</span><span class="chip">hat_c</span><span class="chip">hh_close</span><span class="chip">hh</span><span class="chip">hat</span></p>
+      <p><strong>HH Open:</strong> <span class="chip">hho</span><span class="chip">oh</span><span class="chip">open_hat</span><span class="chip">hh_open</span></p>
+      <p><strong>Tom:</strong> <span class="chip">tom</span><span class="chip">t1</span><span class="chip">t2</span><span class="chip">t3</span><span class="chip">floortom</span></p>
+      <p><strong>Clap:</strong> <span class="chip">clap</span><span class="chip">cp</span><span class="chip">palma</span></p>
+      <p><strong>Bass:</strong> <span class="chip">bass</span><span class="chip">bajo</span><span class="chip">808</span><span class="chip">sub</span></p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Cómo usar la asignación automática</div>
+      <ol class="steps">
+        <li><p>Selecciona el modo deseado en la barra de modos (DRUM, BEAT, LIVE, H·HOP, ELEC).</p></li>
+        <li><p>Selecciona el banco destino (A, B, C…).</p></li>
+        <li><p>Haz clic en <strong>"Load Folder (16)"</strong> y selecciona la carpeta con tus samples.</p></li>
+        <li><p>El builder asigna automáticamente. El mini-mapa muestra en verde los pads asignados correctamente y el log detalla qué se detectó.</p></li>
+      </ol>
+      <div class="tip">
+        <div class="tip-label">Consejo</div>
+        <p>Si un sample no se detecta automáticamente, se agrega al pool y puedes arrastrarlo manualmente al pad deseado.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chapter" id="es-c4">
+    <div class="chapter-num">Capítulo 04</div>
+    <h2 class="chapter-title">Edición de pads y efectos</h2>
+
+    <div class="section">
+      <div class="section-title">Parámetros del pad</div>
+      <p>Al seleccionar un pad cargado aparece el panel de detalle con tres controles principales:</p>
+      <ul class="bullets">
+        <li><strong>Volume</strong> (0–100%) — Nivel de salida del sample en este pad.</li>
+        <li><strong>Pitch</strong> (–12 a +12 semitonos) — Transpone el sample sin afectar su duración.</li>
+        <li><strong>Pan</strong> (L100 a R100) — Posición estéreo. C = centro.</li>
+      </ul>
+      <p>Los knobs se controlan haciendo clic y <strong>arrastrando verticalmente</strong> (arriba = sube, abajo = baja).</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Cadena de efectos</div>
+      <p>Cada pad puede tener una cadena de efectos independiente. Haz clic en <strong>"+ Add Effect"</strong> para agregar uno:</p>
+      <table class="shortcut-table">
+        <tr><th>Efecto</th><th>Parámetros</th><th>Uso típico</th></tr>
+        <tr><td>Low-Pass Filter</td><td>Cutoff · Resonance</td><td>Suavizar el sample, quitar agudos</td></tr>
+        <tr><td>High-Pass Filter</td><td>Cutoff · Resonance</td><td>Quitar graves, limpiar el sample</td></tr>
+        <tr><td>Reverb</td><td>Size · Mix</td><td>Agregar espacio al sonido</td></tr>
+        <tr><td>Delay</td><td>Time · Feedback</td><td>Eco y profundidad</td></tr>
+        <tr><td>Bit Crusher</td><td>Bits · Mix</td><td>Lo-fi, degradación de audio</td></tr>
+        <tr><td>Pitch Shift</td><td>Semitones · Mix</td><td>Armonía, detuning</td></tr>
+      </table>
+      <div class="tip note">
+        <div class="tip-label">Nota</div>
+        <p>Los efectos se guardan en los metadatos de la expansión (.xpm). La MPC puede aplicarlos o ignorarlos según su compatibilidad.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chapter" id="es-c5">
+    <div class="chapter-num">Capítulo 05</div>
+    <h2 class="chapter-title">Editor de patrones</h2>
+
+    <div class="section">
+      <div class="section-title">Abrir el editor</div>
+      <p>Haz clic en el botón <strong>⊞ Pattern</strong> en la barra de bancos. Se abre a pantalla completa con tu kit actual cargado.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Crear un patrón</div>
+      <ol class="steps">
+        <li><p>Usa los botones de <strong>Fill</strong> (4/4, Trap, Boom, Electro, Mode) para cargar un patrón base automático.</p></li>
+        <li><p>Haz clic en cualquier celda para activar o desactivar ese paso. Arrastra para pintar varios pasos de una vez.</p></li>
+        <li><p>Presiona <kbd>Space</kbd> o el botón de play para escuchar el patrón en vivo con tus samples reales.</p></li>
+        <li><p>Ajusta el <strong>BPM</strong> arrastrando el número verticalmente.</p></li>
+        <li><p>Usa el botón <strong>M</strong> junto a cada fila para mutear instrumentos individuales.</p></li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Convertir en Demo Preview</div>
+      <p>Una vez que el patrón suena bien, haz clic en <strong>"Set as Demo Preview"</strong>. Esto guarda el patrón para exportarlo como audio de demostración dentro del paquete.</p>
+      <p>Cuando navegas kits en la MPC, este audio se reproduce automáticamente para que puedas escuchar la expansión antes de cargarla.</p>
+      <div class="tip">
+        <div class="tip-label">Consejo</div>
+        <p>El builder renderiza el patrón a un archivo WAV usando tus propios samples. No necesitas grabar nada externamente.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chapter" id="es-c6">
+    <div class="chapter-num">Capítulo 06</div>
+    <h2 class="chapter-title">Exportar la expansión</h2>
+
+    <div class="section">
+      <div class="section-title">Estructura del paquete exportado</div>
+      <p>Al hacer clic en <strong>"Build Expansion"</strong> se genera un <strong>archivo .zip</strong> con la siguiente estructura:</p>
+      <ul class="bullets">
+        <li><strong>Expansion.plist</strong> — Metadatos: nombre, autor, grupos, bancos.</li>
+        <li><strong>Samples/All/</strong> — Todos tus archivos de audio.</li>
+        <li><strong>Presets/Bank_A.xpm … Bank_H.xpm</strong> — Un preset por banco con todos los parámetros de cada pad.</li>
+        <li><strong>Artwork/thumbnail.jpg</strong> — La imagen de la expansión (si la agregaste).</li>
+        <li><strong>Demos/preview.wav</strong> — El audio de demo (si lo configuraste).</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Cómo cargar en la MPC</div>
+      <ol class="steps">
+        <li><p>Copia el .zip a un USB o a la memoria interna de tu MPC.</p></li>
+        <li><p>En la MPC ve a <strong>Menu → Browse → Expansions</strong>.</p></li>
+        <li><p>Selecciona el archivo y elige <strong>Load</strong>.</p></li>
+        <li><p>El kit aparece disponible en el browser de la MPC.</p></li>
+      </ol>
+      <div class="tip warn">
+        <div class="tip-label">Importante</div>
+        <p>Algunos modelos de MPC requieren que el .zip esté descomprimido. Si no carga, extrae el contenido y copia la carpeta directamente.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="chapter" id="es-c7">
+    <div class="chapter-num">Capítulo 07</div>
+    <h2 class="chapter-title">Atajos de teclado</h2>
+    <table class="shortcut-table">
+      <tr><th>Tecla</th><th>Acción</th></tr>
+      <tr><td><kbd>Space</kbd></td><td>Preview del pad seleccionado / Play·Stop en el editor de patrones</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Cerrar modal o editor · Detener preview</td></tr>
+      <tr><td><kbd>⌘N</kbd> / <kbd>Ctrl+N</kbd></td><td>Nueva expansión (limpia todos los pads)</td></tr>
+      <tr><td><kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd></td><td>Abrir ventana de exportación</td></tr>
+      <tr><td><kbd>⌘?</kbd> / <kbd>Ctrl+?</kbd></td><td>Abrir este manual</td></tr>
+      <tr><td>Doble clic en pad</td><td>Preview del pad</td></tr>
+      <tr><td>Clic derecho en pad</td><td>Menú contextual</td></tr>
+      <tr><td>Arrastrar número BPM</td><td>Cambiar BPM (en editor de patrones)</td></tr>
+    </table>
+  </div>
+
+  <div class="manual-footer">XPN Builder v1.0 · 100% offline · Tus samples, tu máquina.</div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     ENGLISH
+══════════════════════════════════════════ -->
+<div class="lang-section" id="lang-en">
+
+  <div class="cover">
+    <div class="cover-eyebrow">User Manual</div>
+    <h1 class="cover-title">XPN Builder<br><em>Create your MPC expansion</em></h1>
+    <p class="cover-subtitle">A tool built for producers who need speed without losing control. No servers, no internet, no complications.</p>
+    <div class="cover-version">Version 1.0 · MPC Live / X / One</div>
+  </div>
+
+  <div class="chapter" id="en-c1">
+    <div class="chapter-num">Chapter 01</div>
+    <h2 class="chapter-title">Getting started</h2>
+    <div class="section">
+      <div class="section-title">What is XPN Builder?</div>
+      <p>XPN Builder is a desktop tool that lets you create <strong>MPC sound expansions</strong> quickly and with full control. Load your samples, assign them to pads, add effects if needed, and export a <strong>.zip file ready to load on your MPC</strong>.</p>
+      <p>All processing happens on your computer. No audio goes to the internet. Your samples stay yours.</p>
+    </div>
+    <div class="section">
+      <div class="section-title">Interface overview</div>
+      <ul class="bullets">
+        <li><strong>Left panel</strong> — Modes, expansion artwork, color groups, and sample list.</li>
+        <li><strong>Center</strong> — 16-pad grid with 8 banks (A–H = 128 pads total).</li>
+        <li><strong>Right panel</strong> — Selected pad detail: name, volume, pitch, pan, and effects chain.</li>
+        <li><strong>Top bar</strong> — Expansion name, author, and export button.</li>
+        <li><strong>Bottom bar</strong> — Status: pads used, total size, offline confirmation.</li>
+      </ul>
+    </div>
+    <div class="section">
+      <div class="section-title">Loading samples</div>
+      <ol class="steps">
+        <li><p>Drag audio files directly to the <strong>drop zone</strong> in the left panel (MP3, WAV, AIFF, FLAC).</p></li>
+        <li><p>Samples appear in the list with their waveform, duration, and size.</p></li>
+        <li><p>Click a sample in the list to assign it to the <strong>selected pad</strong>.</p></li>
+        <li><p>You can also drag a sample directly onto any pad.</p></li>
+      </ol>
+      <div class="tip"><div class="tip-label">Tip</div><p>The play button on each sample in the list previews the audio without assigning it. Great for auditioning.</p></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="en-c2">
+    <div class="chapter-num">Chapter 02</div>
+    <h2 class="chapter-title">The pad grid</h2>
+    <div class="section">
+      <div class="section-title">Pad numbering</div>
+      <p>The layout follows the standard MPC numbering: <strong>pad 01 is bottom-left</strong>, advancing left to right, bottom to top.</p>
+      <div class="pad-diagram">
+        <div class="pd-cell perc"><span class="num">13</span><span class="label">PERC</span></div>
+        <div class="pd-cell perc"><span class="num">14</span><span class="label">PERC</span></div>
+        <div class="pd-cell perc"><span class="num">15</span><span class="label">CYM</span></div>
+        <div class="pd-cell perc"><span class="num">16</span><span class="label">CYM</span></div>
+        <div class="pd-cell tom"><span class="num">09</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">10</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">11</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">12</span><span class="label">TOM</span></div>
+        <div class="pd-cell kick"><span class="num">05</span><span class="label">KICK</span></div>
+        <div class="pd-cell hat"><span class="num">06</span><span class="label">HH CL</span></div>
+        <div class="pd-cell hat"><span class="num">07</span><span class="label">HH OP</span></div>
+        <div class="pd-cell hat"><span class="num">08</span><span class="label">HH CL</span></div>
+        <div class="pd-cell kick"><span class="num">01</span><span class="label">KICK</span></div>
+        <div class="pd-cell snare"><span class="num">02</span><span class="label">SNARE</span></div>
+        <div class="pd-cell snare"><span class="num">03</span><span class="label">RIM</span></div>
+        <div class="pd-cell snare"><span class="num">04</span><span class="label">CLAP</span></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Banks A–H</div>
+      <p>You have <strong>8 banks of 16 pads each</strong> = 128 pads total per expansion. Banks A–D are your main kit; E–H are ideal for variations, layers, or additional content.</p>
+    </div>
+    <div class="section">
+      <div class="section-title">Pad actions</div>
+      <ul class="bullets">
+        <li><strong>Click</strong> — Select the pad and show its detail in the right panel.</li>
+        <li><strong>Double-click</strong> — Play the pad's sample.</li>
+        <li><strong>Right-click</strong> — Context menu: assign, copy, paste, clear.</li>
+        <li><strong>Drag</strong> — Drag a sample from the list onto a pad.</li>
+        <li><kbd>Space</kbd> — Preview the selected pad.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="chapter" id="en-c3">
+    <div class="chapter-num">Chapter 03</div>
+    <h2 class="chapter-title">Assignment modes</h2>
+    <div class="section">
+      <div class="section-title">What are modes?</div>
+      <p><strong>Assignment modes</strong> are smart templates that define what type of sound goes on each pad. When you load a folder of 16 samples, the builder detects them by filename and places them on the correct pads automatically.</p>
+      <p>All modes share the <strong>same grid logic</strong> — the kit anchor points never move:</p>
+      <ul class="bullets">
+        <li>Pads 01–04: primary hits (kick, snare, rim, clap)</li>
+        <li>Pads 05–08: hat row (kick alt, hh close, hh open, hh close/pedal)</li>
+        <li>Pads 09–12: mode specialty</li>
+        <li>Pads 13–16: color and texture</li>
+      </ul>
+    </div>
+    <div class="section">
+      <div class="section-title">Recognized synonyms</div>
+      <p><strong>Kick:</strong> <span class="chip">kick</span><span class="chip">bombo</span><span class="chip">kk</span><span class="chip">bd</span><span class="chip">bassdrum</span></p>
+      <p><strong>Snare:</strong> <span class="chip">snare</span><span class="chip">snr</span><span class="chip">sn</span><span class="chip">caja</span><span class="chip">redoblante</span></p>
+      <p><strong>HH Close:</strong> <span class="chip">hhc</span><span class="chip">ch</span><span class="chip">hh_close</span><span class="chip">hat</span><span class="chip">hats</span><span class="chip">hh</span></p>
+      <p><strong>HH Open:</strong> <span class="chip">hho</span><span class="chip">oh</span><span class="chip">open_hat</span></p>
+      <p><strong>Tom:</strong> <span class="chip">tom</span><span class="chip">t1</span><span class="chip">t2</span><span class="chip">t3</span></p>
+      <p><strong>Bass/808:</strong> <span class="chip">bass</span><span class="chip">bajo</span><span class="chip">808</span><span class="chip">sub</span></p>
+    </div>
+  </div>
+
+  <div class="chapter" id="en-c4">
+    <div class="chapter-num">Chapter 04</div>
+    <h2 class="chapter-title">Pattern Editor</h2>
+    <div class="section">
+      <div class="section-title">Opening the editor</div>
+      <p>Click the <strong>⊞ Pattern</strong> button in the bank bar. It opens full-screen with your current kit loaded on the left and a 16-step sequencer on the right.</p>
+    </div>
+    <div class="section">
+      <div class="section-title">Creating a pattern</div>
+      <ol class="steps">
+        <li><p>Use the <strong>Fill</strong> buttons (4/4, Trap, Boom, Electro, Mode) to load an automatic base pattern.</p></li>
+        <li><p>Click any cell to toggle that step. Click and drag to paint multiple steps at once. Clicking an active step plays the sample immediately.</p></li>
+        <li><p>Press <kbd>Space</kbd> or the play button to hear the pattern live with your real samples.</p></li>
+        <li><p>Drag the <strong>BPM number</strong> up/down to change tempo.</p></li>
+        <li><p>Use the <strong>M</strong> button next to each row to mute individual instruments.</p></li>
+      </ol>
+    </div>
+    <div class="section">
+      <div class="section-title">Setting as Demo Preview</div>
+      <p>When the pattern sounds right, click <strong>"Set as Demo Preview"</strong>. The builder will render it to a WAV file using your own samples and pack it in <strong>Demos/preview.wav</strong> — this is the audio MPC plays when browsing kits.</p>
+    </div>
+  </div>
+
+  <div class="chapter" id="en-c5">
+    <div class="chapter-num">Chapter 05</div>
+    <h2 class="chapter-title">Exporting</h2>
+    <div class="section">
+      <div class="section-title">Export package structure</div>
+      <ul class="bullets">
+        <li><strong>Expansion.plist</strong> — Metadata: name, author, groups, banks.</li>
+        <li><strong>Samples/All/</strong> — All your audio files.</li>
+        <li><strong>Presets/Bank_A.xpm … Bank_H.xpm</strong> — One preset per bank.</li>
+        <li><strong>Artwork/thumbnail.jpg</strong> — Expansion image.</li>
+        <li><strong>Demos/preview.wav</strong> — Demo audio (if configured).</li>
+      </ul>
+    </div>
+    <div class="section">
+      <div class="section-title">Loading on MPC</div>
+      <ol class="steps">
+        <li><p>Copy the .zip to a USB drive or MPC internal storage.</p></li>
+        <li><p>On the MPC go to <strong>Menu → Browse → Expansions</strong>.</p></li>
+        <li><p>Select the file and choose <strong>Load</strong>.</p></li>
+      </ol>
+      <div class="tip warn"><div class="tip-label">Important</div><p>Some MPC models require the .zip to be unzipped. If it doesn't load, extract the folder and copy it directly.</p></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="en-c6">
+    <div class="chapter-num">Chapter 06</div>
+    <h2 class="chapter-title">Keyboard shortcuts</h2>
+    <table class="shortcut-table">
+      <tr><th>Key</th><th>Action</th></tr>
+      <tr><td><kbd>Space</kbd></td><td>Preview selected pad / Play·Stop in pattern editor</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Close modal or editor · Stop preview</td></tr>
+      <tr><td><kbd>⌘N</kbd> / <kbd>Ctrl+N</kbd></td><td>New expansion (clears all pads)</td></tr>
+      <tr><td><kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd></td><td>Open export window</td></tr>
+      <tr><td><kbd>⌘?</kbd> / <kbd>Ctrl+?</kbd></td><td>Open this manual</td></tr>
+      <tr><td>Double-click pad</td><td>Preview pad</td></tr>
+      <tr><td>Right-click pad</td><td>Context menu</td></tr>
+      <tr><td>Drag BPM number</td><td>Change BPM (pattern editor)</td></tr>
+    </table>
+  </div>
+
+  <div class="manual-footer">XPN Builder v1.0 · 100% offline · Your samples, your machine.</div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     FRANÇAIS
+══════════════════════════════════════════ -->
+<div class="lang-section" id="lang-fr">
+
+  <div class="cover">
+    <div class="cover-eyebrow">Manuel utilisateur</div>
+    <h1 class="cover-title">XPN Builder<br><em>Créez votre expansion MPC</em></h1>
+    <p class="cover-subtitle">Un outil conçu pour les producteurs qui ont besoin de vitesse sans perdre le contrôle. Pas de serveurs, pas d'internet, pas de complications.</p>
+    <div class="cover-version">Version 1.0 · MPC Live / X / One</div>
+  </div>
+
+  <div class="chapter" id="fr-c1">
+    <div class="chapter-num">Chapitre 01</div>
+    <h2 class="chapter-title">Prise en main</h2>
+    <div class="section">
+      <div class="section-title">Qu'est-ce que XPN Builder ?</div>
+      <p>XPN Builder est un outil de bureau qui vous permet de créer des <strong>expansions sonores MPC</strong> rapidement et avec un contrôle total. Chargez vos samples, assignez-les aux pads, ajoutez des effets si nécessaire, et exportez un <strong>fichier .zip prêt à charger sur votre MPC</strong>.</p>
+      <p>Tout le traitement se passe sur votre ordinateur. Aucun audio n'est envoyé sur internet. Vos samples vous appartiennent.</p>
+    </div>
+    <div class="section">
+      <div class="section-title">Aperçu de l'interface</div>
+      <ul class="bullets">
+        <li><strong>Panneau gauche</strong> — Modes, artwork de l'expansion, groupes de couleurs et liste de samples.</li>
+        <li><strong>Centre</strong> — Grille de 16 pads avec 8 banques (A–H = 128 pads au total).</li>
+        <li><strong>Panneau droit</strong> — Détail du pad sélectionné : nom, volume, pitch, pan et chaîne d'effets.</li>
+        <li><strong>Barre supérieure</strong> — Nom de l'expansion, auteur et bouton d'exportation.</li>
+        <li><strong>Barre inférieure</strong> — Statut : pads utilisés, taille totale, mode hors-ligne.</li>
+      </ul>
+    </div>
+    <div class="section">
+      <div class="section-title">Charger des samples</div>
+      <ol class="steps">
+        <li><p>Faites glisser des fichiers audio directement sur la <strong>zone de dépôt</strong> dans le panneau gauche (MP3, WAV, AIFF, FLAC).</p></li>
+        <li><p>Les samples apparaissent dans la liste avec leur forme d'onde, durée et taille.</p></li>
+        <li><p>Cliquez sur un sample de la liste pour l'assigner au <strong>pad sélectionné</strong>.</p></li>
+        <li><p>Vous pouvez aussi faire glisser un sample directement sur n'importe quel pad.</p></li>
+      </ol>
+      <div class="tip"><div class="tip-label">Conseil</div><p>Le bouton lecture sur chaque sample permet de prévisualiser l'audio sans l'assigner — idéal pour faire votre sélection.</p></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="fr-c2">
+    <div class="chapter-num">Chapitre 02</div>
+    <h2 class="chapter-title">La grille de pads</h2>
+    <div class="section">
+      <div class="section-title">Numérotation des pads</div>
+      <p>La disposition suit la numérotation standard MPC : <strong>le pad 01 est en bas à gauche</strong>, de gauche à droite, de bas en haut.</p>
+      <div class="pad-diagram">
+        <div class="pd-cell perc"><span class="num">13</span><span class="label">PERC</span></div>
+        <div class="pd-cell perc"><span class="num">14</span><span class="label">PERC</span></div>
+        <div class="pd-cell perc"><span class="num">15</span><span class="label">CYM</span></div>
+        <div class="pd-cell perc"><span class="num">16</span><span class="label">CYM</span></div>
+        <div class="pd-cell tom"><span class="num">09</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">10</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">11</span><span class="label">TOM</span></div>
+        <div class="pd-cell tom"><span class="num">12</span><span class="label">TOM</span></div>
+        <div class="pd-cell kick"><span class="num">05</span><span class="label">KICK</span></div>
+        <div class="pd-cell hat"><span class="num">06</span><span class="label">HH CL</span></div>
+        <div class="pd-cell hat"><span class="num">07</span><span class="label">HH OP</span></div>
+        <div class="pd-cell hat"><span class="num">08</span><span class="label">HH CL</span></div>
+        <div class="pd-cell kick"><span class="num">01</span><span class="label">KICK</span></div>
+        <div class="pd-cell snare"><span class="num">02</span><span class="label">SNARE</span></div>
+        <div class="pd-cell snare"><span class="num">03</span><span class="label">RIM</span></div>
+        <div class="pd-cell snare"><span class="num">04</span><span class="label">CLAP</span></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Actions sur les pads</div>
+      <ul class="bullets">
+        <li><strong>Clic</strong> — Sélectionne le pad et affiche son détail.</li>
+        <li><strong>Double-clic</strong> — Joue le sample du pad.</li>
+        <li><strong>Clic droit</strong> — Menu contextuel : assigner, copier, coller, effacer.</li>
+        <li><strong>Glisser-déposer</strong> — Déposez un sample de la liste sur un pad.</li>
+        <li><kbd>Espace</kbd> — Prévisualisation du pad sélectionné.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="chapter" id="fr-c3">
+    <div class="chapter-num">Chapitre 03</div>
+    <h2 class="chapter-title">Modes d'assignation</h2>
+    <div class="section">
+      <div class="section-title">Principe</div>
+      <p>Les <strong>modes d'assignation</strong> sont des modèles intelligents qui définissent quel type de son va sur chaque pad. Tous les modes partagent la <strong>même logique de grille</strong> :</p>
+      <ul class="bullets">
+        <li>Pads 01–04 : frappes principales (kick, snare, rim, clap)</li>
+        <li>Pads 05–08 : rangée de chapeaux (kick alt, hh fermé, hh ouvert, hh fermé/pédale)</li>
+        <li>Pads 09–12 : spécialité du mode</li>
+        <li>Pads 13–16 : couleur et texture</li>
+      </ul>
+    </div>
+    <div class="section">
+      <div class="section-title">Synonymes reconnus</div>
+      <p><strong>Kick :</strong> <span class="chip">kick</span><span class="chip">bombo</span><span class="chip">kk</span><span class="chip">bd</span><span class="chip">grosse caisse</span></p>
+      <p><strong>Snare :</strong> <span class="chip">snare</span><span class="chip">snr</span><span class="chip">caisse claire</span><span class="chip">sn</span></p>
+      <p><strong>HH Fermé :</strong> <span class="chip">hhc</span><span class="chip">ch</span><span class="chip">hh_close</span><span class="chip">hat</span><span class="chip">hh</span></p>
+      <p><strong>HH Ouvert :</strong> <span class="chip">hho</span><span class="chip">oh</span><span class="chip">open_hat</span></p>
+      <p><strong>Tom :</strong> <span class="chip">tom</span><span class="chip">t1</span><span class="chip">t2</span><span class="chip">t3</span></p>
+      <p><strong>Basse :</strong> <span class="chip">bass</span><span class="chip">bajo</span><span class="chip">808</span><span class="chip">sub</span></p>
+    </div>
+  </div>
+
+  <div class="chapter" id="fr-c4">
+    <div class="chapter-num">Chapitre 04</div>
+    <h2 class="chapter-title">Éditeur de patterns</h2>
+    <div class="section">
+      <div class="section-title">Créer un pattern</div>
+      <ol class="steps">
+        <li><p>Cliquez sur <strong>⊞ Pattern</strong> dans la barre des banques.</p></li>
+        <li><p>Utilisez les boutons <strong>Fill</strong> pour charger un pattern de base automatique.</p></li>
+        <li><p>Cliquez sur une cellule pour activer ou désactiver ce pas. Faites glisser pour peindre plusieurs pas d'un coup.</p></li>
+        <li><p>Appuyez sur <kbd>Espace</kbd> pour écouter le pattern en direct avec vos samples.</p></li>
+        <li><p>Cliquez sur <strong>"Set as Demo Preview"</strong> pour utiliser ce pattern comme audio de démonstration dans le paquet exporté.</p></li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="chapter" id="fr-c5">
+    <div class="chapter-num">Chapitre 05</div>
+    <h2 class="chapter-title">Exportation</h2>
+    <div class="section">
+      <div class="section-title">Charger sur la MPC</div>
+      <ol class="steps">
+        <li><p>Copiez le .zip sur une clé USB ou la mémoire interne de votre MPC.</p></li>
+        <li><p>Sur la MPC, allez dans <strong>Menu → Browse → Expansions</strong>.</p></li>
+        <li><p>Sélectionnez le fichier et choisissez <strong>Load</strong>.</p></li>
+      </ol>
+      <div class="tip warn"><div class="tip-label">Important</div><p>Certains modèles MPC nécessitent que le .zip soit décompressé. Si le chargement échoue, extrayez le dossier et copiez-le directement.</p></div>
+    </div>
+  </div>
+
+  <div class="chapter" id="fr-c6">
+    <div class="chapter-num">Chapitre 06</div>
+    <h2 class="chapter-title">Raccourcis clavier</h2>
+    <table class="shortcut-table">
+      <tr><th>Touche</th><th>Action</th></tr>
+      <tr><td><kbd>Espace</kbd></td><td>Prévisualisation du pad sélectionné / Lecture dans l'éditeur</td></tr>
+      <tr><td><kbd>Échap</kbd></td><td>Fermer la fenêtre · Arrêter la lecture</td></tr>
+      <tr><td><kbd>⌘N</kbd> / <kbd>Ctrl+N</kbd></td><td>Nouvelle expansion</td></tr>
+      <tr><td><kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd></td><td>Ouvrir l'exportation</td></tr>
+      <tr><td>Double-clic pad</td><td>Lire le pad</td></tr>
+      <tr><td>Clic droit pad</td><td>Menu contextuel</td></tr>
+    </table>
+  </div>
+
+  <div class="manual-footer">XPN Builder v1.0 · 100% hors-ligne · Vos samples, votre machine.</div>
+</div>
+
+  </div><!-- /content -->
+</div><!-- /wrapper -->
+
+<script>
+const CHAPTERS = {
+  es: [
+    {id:'es-c1', label:'01 · Primeros pasos'},
+    {id:'es-c2', label:'02 · La grilla de pads'},
+    {id:'es-c3', label:'03 · Modos de asignación'},
+    {id:'es-c4', label:'04 · Edición y efectos'},
+    {id:'es-c5', label:'05 · Editor de patrones'},
+    {id:'es-c6', label:'06 · Exportar'},
+    {id:'es-c7', label:'07 · Atajos de teclado'},
+  ],
+  en: [
+    {id:'en-c1', label:'01 · Getting started'},
+    {id:'en-c2', label:'02 · The pad grid'},
+    {id:'en-c3', label:'03 · Assignment modes'},
+    {id:'en-c4', label:'04 · Pattern Editor'},
+    {id:'en-c5', label:'05 · Exporting'},
+    {id:'en-c6', label:'06 · Keyboard shortcuts'},
+  ],
+  fr: [
+    {id:'fr-c1', label:'01 · Prise en main'},
+    {id:'fr-c2', label:'02 · La grille de pads'},
+    {id:'fr-c3', label:'03 · Modes d\'assignation'},
+    {id:'fr-c4', label:'04 · Éditeur de patterns'},
+    {id:'fr-c5', label:'05 · Exportation'},
+    {id:'fr-c6', label:'06 · Raccourcis clavier'},
+  ]
+};
+
+let currentLang = 'es';
+
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('lang-' + lang).classList.add('active');
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.lang-btn[onclick="setLang('${lang}')"]`).classList.add('active');
+  buildSidebar(lang);
+  window.scrollTo(0, 0);
+}
+
+function buildSidebar(lang) {
+  const sb = document.getElementById('sidebar');
+  sb.innerHTML = '';
+  const section = document.createElement('div');
+  section.className = 'sidebar-section';
+  const labels = {es:'Contenido', en:'Contents', fr:'Sommaire'};
+  section.innerHTML = `<div class="sidebar-label">${labels[lang]}</div>`;
+  CHAPTERS[lang].forEach(ch => {
+    const a = document.createElement('a');
+    a.className = 'sidebar-link';
+    a.textContent = ch.label;
+    a.onclick = () => {
+      document.getElementById(ch.id)?.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+    section.appendChild(a);
+  });
+  sb.appendChild(section);
+}
+
+// Highlight active sidebar link on scroll
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    const id = e.target.id;
+    document.querySelectorAll('.sidebar-link').forEach((a, i) => {
+      const ch = CHAPTERS[currentLang][i];
+      a.classList.toggle('active', ch && ch.id === id);
+    });
+  });
+}, {threshold: 0.3});
+
+window.addEventListener('load', () => {
+  buildSidebar('es');
+  document.querySelectorAll('.chapter').forEach(c => obs.observe(c));
+});
+</script>
+</body>
+</html>
