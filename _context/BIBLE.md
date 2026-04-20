@@ -183,7 +183,7 @@ Nivel avanzado, solo expansiones premium oficiales de Akai. Fuera del alcance ac
 - ⏳ Fase 3 — Respaldo en Obsidian vault
 - ✅ Fase 4 — Remover debug flag
 - ✅ Fase 5A — Investigación samplers (COMPLETADA 2026-04-20)
-- ⏳ Fase 5B — Preview con filtro + ADSR en Web Audio
+- ✅ Fase 5B — Preview con filtro + ADSR en Web Audio (COMPLETADA 2026-04-20)
 - ✅ Fase 5B-parcial — Fixes críticos Pattern Editor (B1 velocity playback, B2 renderPatternToWav, B4/B5 kit-awareness)
 - ✅ Fase 6 — Implementar flujo Expansion Pack (classic way) — COMPLETADA 2026-04-20:
     - Múltiples kits con nombre propio
@@ -301,3 +301,14 @@ Sample suena solo en click de pad, botón preview o Space. Filter
 Type dropdown completado con los 8 tipos MPC: Off, LP/HP/BP (12dB),
 LP2/HP2/BP2 (24dB) y Low Pass MPC (emu MPC3000). Round-trip al
 <FilterType> del .xpm verificado. +11/-8, 64/64 tests.
+
+Fase 5B completada — PR #10 merged. Nueva playBufferWithFX con
+chain Source→BiquadFilter→ADSR Gain→Pan→Destination. Los 8 tipos
+de filtro MPC mapeados a BiquadFilter (LP2/HP2/BP2 con Q×1.6,
+Low Pass MPC con Q×1.3). ADSR completo: attack/decay/sustain/
+release 0-2s vía setValueAtTime + linearRamp + setTargetAtTime.
+Pitch bug legacy arreglado de refilón: antes pad.pitch=0 daba
+half-speed (fórmula octaves bugueada), ahora rate correcto
+usando 2^(st/12). PE scheduler también usa FX chain con
+velOverride/trackVolume/polyphonic. playBuffer legacy intacto
+para sample pool + PT + layers extras. +139/-16, 64/64 tests.
