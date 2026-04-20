@@ -8518,25 +8518,26 @@ function renderCompatibilityCheck(container) {
         <button class="pe-set-demo-btn" id="peSetDemoBtn" onclick="peSetAsDemo()">Set as Demo Preview</button>
         <button class="pe-close-btn" onclick="closePatternEditor()">Close ✕</button>
       </div>
-      <!-- FILL row (second row of PE topbar) — full width so all 14 templates fit without clipping -->
-      <div class="pe-fill-row">
-        <span class="pe-fill-label">FILL</span>
-        <div class="pe-pattern-btns">
-          <div class="pe-pat-btn" onclick="peFill('classic44')">4/4</div>
-          <div class="pe-pat-btn" onclick="peFill('trap')">Trap</div>
-          <div class="pe-pat-btn" onclick="peFill('hiphop')">Boom</div>
-          <div class="pe-pat-btn" onclick="peFill('electronic')">Electro</div>
-          <div class="pe-pat-btn" onclick="peFill('boom_bap')">Boom Bap</div>
-          <div class="pe-pat-btn" onclick="peFill('drill')">Drill</div>
-          <div class="pe-pat-btn" onclick="peFill('house')">House</div>
-          <div class="pe-pat-btn" onclick="peFill('afrobeat')">Afro</div>
-          <div class="pe-pat-btn" onclick="peFill('reggaeton')">Reggaeton</div>
-          <div class="pe-pat-btn" onclick="peFill('lofi')">Lo-fi</div>
-          <div class="pe-pat-btn" onclick="peFill('dancehall')">Dancehall</div>
-          <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
-          <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
-          <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
-        </div>
+    </div>
+    <!-- FILL row — OUTSIDE .pe-topbar so .pe-topbar's height:36px doesn't clip it.
+         Sits as its own full-width row between the topbar and the body. -->
+    <div class="pe-fill-row">
+      <span class="pe-fill-label">FILL</span>
+      <div class="pe-pattern-btns">
+        <div class="pe-pat-btn" onclick="peFill('classic44')">4/4</div>
+        <div class="pe-pat-btn" onclick="peFill('trap')">Trap</div>
+        <div class="pe-pat-btn" onclick="peFill('hiphop')">Boom</div>
+        <div class="pe-pat-btn" onclick="peFill('electronic')">Electro</div>
+        <div class="pe-pat-btn" onclick="peFill('boom_bap')">Boom Bap</div>
+        <div class="pe-pat-btn" onclick="peFill('drill')">Drill</div>
+        <div class="pe-pat-btn" onclick="peFill('house')">House</div>
+        <div class="pe-pat-btn" onclick="peFill('afrobeat')">Afro</div>
+        <div class="pe-pat-btn" onclick="peFill('reggaeton')">Reggaeton</div>
+        <div class="pe-pat-btn" onclick="peFill('lofi')">Lo-fi</div>
+        <div class="pe-pat-btn" onclick="peFill('dancehall')">Dancehall</div>
+        <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
+        <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
+        <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
       </div>
     </div>
     <div class="pe-body">
