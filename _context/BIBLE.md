@@ -275,3 +275,9 @@ Layout responsive — PR #5 merged. 3 fases topbar adaptive
 180/220. Bug 1 bulk auto-assign realmente resuelto: expansion
 mode llena kits[currentKit].pads. Beat layout duplicado
 ocultado. REORDER en expansion pendiente. +165/-45, 64/64 tests.
+
+PE UI polish — PR #6 merged. FILL buttons movidos a segunda fila
+del PE topbar (14 templates siempre visibles). Swing knob SVG
+reemplazado por slider horizontal bipolar con tick central a 50%
+(straight). Dbl-click resetea a 50. Root cause del knob roto:
+fórmula unipolar sobre parámetro bipolar. +40/-29, 64/64 tests.
