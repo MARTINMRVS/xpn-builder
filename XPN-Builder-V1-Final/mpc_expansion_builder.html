@@ -1469,14 +1469,14 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
         </div>
         <div class="knob-block">
           <span class="knob-label">Pitch</span>
-          <div class="knob" id="knobPitch" data-param="pitch" data-val="50" data-default="50" onmousedown="startKnob(event,this)" ondblclick="resetKnob(this)" title="Double-click to reset">
+          <div class="knob" id="knobPitch" data-param="pitch" data-val="50" data-default="50" data-bipolar="1" onmousedown="startKnob(event,this)" ondblclick="resetKnob(this)" title="Double-click to reset (0 st)">
             <svg viewBox="0 0 44 44" width="44" height="44"><circle class="knob-track" cx="22" cy="22" r="16" stroke-dasharray="84" stroke-dashoffset="16.5" transform="rotate(120 22 22)"/><circle class="knob-fill" id="kfPitch" cx="22" cy="22" r="16" stroke-dasharray="84" stroke-dashoffset="16.5" transform="rotate(120 22 22)"/></svg>
           </div>
           <span class="knob-val" id="kvPitch">0 st</span>
         </div>
         <div class="knob-block">
           <span class="knob-label">Pan</span>
-          <div class="knob" id="knobPan" data-param="pan" data-val="50" data-default="50" onmousedown="startKnob(event,this)" ondblclick="resetKnob(this)" title="Double-click to reset">
+          <div class="knob" id="knobPan" data-param="pan" data-val="50" data-default="50" data-bipolar="1" onmousedown="startKnob(event,this)" ondblclick="resetKnob(this)" title="Double-click to reset (Center)">
             <svg viewBox="0 0 44 44" width="44" height="44"><circle class="knob-track" cx="22" cy="22" r="16" stroke-dasharray="84" stroke-dashoffset="16.5" transform="rotate(120 22 22)"/><circle class="knob-fill" id="kfPan" cx="22" cy="22" r="16" stroke-dasharray="84" stroke-dashoffset="16.5" transform="rotate(120 22 22)"/></svg>
           </div>
           <span class="knob-val" id="kvPan">C</span>
@@ -4038,13 +4038,39 @@ function updatePadParam(param, value) {
 }
 
 function setKnob(id, pct, fmtFn, min, max) {
-  // 6-o'clock knob: arc=84 (300deg), gap=16.5, rotate(120)
+  // Knob geometry: arc=84 over 300deg (r=16 circle, circumference≈100.53).
+  // rotate(120) puts path position 0 at ~7 o'clock; position 42 at 12 o'clock;
+  // position 84 at ~5 o'clock. The bottom 60deg is the invisible gap.
   const arcLen = 84;
   const gapOff = 16.5;
-  const fillLen = (pct / 100) * arcLen;
-  const dashoff = arcLen - fillLen + gapOff;
+  const circ = Math.PI * 2 * 16;   // ≈ 100.53
   const fill = document.getElementById('kf' + id);
-  if (fill) fill.setAttribute('stroke-dashoffset', dashoff);
+  if (!fill) { const v0 = document.getElementById('kv' + id); if (v0) v0.textContent = fmtFn(pct); return; }
+  const knob = document.getElementById('knob' + id);
+  const bipolar = knob && knob.dataset && knob.dataset.bipolar === '1';
+
+  if (bipolar) {
+    // Bipolar: 50 = center (12 o'clock). >50 fills CW toward 5 o'clock.
+    // <50 fills CCW toward 7 o'clock. Uses dynamic dasharray so the arc
+    // anchors at 12 and grows outward in the correct direction.
+    const half = arcLen / 2;                     // 42 (one side from center)
+    const dev = (pct - 50) / 50;                 // -1 … +1
+    const absDev = Math.min(1, Math.abs(dev));
+    const visLen = absDev * half;
+    const startPos = dev >= 0 ? half : (half - visLen);
+    const dashOff = ((circ - startPos) % circ + circ) % circ;
+    fill.setAttribute('stroke-dasharray', visLen + ' ' + (circ - visLen));
+    fill.setAttribute('stroke-dashoffset', dashOff);
+  } else {
+    // Unipolar: arc fills from path start (~7 o'clock) clockwise through
+    // 12 and ends at ~5 o'clock at pct=100. Matches the existing VOL /
+    // CUTOFF / RESONANCE / ADSR style. Ensure dasharray is reset in case
+    // this knob was previously rendered as bipolar.
+    const fillLen = (pct / 100) * arcLen;
+    const dashoff = arcLen - fillLen + gapOff;
+    fill.setAttribute('stroke-dasharray', arcLen);
+    fill.setAttribute('stroke-dashoffset', dashoff);
+  }
   const val = document.getElementById('kv' + id);
   if (val) val.textContent = fmtFn(pct);
 }
