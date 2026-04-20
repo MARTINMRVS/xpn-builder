@@ -3804,7 +3804,9 @@ function triggerPad(idx) {
   if (pad.sampleId === null) return;
   const sample = samples.find(s => s.id === pad.sampleId);
   if (!sample || !sample.buffer) return;
-  playBuffer(sample.buffer, pad.volume / 100, (pad.pitch / 100) * 2 - 1, pad.pan / 100);
+  // Fase 5B: main layer goes through the full FX chain (filter + ADSR + pan).
+  // Extra layers continue via plain playBuffer — they stack on top without FX.
+  playBufferWithFX(sample.buffer, pad);
   _playPadLayers(pad);
   const el = Array.from(document.querySelectorAll('.pad')).find(e => parseInt(e.dataset.idx) === idx);
   if (el) { el.classList.add('triggered'); setTimeout(() => el.classList.remove('triggered'), 120); }
@@ -3848,7 +3850,9 @@ function previewPad(idx) {
     previewTimeout = setTimeout(() => btn.classList.remove('playing'), Math.min(durSecs * 1000, 3000));
   }
 
-  playBuffer(sample.buffer, pad.volume / 100, (pad.pitch / 100) * 2 - 1, pad.pan / 100, startSecs, durSecs);
+  // Fase 5B: main layer with full FX chain. playBufferWithFX reads
+  // pad.sampleStart/sampleEnd internally, so we don't need to pass range.
+  playBufferWithFX(sample.buffer, pad);
   _playPadLayers(pad, startSecs, durSecs);
   startPlayheadAnim(startSecs, durSecs, sample.buffer.duration);
   setStatus('Preview: ' + sample.name.replace(/\.[^.]+$/, ''));
@@ -4653,6 +4657,129 @@ function playBuffer(buffer, volume, pitch, pan, startSecs, durationSecs) {
   }
   activeSource = source;
   activeSrcGain = gainNode;
+}
+
+// ════════════════════════════════════════════
+// Fase 5B — playBufferWithFX
+// Full pad preview chain: Source → Filter → ADSR Gain → Pan → Destination
+// Applies pad.filterType/Cutoff/Resonance and pad.ampA/D/S/R so the user
+// hears what the MPC will actually play. playBuffer() stays intact for
+// legacy paths (sample pool, PT sequencer, extra layers).
+// ════════════════════════════════════════════
+function _mapFilterType(t) {
+  if (t === 'High Pass' || t === 'High Pass 2') return 'highpass';
+  if (t === 'Band Pass' || t === 'Band Pass 2') return 'bandpass';
+  // Low Pass, Low Pass 2, Low Pass MPC, unknown → lowpass
+  return 'lowpass';
+}
+function _filterQMult(t) {
+  // 24 dB/oct variants approximated with higher Q (not a true cascade,
+  // but the Q boost is the audible cue users expect from "Type 2" filters).
+  if (t === 'Low Pass 2' || t === 'High Pass 2' || t === 'Band Pass 2') return 1.6;
+  // MPC3000 lowpass: slightly resonant + warm
+  if (t === 'Low Pass MPC') return 1.3;
+  return 1.0;
+}
+
+function playBufferWithFX(buffer, pad, opts) {
+  if (!audioCtx || !buffer || !pad) return null;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  opts = opts || {};
+  const polyphonic = opts.polyphonic === true;
+  const startTime = (opts.startTime != null) ? opts.startTime : audioCtx.currentTime;
+  const velScale = (opts.velOverride != null)
+    ? Math.max(0, Math.min(1, opts.velOverride / 100))
+    : 1;
+  const trackScale = (opts.trackVolume != null)
+    ? Math.max(0, opts.trackVolume / 100)
+    : 1;
+
+  // Monophonic path: fade out the previous preview source to prevent clicks
+  if (!polyphonic) {
+    if (activeSource && activeSrcGain) {
+      try {
+        const tNow = audioCtx.currentTime;
+        activeSrcGain.gain.cancelScheduledValues(tNow);
+        activeSrcGain.gain.setValueAtTime(activeSrcGain.gain.value, tNow);
+        activeSrcGain.gain.linearRampToValueAtTime(0, tNow + 0.012);
+        const srcToStop = activeSource;
+        setTimeout(() => { try { srcToStop.stop(); } catch(e){} }, 15);
+      } catch(e) {}
+    } else if (activeSource) {
+      try { activeSource.stop(); } catch(e) {}
+    }
+  }
+
+  // Sample region
+  const sr = buffer.sampleRate || 44100;
+  const totalFrames = buffer.length;
+  const startFrame = pad.sampleStart || 0;
+  const endFrame = (pad.sampleEnd != null && pad.sampleEnd >= 0) ? pad.sampleEnd : totalFrames;
+  const startSecs = startFrame / sr;
+  const bufDurSecs = Math.max(0.001, (endFrame - startFrame) / sr);
+  // Pitch (semitones → playbackRate). pad.pitch ranges -12..+12 per detail UI.
+  const rate = Math.pow(2, (pad.pitch || 0) / 12);
+  const wallDur = bufDurSecs / rate;
+
+  // ADSR: pad.ampA/D/S/R are 0-100 sliders. A/D/R map 0→0s, 100→2s.
+  const attackSec  = ((pad.ampAttack  != null ? pad.ampAttack  : 0)   / 100) * 2.0;
+  const decaySec   = ((pad.ampDecay   != null ? pad.ampDecay   : 50)  / 100) * 2.0;
+  const sustainLvl =  (pad.ampSustain != null ? pad.ampSustain : 100) / 100;
+  const releaseSec = ((pad.ampRelease != null ? pad.ampRelease : 20)  / 100) * 2.0;
+
+  // Source
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.playbackRate.value = rate;
+
+  // Filter (optional)
+  const filterType = pad.filterType || 'Off';
+  let filterNode = null;
+  if (filterType !== 'Off') {
+    filterNode = audioCtx.createBiquadFilter();
+    filterNode.type = _mapFilterType(filterType);
+    const cutoff = (pad.filterCutoff != null ? pad.filterCutoff : 100);
+    const cutoffClamped = Math.max(0, Math.min(100, cutoff));
+    // Exponential 20 Hz → 20 kHz
+    const freq = 20 * Math.pow(1000, cutoffClamped / 100);
+    const res = (pad.filterResonance != null ? pad.filterResonance : 0);
+    const baseQ = 0.5 + (res / 100) * 24.5;
+    filterNode.frequency.setValueAtTime(freq, startTime);
+    filterNode.Q.setValueAtTime(baseQ * _filterQMult(filterType), startTime);
+  }
+
+  // Gain with ADSR envelope
+  const gainNode = audioCtx.createGain();
+  const peakVol = ((pad.volume != null ? pad.volume : 100) / 100) * masterVolume * velScale * trackScale;
+  const sustainVol = peakVol * sustainLvl;
+  const g = gainNode.gain;
+  // Start at epsilon (avoids exponential "snap" in setTargetAtTime).
+  g.setValueAtTime(0.0001, startTime);
+  // Attack
+  g.linearRampToValueAtTime(Math.max(0.0001, peakVol), startTime + Math.max(0.001, attackSec));
+  // Decay → sustain (exponential approach, time constant = decay/3)
+  g.setTargetAtTime(Math.max(0.0001, sustainVol), startTime + attackSec, Math.max(0.001, decaySec * 0.3));
+  // Release → silence at sample end
+  g.setTargetAtTime(0.0001, startTime + wallDur, Math.max(0.001, releaseSec * 0.3));
+
+  // Pan
+  const panVal = Math.max(-1, Math.min(1, (pad.pan || 0) / 100));
+  const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  if (panNode) panNode.pan.value = panVal;
+
+  // Wire chain: source → [filter] → gain → [pan] → destination
+  let head = source;
+  if (filterNode) { head.connect(filterNode); head = filterNode; }
+  head.connect(gainNode);
+  if (panNode) { gainNode.connect(panNode); panNode.connect(audioCtx.destination); }
+  else          { gainNode.connect(audioCtx.destination); }
+
+  // Start + schedule stop after release tail
+  source.start(startTime, startSecs);
+  try { source.stop(startTime + wallDur + releaseSec + 0.1); } catch(e) {}
+
+  if (!polyphonic) { activeSource = source; activeSrcGain = gainNode; }
+  return source;
 }
 
 function setMasterVolume(v) {
@@ -7015,20 +7142,16 @@ function pePlay() {
         const pad = getPatternPads()[row.padIdx];
         const sample = samples.find(x => x.id === pad.sampleId);
         if (!sample || !sample.buffer) return;
-        const src = audioCtx.createBufferSource();
-        src.buffer = sample.buffer;
-        const gain = audioCtx.createGain();
-        const vol = (pad.volume / 100) * masterVolume;
-        const trackVol = peTrackVols[row.padIdx] !== undefined ? peTrackVols[row.padIdx] / 100 : 1;
-        const velScale = Math.max(0, Math.min(1, stepVel / 100));
-        gain.gain.setValueAtTime(0.001, t);
-        gain.gain.linearRampToValueAtTime(vol * trackVol * velScale, t + 0.003);
-        // Pan
-        const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
-        if (panNode) { panNode.pan.value = (pad.pan || 0) / 100; src.connect(gain); gain.connect(panNode); panNode.connect(audioCtx.destination); }
-        else { src.connect(gain); gain.connect(audioCtx.destination); }
-        src.start(t);
-        peScheduled.push(src);
+        // Fase 5B: route each step through the pad's full FX chain
+        // (filter + ADSR + pan) with velocity and per-track vol scaling.
+        // polyphonic:true prevents the scheduler from cross-muting itself.
+        const src = playBufferWithFX(sample.buffer, pad, {
+          polyphonic: true,
+          startTime: t,
+          velOverride: stepVel,
+          trackVolume: (peTrackVols[row.padIdx] !== undefined ? peTrackVols[row.padIdx] : 100)
+        });
+        if (src) peScheduled.push(src);
       });
 
       const vizDelay = Math.max(0, (t - audioCtx.currentTime) * 1000);
