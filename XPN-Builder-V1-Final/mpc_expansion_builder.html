@@ -1497,9 +1497,13 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
           <span class="detail-row-label">Type</span>
           <select class="detail-select" id="padFilterType" onchange="updatePadParam('filterType',this.value)">
             <option value="Off">Off</option>
-            <option value="Low Pass">Low Pass</option>
-            <option value="High Pass">High Pass</option>
-            <option value="Band Pass">Band Pass</option>
+            <option value="Low Pass">Low Pass (LP · 12 dB/oct)</option>
+            <option value="High Pass">High Pass (HP · 12 dB/oct)</option>
+            <option value="Band Pass">Band Pass (BP)</option>
+            <option value="Low Pass 2">Low Pass 2 (LP2 · 24 dB/oct)</option>
+            <option value="High Pass 2">High Pass 2 (HP2)</option>
+            <option value="Band Pass 2">Band Pass 2 (BP2)</option>
+            <option value="Low Pass MPC">Low Pass MPC (MPC3000 emu)</option>
           </select>
         </div>
         <div class="knobs-row-sm">
