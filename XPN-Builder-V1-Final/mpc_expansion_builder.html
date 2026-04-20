@@ -5276,6 +5276,26 @@ async function buildExpansion(fwVersion) {
     const zip = new JSZip();
     const root = zip.folder(expName);
 
+    // Fase 6 PASO 4: Expansion Pack flow uses a different file layout
+    if (appMode === 'expansion') {
+      await writeExpansionPackFiles(root, expName, author, fw, setP);
+      setP(90, 'Compressing...');
+      const blob = await zip.generateAsync({
+        type: 'blob', compression: 'DEFLATE',
+        compressionOptions: {level: 6}
+      }, meta => setP(90 + meta.percent / 10, 'Compressing...'));
+      setP(100, 'Done!');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = expName.replace(/\s+/g, '_') + '_fw' + fw + '.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus('Exported: ' + expName + '.zip (' + kits.length + ' kit' + (kits.length === 1 ? '' : 's') + ')');
+      setTimeout(() => closeModal('exportModal'), 1200);
+      return;
+    }
+
     setP(10, 'Writing metadata...');
     // MPC expansion manifest (simplified .plist format)
     const plist = buildPlist(expName, author);
@@ -5588,6 +5608,146 @@ function buildMpcPattern(bankIdx, bankName, expName) {
     swing: peSwing,
     tracks,
   };
+}
+
+// ════════════════════════════════════════════
+// EXPANSION PACK helpers (Fase 6 PASO 4)
+// Only used when appMode === 'expansion'.
+// ════════════════════════════════════════════
+function _xpnEscapeXml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+function slugifyIdentifier(text) {
+  return String(text || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '').substring(0, 48) || 'expansion';
+}
+function buildExpansionXml(name, author, desc) {
+  const slug = slugifyIdentifier(name);
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<Expansion>\n' +
+    '  <Name>' + _xpnEscapeXml(name) + '</Name>\n' +
+    '  <Manufacturer>' + _xpnEscapeXml(author) + '</Manufacturer>\n' +
+    '  <Version>1.0</Version>\n' +
+    '  <Identifier>com.padworks.' + slug + '</Identifier>\n' +
+    '  <Description>' + _xpnEscapeXml(desc || '') + '</Description>\n' +
+    '</Expansion>';
+}
+function mpcSafeKitFileName(group, subgroup, name) {
+  const parts = [];
+  const g = (group || '').trim();
+  const s = (subgroup || '').trim();
+  if (g) parts.push(g.replace(/\s+/g, ''));
+  if (s) parts.push(s.replace(/\s+/g, ''));
+  parts.push((name || 'Kit').trim() || 'Kit');
+  // Collapse unsafe filename chars while preserving readable case/spaces in the last segment
+  return parts.join('-').replace(/[\/\\:\*\?"<>\|]/g, '');
+}
+function collectSampleIdsFromKits(kitsArr) {
+  const ids = new Set();
+  (kitsArr || []).forEach(kit => {
+    (kit.pads || []).forEach(pad => {
+      if (!pad) return;
+      if (pad.sampleId !== null && pad.sampleId !== undefined) ids.add(pad.sampleId);
+      (pad.layers || []).forEach(lid => { if (lid !== null && lid !== undefined) ids.add(lid); });
+    });
+  });
+  return ids;
+}
+function buildEmptyMpcPatternForKit(kit, kitLabel, expName) {
+  const tracks = [];
+  for (let i = 0; i < 16; i++) {
+    const pad = (kit.pads && kit.pads[i]) || {};
+    const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
+    tracks.push({
+      padIndex: i,
+      padName: pad.name || (sample ? mpcSafeName(sample.name) : 'PAD_' + String(i + 1).padStart(2, '0')),
+      sampleFile: sample ? ('Samples/All/' + mpcSafeName(sample.name) + '.WAV') : null,
+      slotType: 'empty',
+      midiNote: 48 + i,
+      events: [],
+    });
+  }
+  return {
+    version: '1.0',
+    format: 'mpcpattern',
+    expansionName: expName,
+    bankName: kitLabel,
+    tempo: (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90,
+    bars: 1,
+    stepsPerBar: 16,
+    timeSignature: '4/4',
+    device: (TARGET_DEVICES[targetDevice] && TARGET_DEVICES[targetDevice].name) || 'MPC Live 2',
+    swing: (typeof peSwing !== 'undefined' && peSwing) ? peSwing : 0,
+    tracks,
+  };
+}
+// Writes all files for the Expansion Pack flow into the given zip root folder.
+async function writeExpansionPackFiles(root, expName, author, fw, setP) {
+  // 1. Expansion.xml (official Akai metadata)
+  setP(10, 'Writing Expansion.xml...');
+  var descEl = document.getElementById('expDesc');
+  var desc = descEl ? (descEl.value || '').trim() : '';
+  root.file('Expansion.xml', buildExpansionXml(expName, author, desc));
+
+  // 2. Artwork
+  setP(18, 'Adding artwork...');
+  if (artworkDataUrl) {
+    const imgData = artworkDataUrl.split(',')[1];
+    root.folder('Artwork').file('thumbnail.jpg', imgData, {base64: true});
+    root.folder('Artwork').file('preview.jpg', imgData, {base64: true});
+  }
+
+  // 3. Samples/All/ with only WAVs referenced by any kit pad
+  setP(25, 'Collecting samples...');
+  const usedIds = collectSampleIdsFromKits(kits);
+  const usedSamples = samples.filter(s => usedIds.has(s.id));
+  const safeNameMap = {};
+  const usedNames = new Set();
+  for (const sample of usedSamples) {
+    let base = mpcSafeName(sample.name);
+    let cand = base; let n = 2;
+    while (usedNames.has(cand)) { cand = base + '_' + n++; }
+    usedNames.add(cand);
+    safeNameMap[sample.id] = cand;
+  }
+  const samplesAll = root.folder('Samples').folder('All');
+  let si = 0;
+  for (const sample of usedSamples) {
+    setP(25 + (si / Math.max(1, usedSamples.length)) * 25, 'Packing: ' + sample.name);
+    if (sample.file) {
+      const buf = await sample.file.arrayBuffer();
+      const origExt = (sample.name.match(/\.([^.]+)$/) || ['','.wav'])[0].toUpperCase();
+      const ext = origExt || '.WAV';
+      samplesAll.file(safeNameMap[sample.id] + ext, buf);
+    }
+    si++;
+  }
+
+  // 4. Programs (.xpm), Sequences (.mpcpattern) and Previews per kit
+  setP(55, 'Writing programs...');
+  const programs = root.folder('Programs');
+  const sequences = root.folder('Sequences');
+  const previews = root.folder('Previews');
+  for (let ki = 0; ki < kits.length; ki++) {
+    const kit = kits[ki];
+    const kitLabel = kit.name || ('Kit ' + (ki + 1));
+    const fileBase = mpcSafeKitFileName(kit.group, kit.subgroup, kitLabel);
+    // .xpm — reuse buildPresetXml with kit.pads (bankName slot carries kit name)
+    const xpm = buildPresetXml(kit.pads, kitLabel, expName, fw);
+    programs.file(fileBase + '.xpm', xpm);
+    // .mpcpattern — empty skeleton linked by name to the .xpm (v1)
+    const pattern = buildEmptyMpcPatternForKit(kit, fileBase, expName);
+    sequences.file(fileBase + '.mpcpattern', JSON.stringify(pattern, null, 2));
+    // Preview MP3 for the kit, if any
+    if (kit.previewFile) {
+      const pBuf = await kit.previewFile.arrayBuffer();
+      previews.file(fileBase + '.xpm.mp3', pBuf);
+    }
+    setP(55 + ((ki + 1) / Math.max(1, kits.length)) * 30, 'Kit: ' + kitLabel);
+  }
 }
 
 // ════════════════════════════════════════════
