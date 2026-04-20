@@ -193,7 +193,7 @@ Nivel avanzado, solo expansiones premium oficiales de Akai. Fuera del alcance ac
     - Expansion.xml completo con metadata oficial
 - ⏳ Fase 7 — Refactor UI: pantalla inicial con dos caminos (Expansion Pack como principal, Extended como secundario) con mensajes instructivos no invasivos
 - ⏳ Fase 8 — Modularización del monolito HTML
-- ⏳ Fase 9 — Eliminar modos legacy del código (Normal/Force Fill/Live)
+- ✅ Fase 9 — Eliminar modos legacy del código (limpieza parcial segura: welcome-modal mode-step eliminado, MODES/MODE_PATTERN_MAP/XPN_MODE_LAYOUTS conservados por ser taxonomía viva de slot-types)
 
 ---
 

@@ -8972,8 +8972,10 @@ function xpnForceStart() {
     <div class="welcome-title">Choose your MPC</div>
     <div class="welcome-section-label">Device</div>
     <div class="welcome-devices" id="welcomeDevices"></div>
-    <div class="welcome-section-label">Choose your starting mode</div>
-    <div class="welcome-modes" id="welcomeModes"></div>
+    <!-- Fase 9: the "Choose your starting mode" step was removed here.
+         Mode is selected later from the left-panel .modes-bar buttons
+         (DRUM / BEAT / LIVE / H-HOP / ELEC / CSTM), which drive the
+         slot-type taxonomy used by auto-assign and peFill. -->
     <button class="welcome-start-btn" id="welcomeStartBtn" onclick="xpnForceStart()" style="cursor:pointer;">START</button>
   </div>
 </div>
@@ -9107,7 +9109,8 @@ var _welcomeDevices = [
   { id:'force',      label:'Akai Force' }
 ];
 
-var _welcomeModeKeys = ['BEAT','DRUM','LIVE','HIPHOP','ELEC','CUSTOM'];
+// Fase 9: _welcomeModeKeys removed — was only used by the deleted
+// renderWelcomeModes(). MODES / XPN_MODE_LAYOUTS still hold the taxonomy.
 
 // ── Flow chooser modal (Fase 6): Expansion Pack vs Extended ──
 var _xpnAppModeStorageKey = 'xpn_app_mode';
@@ -9162,9 +9165,11 @@ function openWelcomeModal(force) {
   var overlay = document.getElementById('welcomeOverlay');
   if (!overlay) return;
   _welcomeSelectedDevice = null;
-  _welcomeSelectedMode = null;
+  // Fase 9: mode is no longer a welcome-modal step. Default it so downstream
+  // code (xpnForceStart, template save) keeps working; the user picks the
+  // real mode from the left-panel .modes-bar after the welcome closes.
+  _welcomeSelectedMode = 'BEAT';
   renderWelcomeDevices();
-  renderWelcomeModes();
   updateWelcomeStartBtn();
   overlay.classList.add('open');
 }
@@ -9191,60 +9196,18 @@ function renderWelcomeDevices() {
   });
 }
 
-function renderWelcomeModes() {
-  var container = document.getElementById('welcomeModes');
-  if (!container) return;
-  container.innerHTML = '';
-  _welcomeModeKeys.forEach(function(modeKey) {
-    var card = document.createElement('div');
-    card.className = 'welcome-mode-card' + (_welcomeSelectedMode === modeKey ? ' selected' : '');
-    var name = document.createElement('div');
-    name.className = 'welcome-mode-name';
-    name.textContent = modeKey === 'CUSTOM' ? 'CUSTOM' : modeKey;
-    card.appendChild(name);
-
-    var grid = document.createElement('div');
-    grid.className = 'welcome-mini-grid';
-    if (modeKey === 'CUSTOM') {
-      // Empty grey pads with + icons
-      for (var i = 0; i < 16; i++) {
-        var cell = document.createElement('div');
-        cell.className = 'welcome-mini-cell';
-        cell.style.background = '#33333340';
-        cell.style.color = '#666';
-        cell.textContent = '+';
-        grid.appendChild(cell);
-      }
-    } else {
-      var layout = XPN_MODE_LAYOUTS[modeKey];
-      // MPC layout: rows 4->1 top to bottom
-      var rowOrder = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
-      rowOrder.forEach(function(idx) {
-        var tag = layout[idx] || 'KICK';
-        var color = getTagColor(tag);
-        var cell = document.createElement('div');
-        cell.className = 'welcome-mini-cell';
-        cell.style.background = color + '30';
-        cell.style.color = color;
-        // 3-letter abbreviation
-        var abbr = tag.length <= 3 ? tag : (tag === 'HH CL' ? 'HHC' : tag === 'HH OP' ? 'HHO' : tag === 'HH PD' ? 'HHP' : tag === 'CYMBAL' ? 'CYM' : tag === 'SMPLR' ? 'SMP' : tag === 'SNARE' ? 'SNR' : tag === 'KICK' ? 'KCK' : tag === 'CLAP' ? 'CLP' : tag === 'PERC' ? 'PRC' : tag.slice(0,3));
-        cell.textContent = abbr;
-        grid.appendChild(cell);
-      });
-    }
-    card.appendChild(grid);
-    card.onclick = function() {
-      _welcomeSelectedMode = modeKey;
-      renderWelcomeModes();
-      updateWelcomeStartBtn();
-    };
-    container.appendChild(card);
-  });
-}
+// Fase 9: renderWelcomeModes() removed — the starting-mode step is gone
+// from the welcome modal. The mode taxonomy (MODES, XPN_MODE_LAYOUTS,
+// MODE_PATTERN_MAP) is kept because autoAssign, _assignExpansion, peFill
+// and renderModePreview all depend on it. Users pick a mode via the
+// left-panel .modes-bar buttons (DRUM/BEAT/LIVE/H-HOP/ELEC/CSTM), which
+// drives activeMode just as before.
 
 function updateWelcomeStartBtn() {
   var btn = document.getElementById('welcomeStartBtn');
-  if (btn) btn.disabled = !(_welcomeSelectedDevice && _welcomeSelectedMode);
+  // Fase 9: only device selection gates START now. Mode defaults to 'BEAT'
+  // when the modal opens and can be changed later via the left-panel buttons.
+  if (btn) btn.disabled = !_welcomeSelectedDevice;
 }
 
 function welcomeStart() {
