@@ -3978,7 +3978,8 @@ function moveKnob(e) {
     setKnob(KNOB_PARAM_MAP[param], newVal, v => Math.round(v) + '', 0, 100);
   }
   renderPadGrid();
-  _triggerKnobPreview();
+  // Intentionally no audio preview on knob drag — sample should only sound
+  // when the user explicitly triggers it (click pad / preview button / Space).
 }
 
 var _knobPreviewTimer = null;
@@ -4030,11 +4031,9 @@ function resetKnob(el) {
 function updatePadParam(param, value) {
   if (selectedPad === null) return;
   getActivePads()[selectedPad][param] = value;
-  // Update accordion summaries and trigger preview for audio params
+  // Update accordion summaries. No audio preview — sample only plays on
+  // explicit trigger (pad click, preview button, Space shortcut).
   updateAccordionSummaries(getActivePads()[selectedPad]);
-  if (['filterType','filterCutoff','filterResonance','ampAttack','ampDecay','ampSustain','ampRelease','volume','pitch','pan'].includes(param)) {
-    _triggerKnobPreview();
-  }
 }
 
 function setKnob(id, pct, fmtFn, min, max) {
