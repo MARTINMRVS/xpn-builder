@@ -63,7 +63,9 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .skin-picker-sq.active,.skin-picker-sq:hover{border-color:rgba(255,255,255,.7)}
 .skin-picker-sq.active{box-shadow:0 0 0 1px rgba(255,255,255,.4)}
 .skin-picker-name{font-size:7px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;text-align:center;letter-spacing:.03em;max-width:42px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.topbar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:6px}
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:6px;overflow-x:auto;overflow-y:visible;scrollbar-width:thin}
+.topbar::-webkit-scrollbar{height:4px}
+.topbar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .statusbar{background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:12px;font-size:9px;letter-spacing:.1em;color:var(--ink3)}
 
 /* ── TOPBAR ── */
@@ -1068,11 +1070,11 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
   </div>
   <div class="tb-field">
     <span class="tb-label">Author</span>
-    <input class="tb-input" id="expAuthor" placeholder="Author name" style="width:100px"/>
+    <input class="tb-input" id="expAuthor" placeholder="Author name" style="width:90px"/>
   </div>
   <div class="tb-field" id="expDescField" style="display:none">
     <span class="tb-label">Description</span>
-    <input class="tb-input" id="expDesc" placeholder="Short description..." style="width:180px"/>
+    <input class="tb-input" id="expDesc" placeholder="Short description..." style="width:130px"/>
   </div>
   <div class="tb-sep"></div>
   <div class="tb-field">

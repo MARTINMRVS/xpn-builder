@@ -5,7 +5,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
-    minWidth: 1100,
+    minWidth: 1200,
     minHeight: 700,
     title: 'XPN Builder',
     webPreferences: {
