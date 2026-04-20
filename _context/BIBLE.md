@@ -269,3 +269,9 @@ helper para patterns originales. 12 templates totales.
 expansion, layer playback multi-sample, bank bar visibility
 defensiva, topbar overflow con scroll, swing/vol labels visibles
 + fill buttons wrap. +90/-15 líneas. 64/64 tests.
+
+Layout responsive — PR #5 merged. 3 fases topbar adaptive
+(flex-wrap + More dropdown), pad grid minmax(0,1fr), panels
+180/220. Bug 1 bulk auto-assign realmente resuelto: expansion
+mode llena kits[currentKit].pads. Beat layout duplicado
+ocultado. REORDER en expansion pendiente. +165/-45, 64/64 tests.
