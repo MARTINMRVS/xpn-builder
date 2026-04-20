@@ -3379,9 +3379,11 @@ function renderPadGrid() {
       ${extraLayers > 0 ? `<div class="pad-layer-dots">${Array(extraLayers).fill('<div class="pad-layer-dot"></div>').join('')}</div>` : ''}
       ${pad.sampleId !== null ? `<div class="pad-preview-btn" onclick="event.stopPropagation();previewPad(${i})"><svg viewBox="0 0 10 10"><polygon points="1,1 9,5 1,9"/></svg></div>` : ''}
     `;
-    // Quadrant split overlay: MPC Live 3 always, other devices when >1 layer
+    // Quadrant split overlay: firmware 3.x hardware shows each pad as 4 sub-pads.
+    // On fw 2.x (Live 1/2, One, Force) layers are velocity-based internally and
+    // the pad face renders as a single tile regardless of layer count.
     const extraLCount = (pad.layers || []).filter(Boolean).length;
-    if (pad.sampleId !== null && (targetDevice === 'mpc-live-3' || extraLCount > 0)) {
+    if (pad.sampleId !== null && isFw3x()) {
       renderPadQuadrants(el, pad, i);
     }
     // Crossfade badge
@@ -3645,12 +3647,38 @@ function updateModeVisibility() {
   renderPadGrid();
 }
 
+// Helper: plays any extra layers of a pad alongside the main sample.
+// Used by triggerPad and previewPad so preview matches the exported program.
+// Note: on actual MPC hardware Cycle/Random/Velocity select ONE layer per hit;
+// Crossfade blends two. For desktop preview we play them stacked so the user
+// can verify each layer has audio and the per-layer knobs (vol/pitch/pan) are
+// taking effect; preview is NOT a bit-perfect MPC simulation.
+function _playPadLayers(pad, startSecs, durSecs) {
+  const layerIds = pad.layers || [];
+  if (!layerIds.length) return;
+  const lv  = pad.layerVolumes  || [100, 100, 100, 100];
+  const lpt = pad.layerPitches  || [0, 0, 0, 0];
+  const lp  = pad.layerPans     || [0, 0, 0, 0];
+  layerIds.forEach((lid, li) => {
+    if (!lid) return;
+    const ls = samples.find(s => s.id === lid);
+    if (!ls || !ls.buffer) return;
+    const layerIdx = li + 1; // layer 0 is the main (pad.sampleId); extras start at 1
+    const vol   = ((lv[layerIdx]  != null ? lv[layerIdx]  : 100) / 100) * (pad.volume / 100);
+    const pitch = ((pad.pitch || 0) + (lpt[layerIdx] != null ? lpt[layerIdx] : 0)) / 100 * 2 - 1;
+    const pan   = Math.max(-1, Math.min(1, ((pad.pan || 0) + (lp[layerIdx] != null ? lp[layerIdx] : 0)) / 100));
+    if (startSecs != null && durSecs != null) playBuffer(ls.buffer, vol, pitch, pan, startSecs, durSecs);
+    else playBuffer(ls.buffer, vol, pitch, pan);
+  });
+}
+
 function triggerPad(idx) {
   const pad = getActivePads()[idx];
   if (pad.sampleId === null) return;
   const sample = samples.find(s => s.id === pad.sampleId);
   if (!sample || !sample.buffer) return;
   playBuffer(sample.buffer, pad.volume / 100, (pad.pitch / 100) * 2 - 1, pad.pan / 100);
+  _playPadLayers(pad);
   const el = Array.from(document.querySelectorAll('.pad')).find(e => parseInt(e.dataset.idx) === idx);
   if (el) { el.classList.add('triggered'); setTimeout(() => el.classList.remove('triggered'), 120); }
 }
@@ -3694,6 +3722,7 @@ function previewPad(idx) {
   }
 
   playBuffer(sample.buffer, pad.volume / 100, (pad.pitch / 100) * 2 - 1, pad.pan / 100, startSecs, durSecs);
+  _playPadLayers(pad, startSecs, durSecs);
   startPlayheadAnim(startSecs, durSecs, sample.buffer.duration);
   setStatus('Preview: ' + sample.name.replace(/\.[^.]+$/, ''));
 }
