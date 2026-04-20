@@ -5964,6 +5964,73 @@ const PT_PATTERNS = {
     hihat_open:  [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,1,0],
     clap:        [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
   },
+  // ── Genre packs (velocity-aware, 0-100 per step) ──────────────
+  boom_bap: {
+    kick:        [100,0,0,0, 0,0,0,0, 0,0,100,0, 0,0,0,0],
+    snare:       [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    hihat_close: [90,0,60,0, 90,0,60,0, 90,0,60,0, 90,0,60,0],
+    hihat_open:  [0,0,0,0, 0,0,0,100, 0,0,0,0, 0,0,0,0],
+    clap:        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    percussion:  [0,0,0,0, 0,0,40,0, 0,0,0,0, 0,50,0,0],
+  },
+  drill: {
+    kick:        [100,0,0,0, 0,0,0,90, 0,0,100,0, 0,0,0,0],
+    snare:       [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    hihat_close: [100,50,80,50, 100,50,80,50, 100,50,80,50, 100,50,80,0],
+    hihat_open:  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100],
+    clap:        [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    rim:         [0,0,0,0, 0,0,0,0, 0,0,40,0, 0,0,50,0],
+  },
+  house: {
+    kick:        [100,0,0,0, 100,0,0,0, 100,0,0,0, 100,0,0,0],
+    snare:       [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    hihat_close: [0,0,100,0, 0,0,100,0, 0,0,100,0, 0,0,100,0],
+    hihat_open:  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,80],
+    clap:        [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    percussion:  [0,0,0,50, 0,0,0,0, 0,0,0,50, 0,0,0,0],
+  },
+  afrobeat: {
+    kick:        [100,0,0,0, 0,0,80,0, 0,0,0,0, 100,0,0,0],
+    snare:       [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    hihat_close: [80,0,80,60, 80,0,80,60, 80,0,80,60, 80,0,80,60],
+    hihat_open:  [0,0,0,0, 0,0,0,100, 0,0,0,0, 0,0,0,0],
+    clap:        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    tom:         [0,0,0,0, 0,70,0,0, 0,0,60,0, 0,0,0,80],
+    percussion:  [60,0,0,80, 0,0,60,0, 80,0,0,60, 0,0,80,0],
+  },
+  reggaeton: {
+    kick:        [100,0,0,0, 0,0,90,0, 100,0,0,0, 0,0,90,0],
+    snare:       [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    hihat_close: [80,0,70,0, 80,0,70,0, 80,0,70,0, 80,0,70,0],
+    hihat_open:  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,90],
+    clap:        [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    rim:         [0,0,0,80, 0,0,0,0, 0,0,0,80, 0,0,0,0],
+  },
+  lofi: {
+    kick:        [100,0,0,0, 0,0,0,0, 0,70,0,0, 0,0,0,0],
+    snare:       [0,0,0,0, 90,0,0,30, 0,0,0,0, 90,0,0,0],
+    hihat_close: [70,0,50,0, 70,0,50,40, 70,0,50,0, 70,0,50,30],
+    hihat_open:  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,60],
+    clap:        [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    percussion:  [0,0,30,0, 0,0,0,0, 0,0,0,0, 0,35,0,0],
+  },
+  dancehall: {
+    kick:        [100,0,0,0, 0,0,80,0, 100,0,0,0, 0,0,0,0],
+    snare:       [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    hihat_close: [90,0,70,50, 90,0,70,50, 90,0,70,50, 90,0,70,50],
+    hihat_open:  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,90],
+    clap:        [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0],
+    rim:         [0,0,0,70, 0,0,0,0, 0,0,0,70, 0,0,0,0],
+    percussion:  [0,60,0,0, 0,0,0,60, 0,60,0,0, 0,0,0,0],
+  },
+  jersey_club: {
+    kick:        [100,0,0,100, 0,0,100,0, 0,100,0,0, 100,0,0,0],
+    snare:       [0,0,0,0, 100,0,0,0, 0,0,0,0, 0,0,100,0],
+    hihat_close: [100,70,100,70, 100,70,100,70, 100,70,100,70, 100,70,100,70],
+    hihat_open:  [0,0,0,0, 0,0,0,100, 0,0,0,0, 0,0,0,0],
+    clap:        [0,0,0,0, 100,0,0,0, 0,0,100,0, 0,0,100,0],
+    percussion:  [0,0,0,0, 0,80,0,0, 0,0,0,0, 0,80,0,0],
+  },
 };
 
 // mode → pattern mapping
@@ -6626,38 +6693,57 @@ function peSetBars(n, btn) {
   renderPeSequencer();
 }
 
+// Normalizes a pattern row so playback volume is reasonable:
+// legacy binary rows (max value ≤ 1) are scaled to 0/100 velocity;
+// velocity-aware rows (0-100) are kept as-is.
+function _peNormalizeRow(steps) {
+  if (!steps || !steps.length) return [];
+  let max = 0;
+  for (const v of steps) { const n = Number(v) || 0; if (n > max) max = n; }
+  const scale = max <= 1 ? 100 : 1;
+  return steps.map(v => (Number(v) || 0) * scale);
+}
 // ── Fill from PT_PATTERNS ──
 function peFill(patKey) {
   const key = patKey === 'mode' ? (MODE_PATTERN_MAP[activeMode] || 'classic44') : patKey;
   const src = PT_PATTERNS[key] || PT_PATTERNS.classic44;
   const mode = MODES[activeMode];
 
-  // Map pattern rows to pad indices via slot type
+  // Map pattern rows to pad indices via slot type. Iteration already covers
+  // any slot type the pattern declares (kick/snare/hh/clap/percussion/tom/rim
+  // and any future ones) — rows whose type is not present in the current mode
+  // simply become no-ops for that row.
   const typeToIdx = {};
   Object.entries(mode.slots).forEach(([idx, type]) => {
     if (!typeToIdx[type]) typeToIdx[type] = [];
     typeToIdx[type].push(parseInt(idx));
   });
 
-  // Fill each pattern row
-  Object.entries(src).forEach(([rowType, steps]) => {
+  // Fill each pattern row (velocity-aware)
+  let filledRows = 0;
+  Object.entries(src).forEach(([rowType, rawSteps]) => {
+    const steps = _peNormalizeRow(rawSteps);
     const indices = typeToIdx[rowType] || [];
+    if (indices.length === 0) return;   // no pad of this type in current mode
+    filledRows++;
     indices.forEach((padIdx, instN) => {
       if (instN > 0) return; // only first pad of each type gets the full pattern; others get variation
+      if (!pePattern[padIdx]) pePattern[padIdx] = Array(peTotalSteps || 16).fill(0);
       for (let s = 0; s < peTotalSteps; s++) {
         pePattern[padIdx][s] = steps[s % 16];
       }
     });
-    // second instance of same type (e.g. second kick) gets a variation
+    // second instance of same type (e.g. second kick) gets a half-offset variation
     if (indices.length > 1) {
       const pad2 = indices[1];
+      if (!pePattern[pad2]) pePattern[pad2] = Array(peTotalSteps || 16).fill(0);
       for (let s = 0; s < peTotalSteps; s++) {
         pePattern[pad2][s] = steps[(s + 8) % 16] * (s % 4 === 2 ? 1 : 0);
       }
     }
   });
   renderPeSequencer();
-  setPeStatus('Pattern: ' + key);
+  setPeStatus('Pattern: ' + key + (filledRows ? '' : ' (no matching pad types in current mode)'));
 }
 
 function peClearAll() {
@@ -8218,6 +8304,14 @@ function renderCompatibilityCheck(container) {
             <div class="pe-pat-btn" onclick="peFill('trap')">Trap</div>
             <div class="pe-pat-btn" onclick="peFill('hiphop')">Boom</div>
             <div class="pe-pat-btn" onclick="peFill('electronic')">Electro</div>
+            <div class="pe-pat-btn" onclick="peFill('boom_bap')">Boom Bap</div>
+            <div class="pe-pat-btn" onclick="peFill('drill')">Drill</div>
+            <div class="pe-pat-btn" onclick="peFill('house')">House</div>
+            <div class="pe-pat-btn" onclick="peFill('afrobeat')">Afro</div>
+            <div class="pe-pat-btn" onclick="peFill('reggaeton')">Reggaeton</div>
+            <div class="pe-pat-btn" onclick="peFill('lofi')">Lo-fi</div>
+            <div class="pe-pat-btn" onclick="peFill('dancehall')">Dancehall</div>
+            <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
             <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
             <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
           </div>
