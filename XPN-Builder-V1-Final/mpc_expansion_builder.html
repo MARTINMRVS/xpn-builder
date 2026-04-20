@@ -1205,8 +1205,10 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
       <span id="leftColArrow">‹</span>
     </div>
     <div class="panel-body" id="leftPanelBody">
-    <!-- LIVE TEMPLATE PREVIEW -->
-    <div class="live-tpl-preview" id="liveTplPreview">
+    <!-- LIVE TEMPLATE PREVIEW — hidden; duplicated by #modePreview below which
+         carries richer info (pad number + category label + short tag). DOM kept
+         so renderLiveTplPreview() JS still finds its elements and is a no-op. -->
+    <div class="live-tpl-preview" id="liveTplPreview" style="display:none">
       <div class="ltpl-title" id="liveTplTitle">BEAT LAYOUT</div>
       <div class="live-tpl-grid" id="liveTplGrid"></div>
     </div>
