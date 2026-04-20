@@ -69,6 +69,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 /* ── TOPBAR ── */
 .app-logo{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--accent);margin-right:2px}
 .app-name{font-size:9px;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase}
+.mode-badge{font-size:8px;letter-spacing:.18em;color:var(--ink);background:var(--border2);padding:2px 7px;border-radius:20px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;margin-left:6px;cursor:default;user-select:none}
+.mode-badge.expansion{background:var(--accent-dim);color:var(--accent)}
 .tb-sep{width:1px;height:18px;background:var(--border);margin:0 2px}
 .tb-field{display:flex;flex-direction:column;gap:1px}
 .tb-label{font-size:8px;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase}
@@ -1058,6 +1060,7 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 <div class="topbar">
   <span class="app-logo">XPN</span>
   <span class="app-name">Pad Works XPN</span>
+  <span class="mode-badge" id="modeBadge" title="Current workflow (click SETUP to change)">EXTENDED</span>
   <div class="tb-sep"></div>
   <div class="tb-field">
     <span class="tb-label">Expansion Name</span>
@@ -1066,6 +1069,10 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
   <div class="tb-field">
     <span class="tb-label">Author</span>
     <input class="tb-input" id="expAuthor" placeholder="Author name" style="width:100px"/>
+  </div>
+  <div class="tb-field" id="expDescField" style="display:none">
+    <span class="tb-label">Description</span>
+    <input class="tb-input" id="expDesc" placeholder="Short description..." style="width:180px"/>
   </div>
   <div class="tb-sep"></div>
   <div class="tb-field">
@@ -3597,22 +3604,30 @@ function _initKitPreviewDnD() {
   };
 }
 
-// Toggle visible center controls based on appMode
+// Toggle visible center controls based on appMode, plus topbar badge + description
 function updateModeVisibility() {
   const bankRow = document.getElementById('bankRow');
   const kitRow = document.getElementById('kitRow');
   const kitMetaRow = document.getElementById('kitMetaRow');
-  if (!bankRow || !kitRow || !kitMetaRow) return;
-  if (appMode === 'expansion') {
-    bankRow.style.display = 'none';
-    kitRow.style.display = 'flex';
-    kitMetaRow.style.display = 'flex';
-    renderKitList();
-  } else {
-    bankRow.style.display = 'flex';
-    kitRow.style.display = 'none';
-    kitMetaRow.style.display = 'none';
+  const badge = document.getElementById('modeBadge');
+  const descField = document.getElementById('expDescField');
+  if (bankRow && kitRow && kitMetaRow) {
+    if (appMode === 'expansion') {
+      bankRow.style.display = 'none';
+      kitRow.style.display = 'flex';
+      kitMetaRow.style.display = 'flex';
+      renderKitList();
+    } else {
+      bankRow.style.display = 'flex';
+      kitRow.style.display = 'none';
+      kitMetaRow.style.display = 'none';
+    }
   }
+  if (badge) {
+    badge.textContent = (appMode === 'expansion') ? 'EXPANSION' : 'EXTENDED';
+    badge.classList.toggle('expansion', appMode === 'expansion');
+  }
+  if (descField) descField.style.display = (appMode === 'expansion') ? 'flex' : 'none';
   renderPadGrid();
 }
 
