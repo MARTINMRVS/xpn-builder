@@ -294,3 +294,10 @@ las 12 (top center), no abajo-izquierda. setKnob detecta
 data-bipolar="1" y usa dasharray dinámico para anclar el arco en
 path position 42 (= 12 o'clock post-rotate). Volume/Cutoff/
 Resonance/ADSR sin cambios (unipolar correcto). +32/-6, 64/64.
+
+Detail panel polish — PR #9 merged. Knobs dejan de disparar audio
+preview al arrastrar (_triggerKnobPreview removido de 2 call sites).
+Sample suena solo en click de pad, botón preview o Space. Filter
+Type dropdown completado con los 8 tipos MPC: Off, LP/HP/BP (12dB),
+LP2/HP2/BP2 (24dB) y Low Pass MPC (emu MPC3000). Round-trip al
+<FilterType> del .xpm verificado. +11/-8, 64/64 tests.
