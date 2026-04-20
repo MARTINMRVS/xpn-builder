@@ -2084,6 +2084,20 @@ function getActivePads() {
   }
   return banks[currentBank];
 }
+// Returns the pad source for the PE engine (uses peActiveSeqBank for extended,
+// current kit for expansion). Aux variable in the extended branch prevents the
+// replace_all migration below from self-matching this helper.
+function getPatternPads() {
+  if (appMode === 'expansion') {
+    if (!kits[currentKit]) {
+      if (kits.length === 0) { kits.push(makeKit('Untitled Kit')); currentKit = 0; }
+      else { currentKit = 0; }
+    }
+    return kits[currentKit].pads;
+  }
+  const _seqIdx = peActiveSeqBank;
+  return banks[_seqIdx];
+}
 
 let samples = []; // {id, name, file, buffer, duration, size}
 let artworkDataUrl = null;
@@ -5671,18 +5685,27 @@ function collectSampleIdsFromKits(kitsArr) {
   });
   return ids;
 }
-function buildEmptyMpcPatternForKit(kit, kitLabel, expName) {
+// Builds .mpcpattern JSON from a kit's stored sequenceData. If the kit has
+// no sequence yet, the tracks still list pad metadata (padName, sampleFile,
+// midiNote) but with empty events — MPC-compatible empty pattern.
+function buildMpcPatternForKit(kit, kitLabel, expName) {
   const tracks = [];
+  const seq = (kit && kit.sequenceData) || {};
   for (let i = 0; i < 16; i++) {
-    const pad = (kit.pads && kit.pads[i]) || {};
+    const pad = (kit && kit.pads && kit.pads[i]) || {};
     const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
+    const steps = seq[i] || [];
+    const events = [];
+    steps.forEach((vel, step) => {
+      if (vel) events.push({ step, velocity: Math.max(1, Math.round((vel / 100) * 127)) });
+    });
     tracks.push({
       padIndex: i,
       padName: pad.name || (sample ? mpcSafeName(sample.name) : 'PAD_' + String(i + 1).padStart(2, '0')),
       sampleFile: sample ? ('Samples/All/' + mpcSafeName(sample.name) + '.WAV') : null,
       slotType: 'empty',
       midiNote: 48 + i,
-      events: [],
+      events,
     });
   }
   return {
@@ -5691,13 +5714,72 @@ function buildEmptyMpcPatternForKit(kit, kitLabel, expName) {
     expansionName: expName,
     bankName: kitLabel,
     tempo: (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90,
-    bars: 1,
+    bars: (typeof peBars !== 'undefined' && peBars) ? peBars : 1,
     stepsPerBar: 16,
     timeSignature: '4/4',
     device: (TARGET_DEVICES[targetDevice] && TARGET_DEVICES[targetDevice].name) || 'MPC Live 2',
-    swing: (typeof peSwing !== 'undefined' && peSwing) ? peSwing : 0,
+    swing: (typeof peSwing !== 'undefined' && peSwing) ? peSwing : 50,
     tracks,
   };
+}
+// Builds a standard MIDI file (Format 0) from a kit's sequenceData.
+// Mirrors buildMidiFile() but sources events from the kit instead of
+// pePatterns[bankIdx]. Note: swing is NOT encoded in MIDI (grid-straight
+// output); the .mpcpattern sibling carries the swing value.
+function buildMidiFileForKit(kit, bpm) {
+  const ticksPerBeat = 480;
+  const usPerBeat = Math.round(60000000 / bpm);
+  const seq = (kit && kit.sequenceData) || {};
+  const bars = (typeof peBars !== 'undefined' && peBars) ? peBars : 1;
+  const totalSteps = 16 * bars;
+  const ticksPerStep = ticksPerBeat / 4;
+
+  const events = [];
+  for (let i = 0; i < 16; i++) {
+    const steps = seq[i] || [];
+    const midiNote = 48 + i;
+    steps.forEach((vel, step) => {
+      if (!vel || step >= totalSteps) return;
+      const midiVel = Math.max(1, Math.round((vel / 100) * 127));
+      const tick = step * ticksPerStep;
+      events.push([tick, 0x90, midiNote, midiVel]);
+      events.push([tick + ticksPerStep - 1, 0x80, midiNote, 0]);
+    });
+  }
+  events.sort((a, b) => a[0] - b[0]);
+
+  const trackBytes = [];
+  const writeVarLen = (n) => {
+    if (n < 128) { trackBytes.push(n); return; }
+    const buf = [];
+    while (n > 0) { buf.unshift(n & 0x7F); n >>= 7; }
+    for (let i = 0; i < buf.length - 1; i++) trackBytes.push(buf[i] | 0x80);
+    trackBytes.push(buf[buf.length - 1]);
+  };
+  const writeByte = (b) => trackBytes.push(b & 0xFF);
+
+  // Tempo meta
+  writeVarLen(0); writeByte(0xFF); writeByte(0x51); writeByte(0x03);
+  writeByte((usPerBeat >> 16) & 0xFF); writeByte((usPerBeat >> 8) & 0xFF); writeByte(usPerBeat & 0xFF);
+  // Time signature meta (4/4)
+  writeVarLen(0); writeByte(0xFF); writeByte(0x58); writeByte(0x04);
+  writeByte(4); writeByte(2); writeByte(24); writeByte(8);
+  // Notes
+  let prevTick = 0;
+  events.forEach(([tick, status, note, vel]) => {
+    writeVarLen(tick - prevTick);
+    writeByte(status); writeByte(note); writeByte(vel);
+    prevTick = tick;
+  });
+  // End of track
+  writeVarLen(0); writeByte(0xFF); writeByte(0x2F); writeByte(0x00);
+
+  const headerChunk = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, ticksPerBeat>>8,ticksPerBeat&0xFF];
+  const trackLen = trackBytes.length;
+  const trackHeader = [0x4D,0x54,0x72,0x6B,
+    (trackLen>>24)&0xFF,(trackLen>>16)&0xFF,(trackLen>>8)&0xFF,trackLen&0xFF];
+  const allBytes = [...headerChunk, ...trackHeader, ...trackBytes];
+  return new Uint8Array(allBytes).buffer;
 }
 // Writes all files for the Expansion Pack flow into the given zip root folder.
 async function writeExpansionPackFiles(root, expName, author, fw, setP) {
@@ -5753,9 +5835,13 @@ async function writeExpansionPackFiles(root, expName, author, fw, setP) {
     // .xpm — reuse buildPresetXml with kit.pads (bankName slot carries kit name)
     const xpm = buildPresetXml(kit.pads, kitLabel, expName, fw);
     programs.file(fileBase + '.xpm', xpm);
-    // .mpcpattern — empty skeleton linked by name to the .xpm (v1)
-    const pattern = buildEmptyMpcPatternForKit(kit, fileBase, expName);
+    // .mpcpattern — sourced from kit.sequenceData (includes velocity); empty
+    // events when the user never opened the PE for this kit.
+    const pattern = buildMpcPatternForKit(kit, fileBase, expName);
     sequences.file(fileBase + '.mpcpattern', JSON.stringify(pattern, null, 2));
+    // .mid — MIDI fallback sibling, also per-kit
+    const midiData = buildMidiFileForKit(kit, (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90);
+    sequences.file(fileBase + '.mid', midiData);
     // Preview MP3 for the kit, if any
     if (kit.previewFile) {
       const pBuf = await kit.previewFile.arrayBuffer();
@@ -6212,13 +6298,29 @@ const PE_ROW_COLORS = {
 };
 
 function openPatternEditor() {
-  peActiveSeqBank = currentBank;
-  pePattern   = pePatterns[peActiveSeqBank];
-  peTrackVols = peTrackVolsAll[peActiveSeqBank];
+  // Point pePattern / peTrackVols at the correct data source:
+  // extended → pePatterns[bankIdx] + peTrackVolsAll[bankIdx]
+  // expansion → kits[currentKit].sequenceData + kits[currentKit].trackVols
+  if (appMode === 'expansion') {
+    if (!kits[currentKit]) {
+      if (kits.length === 0) { kits.push(makeKit('Untitled Kit')); currentKit = 0; }
+      else { currentKit = 0; }
+    }
+    const kit = kits[currentKit];
+    if (!kit.sequenceData) kit.sequenceData = {};
+    if (!kit.trackVols)    kit.trackVols    = {};
+    peActiveSeqBank = currentKit;   // reuse as "active pattern index" — avoids wider refactor
+    pePattern   = kit.sequenceData;
+    peTrackVols = kit.trackVols;
+  } else {
+    peActiveSeqBank = currentBank;
+    pePattern   = pePatterns[peActiveSeqBank];
+    peTrackVols = peTrackVolsAll[peActiveSeqBank];
+  }
 
   peRows = [];
   const mode = MODES[activeMode];
-  const bankPads = banks[peActiveSeqBank];
+  const bankPads = getPatternPads();
   for (let i = 0; i < 16; i++) {
     const pad = bankPads[i];
     const slotType = mode.slots[i] || 'empty';
@@ -6229,15 +6331,33 @@ function openPatternEditor() {
     if (!(i in peMuted))     peMuted[i]     = false;
   }
   peTotalSteps = 16 * peBars;
-  document.getElementById('peKitBank').textContent = 'ABCDEFGH'[peActiveSeqBank];
+  // Header label: show kit name in expansion, bank letter in extended
+  const bankLabelEl = document.getElementById('peKitBank');
+  if (bankLabelEl) {
+    bankLabelEl.textContent = (appMode === 'expansion')
+      ? ((kits[currentKit] && kits[currentKit].name) || 'Kit')
+      : 'ABCDEFGH'[peActiveSeqBank];
+  }
+  const headerLabelEl = document.getElementById('peKitBankLabel');
+  if (headerLabelEl) {
+    // In expansion the prefix "Kit — Bank" reads oddly; collapse to just "Kit"
+    headerLabelEl.childNodes[0].nodeValue = (appMode === 'expansion') ? 'Kit ' : 'Kit — Bank ';
+  }
+  // Show/hide the A-H bank row based on mode
+  const peBankRowEl = document.getElementById('peBankRow');
+  if (peBankRowEl) peBankRowEl.style.display = (appMode === 'expansion') ? 'none' : '';
   document.getElementById('peBpmVal').textContent = peBpm;
   // Sync master vol slider
   const mvs = document.getElementById('peMasterVolSlider');
   if (mvs) { mvs.value = Math.round(masterVolume * 100); document.getElementById('peMasterVolVal').textContent = Math.round(masterVolume*100)+'%'; }
-  // Update bank selector
+  // Update bank selector (only meaningful in extended mode)
   document.querySelectorAll('.pe-bank-btn').forEach((b, i) => b.classList.toggle('active', i === peActiveSeqBank));
   const nameInput = document.getElementById('peSeqNameInput');
-  if (nameInput) nameInput.value = peSeqNames[peActiveSeqBank] || '';
+  if (nameInput) {
+    nameInput.value = (appMode === 'expansion')
+      ? (kits[currentKit] && kits[currentKit].sequenceName ? kits[currentKit].sequenceName : '')
+      : (peSeqNames[peActiveSeqBank] || '');
+  }
   renderPeSequencer();
   document.getElementById('peModal').classList.add('open');
   document.getElementById('peSetDemoBtn').classList.toggle('set', peDemoConfirmed);
@@ -6248,6 +6368,9 @@ function openPatternEditor() {
 }
 
 function peSwitchSeqBank(bankIdx) {
+  // No-op in expansion mode: the A-H bank concept doesn't apply to kits.
+  // Users switch kits via the kit list in the main UI, not via the PE bank bar.
+  if (appMode === 'expansion') return;
   if (pePlaying) peStop();
   peActiveSeqBank = bankIdx;
   pePattern   = pePatterns[bankIdx];
@@ -6298,7 +6421,7 @@ function renderPeSequencer() {
 
   peRows.forEach(row => {
     if (!(row.padIdx in peTrackVols)) peTrackVols[row.padIdx] = 100;
-    const pad = banks[peActiveSeqBank][row.padIdx];
+    const pad = getPatternPads()[row.padIdx];
     const panRaw = pad ? pad.pan : 0;
     const panLabel = Math.abs(panRaw) < 3 ? 'C' : (panRaw < 0 ? 'L' + Math.abs(panRaw) : 'R' + panRaw);
 
@@ -6317,7 +6440,7 @@ function renderPeSequencer() {
       <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;width:18px;text-align:right;flex-shrink:0">${panLabel}</span>
       <input type="range" class="pe-kit-vol" min="0" max="100" value="${peTrackVols[row.padIdx]}"
         title="Track volume" onclick="event.stopPropagation()"
-        oninput="peTrackVols[${row.padIdx}]=parseInt(this.value);if(banks[peActiveSeqBank][${row.padIdx}])banks[peActiveSeqBank][${row.padIdx}].volume=parseInt(this.value)"/>
+        oninput="peTrackVols[${row.padIdx}]=parseInt(this.value);if(getPatternPads()[${row.padIdx}])getPatternPads()[${row.padIdx}].volume=parseInt(this.value)"/>
       <div class="pe-kit-mute ${peMuted[row.padIdx]?'muted':''}" onclick="event.stopPropagation();peMuteToggle(${row.padIdx})" title="Mute">M</div>
     `;
     kitPart.onclick = () => rowEl.scrollIntoView({behavior:'smooth', block:'center'});
@@ -6354,7 +6477,7 @@ function renderPeSequencer() {
         paintVal = pePattern[row.padIdx][s] ? 0 : 100;
         peSetStep(row.padIdx, s, paintVal);
         if (paintVal && row.hasSample && peSpeakerOn) {
-          const pad = banks[peActiveSeqBank][row.padIdx];
+          const pad = getPatternPads()[row.padIdx];
           const sample = samples.find(x => x.id === pad.sampleId);
           if (sample && sample.buffer) playBuffer(sample.buffer, pad.volume/100, 0, (pad.pan||0)/100);
         }
@@ -6404,7 +6527,7 @@ function pePadNumClick(e, padIdx) {
   e.stopPropagation();
   const row = peRows.find(r => r.padIdx === padIdx);
   if (!row || !row.hasSample) return;
-  const pad = banks[peActiveSeqBank][padIdx];
+  const pad = getPatternPads()[padIdx];
   const sample = samples.find(x => x.id === pad.sampleId);
   if (sample && sample.buffer) playBuffer(sample.buffer, pad.volume / 100, 0, (pad.pan || 0) / 100);
   const kitPart = e.target.closest('.pe-kit-part');
@@ -6584,7 +6707,7 @@ function pePlay() {
         if (!row.hasSample || peMuted[row.padIdx]) return;
         const stepVel = pePattern[row.padIdx][stepInLoop];
         if (!stepVel) return;
-        const pad = banks[peActiveSeqBank][row.padIdx];
+        const pad = getPatternPads()[row.padIdx];
         const sample = samples.find(x => x.id === pad.sampleId);
         if (!sample || !sample.buffer) return;
         const src = audioCtx.createBufferSource();
@@ -7295,6 +7418,9 @@ var pePendingBankSwitch = null;
 var peBankSwitchInterval = null;
 
 function peSwitchSeqBankQuantized(bankIdx) {
+  // Bank bar is hidden in expansion mode, but if someone invokes this
+  // programmatically, short-circuit safely.
+  if (appMode === 'expansion') return;
   if (!pePlaying) { peSwitchSeqBank(bankIdx); return; }
   if (bankIdx === peActiveSeqBank) return;
   // Mark pending
@@ -8121,7 +8247,7 @@ function renderCompatibilityCheck(container) {
     <div class="pe-body">
       <!-- Full-width info bar: bank selector + sequence name -->
       <div class="pe-info-bar">
-        <div class="pe-bank-row">
+        <div class="pe-bank-row" id="peBankRow">
           <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.14em;margin-right:4px;flex-shrink:0">BANK</span>
           <div class="pe-bank-btn active" onclick="peSwitchSeqBankQuantized(0)">A</div>
           <div class="pe-bank-btn" onclick="peSwitchSeqBankQuantized(1)">B</div>
@@ -8135,14 +8261,14 @@ function renderCompatibilityCheck(container) {
         <div style="flex:1;display:flex;align-items:center;gap:6px;padding:0 10px;border-left:1px solid var(--border)">
           <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;flex-shrink:0">SEQ</span>
           <input class="pe-seq-name-input" id="peSeqNameInput" placeholder="Sequence name..."
-            oninput="peSeqNames[peActiveSeqBank]=this.value"/>
+            oninput="if(appMode==='expansion'&&kits[currentKit]){kits[currentKit].sequenceName=this.value;}else{peSeqNames[peActiveSeqBank]=this.value;}"/>
           <button onclick="peGoToPadView()" style="flex-shrink:0;padding:3px 10px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-size:9px;letter-spacing:.12em;font-family:'IBM Plex Mono',monospace;cursor:pointer;border-radius:var(--radius2);transition:all .15s;text-transform:uppercase" title="Close sequencer and return to pad view">← Pads</button>
         </div>
       </div>
       <!-- Grid area: header + scrollable rows -->
       <div class="pe-grid-area">
         <div class="pe-row-header">
-          <div class="pe-row-header-left">Kit — Bank <span id="peKitBank">A</span></div>
+          <div class="pe-row-header-left" id="peKitBankLabel">Kit — Bank <span id="peKitBank">A</span></div>
           <div class="pe-row-header-right" id="peSeqHeader"></div>
         </div>
         <div class="pe-rows-scroll" id="peRowsScroll"></div>
