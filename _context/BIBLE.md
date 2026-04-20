@@ -264,3 +264,8 @@ Bugs moderados B6-B10 pendientes para ronda de polish.
 house, afrobeat, reggaeton, lo-fi, dancehall, jersey club.
 Velocity dinámica (0-100) en vez de binaria. Legacy normalization
 helper para patterns originales. 12 templates totales.
+
+5 Electron bugs fixeados (PR #4): auto assign kit-aware en
+expansion, layer playback multi-sample, bank bar visibility
+defensiva, topbar overflow con scroll, swing/vol labels visibles
++ fill buttons wrap. +90/-15 líneas. 64/64 tests.
