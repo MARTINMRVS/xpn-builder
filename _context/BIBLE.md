@@ -180,7 +180,7 @@ Nivel avanzado, solo expansiones premium oficiales de Akai. Fuera del alcance ac
 - ✅ Fase 0 — Estabilizar tests (64/64)
 - ✅ Fase 1 — Git init + GitHub
 - ✅ Fase 2 — BIBLE + _context
-- ⏳ Fase 3 — Respaldo en Obsidian vault
+- ✅ Fase 3 — Respaldo en Obsidian vault (/Users/mrvs/Documents/vault-martin/XPN/ — BIBLE + REGLAS + diagnostico + flujo)
 - ✅ Fase 4 — Remover debug flag
 - ✅ Fase 5A — Investigación samplers (COMPLETADA 2026-04-20)
 - ✅ Fase 5B — Preview con filtro + ADSR en Web Audio (COMPLETADA 2026-04-20)
