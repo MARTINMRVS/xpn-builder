@@ -281,3 +281,16 @@ del PE topbar (14 templates siempre visibles). Swing knob SVG
 reemplazado por slider horizontal bipolar con tick central a 50%
 (straight). Dbl-click resetea a 50. Root cause del knob roto:
 fórmula unipolar sobre parámetro bipolar. +40/-29, 64/64 tests.
+
+PE UI iteración 2 — PR #7 merged. FILL row del intento previo
+estaba DENTRO de .pe-topbar (height:36px la clippeaba). Movida
+como sibling entre topbar y body, ahora visible. Swing slider
+ajustado a rango MPC-oficial 50-75 (antes 0-100 con centro en
+50). Scheduler formula: /25 en vez de /50 para que peSwing=75
+dé max shuffle real. +37/-31, 64/64 tests.
+
+Knobs bipolares — PR #8 merged. Pitch y Pan ahora muestran 0 a
+las 12 (top center), no abajo-izquierda. setKnob detecta
+data-bipolar="1" y usa dasharray dinámico para anclar el arco en
+path position 42 (= 12 o'clock post-rotate). Volume/Cutoff/
+Resonance/ADSR sin cambios (unipolar correcto). +32/-6, 64/64.
