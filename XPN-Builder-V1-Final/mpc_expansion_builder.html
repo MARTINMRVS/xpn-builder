@@ -208,7 +208,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .pe-bars-btns{display:flex;gap:4px}
 .pe-bar-btn{padding:3px 8px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
 .pe-bar-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
-.pe-pattern-btns{display:flex;gap:4px;flex-wrap:wrap}
+.pe-pattern-btns{display:flex;gap:4px;flex-wrap:wrap;max-width:440px}
 .pe-pat-btn{padding:4px 10px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
 .pe-pat-btn:hover{border-color:var(--accent);color:var(--accent)}
 .pe-spacer{flex:1}
@@ -844,8 +844,8 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 [data-skin="electric-blue"] .pe-tport-btn.playing{box-shadow:0 0 10px rgba(0,212,255,.35)}
 
 /* ── SWING KNOB (MPC-style visual) ── */
-.swing-knob-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0}
-.swing-knob-label{font-size:8px;letter-spacing:.14em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;text-transform:uppercase}
+.swing-knob-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
+.swing-knob-label{font-size:9px;letter-spacing:.18em;color:var(--ink2);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;font-weight:500}
 .swing-knob-val{font-size:8px;color:var(--ink2);font-family:'IBM Plex Mono',monospace}
 .swing-knob{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border2);position:relative;cursor:ns-resize;background:var(--panel3);flex-shrink:0}
 .swing-knob svg{width:100%;height:100%}
@@ -8397,7 +8397,7 @@ function renderCompatibilityCheck(container) {
         <div class="pe-tport-sep"></div>
         <!-- Master volume in pattern mode -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">
-          <span style="font-size:8px;letter-spacing:.14em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;text-transform:uppercase">VOL</span>
+          <span style="font-size:9px;letter-spacing:.18em;color:var(--ink2);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;font-weight:500">VOL</span>
           <input type="range" min="0" max="100" value="100" style="-webkit-appearance:none;width:56px;height:2px;background:var(--border2);outline:none;cursor:pointer" id="peMasterVolSlider" oninput="setMasterVolume(this.value);document.getElementById('peMasterVolVal').textContent=Math.round(this.value)+'%'"/>
           <span id="peMasterVolVal" style="font-size:8px;color:var(--ink2);font-family:'IBM Plex Mono',monospace">100%</span>
         </div>
