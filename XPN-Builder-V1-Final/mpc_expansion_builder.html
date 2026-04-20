@@ -422,6 +422,24 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .center-panel{background:var(--bg);display:flex;flex-direction:column;padding:6px;gap:4px;overflow:hidden;flex:1;min-width:300px}
 .bank-row{display:flex;align-items:center;gap:4px}
 .bank-label{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);font-family:'IBM Plex Mono',monospace;width:36px}
+/* ── Kit List Row (Fase 6) ── */
+.kit-row{display:flex;align-items:center;gap:4px;margin-top:4px}
+.kit-list{display:flex;gap:4px;flex-wrap:wrap;align-items:center;max-width:560px;overflow-x:auto}
+.kit-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;cursor:pointer;border-radius:var(--radius2);border:1px solid var(--border2);background:transparent;color:var(--ink2);transition:all .15s}
+.kit-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.kit-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
+.kit-btn-name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kit-btn-count{font-size:8px;color:var(--ink3);letter-spacing:.04em}
+.kit-btn-del{opacity:0;margin-left:2px;color:var(--ink3);cursor:pointer;font-size:10px;transition:opacity .12s}
+.kit-btn:hover .kit-btn-del{opacity:.6}
+.kit-btn-del:hover{opacity:1;color:var(--red, #c0143c)}
+.kit-new-btn{font-size:9px;letter-spacing:.1em;border-color:var(--accent);color:var(--accent)}
+.kit-meta-row{display:flex;align-items:center;gap:6px;margin-top:4px;padding-top:4px;border-top:1px dashed var(--border2)}
+.kit-meta-input{width:120px;font-size:10px}
+.kit-preview-slot{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:10px;font-family:'IBM Plex Mono',monospace;border:1px dashed var(--border2);border-radius:var(--radius2);cursor:pointer;color:var(--ink3);background:transparent;transition:all .15s}
+.kit-preview-slot:hover{border-color:var(--accent);color:var(--accent)}
+.kit-preview-slot.filled{border-style:solid;border-color:var(--accent);color:var(--accent)}
+.kit-preview-slot.dragover{background:var(--accent-dim);border-color:var(--accent)}
 .bank-btn{padding:2px 7px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;cursor:pointer;border-radius:var(--radius2);border:1px solid var(--border2);background:transparent;color:var(--ink3);transition:all .15s}
 .bank-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
 .bank-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
@@ -1290,7 +1308,7 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 
   <!-- CENTER: Pad Grid -->
   <div class="center-panel">
-    <div class="bank-row">
+    <div class="bank-row" id="bankRow">
       <span class="bank-label">Bank</span>
       <button class="bank-btn active" onclick="switchBank(0,this)">A</button>
       <button class="bank-btn" onclick="switchBank(1,this)">B</button>
@@ -1304,6 +1322,26 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
       <span style="flex:1"></span>
       <span style="font-size:10px;color:var(--ink3);font-family:'IBM Plex Mono',monospace" id="bankInfo">16 pads · Bank A</span>
       <button class="bank-btn" onclick="openPatternEditor()" style="margin-left:8px;border-color:var(--accent);color:var(--accent)" title="Open Pattern Editor">&#8862; Pattern</button>
+    </div>
+    <!-- Kit List Row (Fase 6 PASO 3): shown only in Expansion mode -->
+    <div class="kit-row" id="kitRow" style="display:none">
+      <span class="bank-label">Kits</span>
+      <div class="kit-list" id="kitList"></div>
+      <button class="bank-btn kit-new-btn" onclick="addKit()" title="Create a new empty kit">+ New Kit</button>
+      <span style="flex:1"></span>
+      <span style="font-size:10px;color:var(--ink3);font-family:'IBM Plex Mono',monospace" id="kitInfo">0 kits</span>
+    </div>
+    <!-- Kit Meta Row (Fase 6 PASO 3): group/subgroup/preview for the active kit -->
+    <div class="kit-meta-row" id="kitMetaRow" style="display:none">
+      <span class="bank-label">Tags</span>
+      <input class="tb-input kit-meta-input" id="kitGroupInput" placeholder="Group (e.g. HipHop)" oninput="updateActiveKitMeta()" />
+      <input class="tb-input kit-meta-input" id="kitSubgroupInput" placeholder="Subgroup (e.g. Kit)" oninput="updateActiveKitMeta()" />
+      <span class="bank-label" style="margin-left:10px">Preview</span>
+      <label class="kit-preview-slot" id="kitPreviewSlot" title="Drop MP3/WAV or click to browse">
+        <span id="kitPreviewLabel">No preview set</span>
+        <input type="file" accept="audio/mpeg,audio/wav,audio/*" onchange="onKitPreviewPicked(event)" style="display:none" id="kitPreviewFileInput" />
+      </label>
+      <button class="bank-btn" onclick="clearKitPreview()" title="Remove preview audio" style="font-size:9px;padding:2px 6px">&times;</button>
     </div>
     <!-- GLOBAL TRACK PANEL -->
     <div class="global-panel" id="globalPanel">
@@ -2010,9 +2048,9 @@ const banks = Array.from({length: NUM_BANKS}, () =>
 );
 
 // ── Kits: named programs for Expansion Pack flow (Fase 6) ──
-// Independent from banks[]. Extended flow keeps using banks[currentBank].
+// Independent from banks[]. Extended flow keeps using the current bank pads.
 // Expansion flow uses kits[currentKit].pads (same 16-pad shape as a bank).
-let appMode = 'expansion';    // 'expansion' | 'extended' — UI in Fase 6 PASO 2 will drive switching
+let appMode = 'extended';     // 'expansion' | 'extended' — flow modal drives switch on first run; 'extended' is the conservative default for tests/back-compat
 let currentKit = 0;
 let kits = [];                // array of kit objects (see makeKit)
 function makeKit(name) {
@@ -2025,6 +2063,19 @@ function makeKit(name) {
     previewFile: null,         // File object MP3/WAV for [Previews]/ folder
     sequenceData: null         // per-kit sequence/pattern data (wired in later phase)
   };
+}
+// Returns the live pad array currently visible in the center grid:
+// extended → getActivePads(), expansion → kits[currentKit].pads.
+// Maintains the expansion invariant: at least one kit always exists.
+function getActivePads() {
+  if (appMode === 'expansion') {
+    if (!kits[currentKit]) {
+      if (kits.length === 0) { kits.push(makeKit('Untitled Kit')); currentKit = 0; }
+      else { currentKit = 0; }
+    }
+    return kits[currentKit].pads;
+  }
+  return banks[currentBank];
 }
 
 let samples = []; // {id, name, file, buffer, duration, size}
@@ -3134,7 +3185,7 @@ function customCopyFrom(modeKey) {
 
 function customApply() {
   // Apply custom names to pad display names in current bank
-  const bankPads = banks[currentBank];
+  const bankPads = getActivePads();
   for (const [idx, name] of Object.entries(customNames)) {
     if (name && name.trim()) {
       bankPads[parseInt(idx)].name = name.trim();
@@ -3279,7 +3330,7 @@ function init() {
 function renderPadGrid() {
   const grid = document.getElementById('padGrid');
   grid.innerHTML = '';
-  const pads = banks[currentBank];
+  const pads = getActivePads();
   const MPC_ORDER = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
   MPC_ORDER.forEach(i => {
     const pad = pads[i];
@@ -3339,8 +3390,8 @@ function renderPadGrid() {
       e.preventDefault(); el.classList.remove('drag-target');
       if (dragPad !== null && dragPad !== i) {
         // Swap pad sample assignments
-        const src = banks[currentBank][dragPad];
-        const dst = banks[currentBank][i];
+        const src = getActivePads()[dragPad];
+        const dst = getActivePads()[i];
         [src.sampleId, dst.sampleId] = [dst.sampleId, src.sampleId];
         [src.name, dst.name] = [dst.name, src.name];
         [src.layers, dst.layers] = [dst.layers || [null,null,null], src.layers || [null,null,null]];
@@ -3397,8 +3448,176 @@ function switchBank(idx, btn) {
   hidePadDetail();
 }
 
+// ════════════════════════════════════════════
+// KIT LIST (Fase 6 PASO 3) — only used in Expansion mode
+// ════════════════════════════════════════════
+function renderKitList() {
+  const list = document.getElementById('kitList');
+  const info = document.getElementById('kitInfo');
+  if (!list) return;
+  list.innerHTML = '';
+  kits.forEach((kit, i) => {
+    const loaded = kit.pads.filter(p => p && p.sampleId !== null).length;
+    const btn = document.createElement('button');
+    btn.className = 'kit-btn' + (i === currentKit ? ' active' : '');
+    btn.title = 'Click to select. Double-click to rename.';
+    btn.innerHTML =
+      '<span class="kit-btn-name"></span>' +
+      '<span class="kit-btn-count">' + loaded + '/16</span>' +
+      '<span class="kit-btn-del" title="Delete kit">&times;</span>';
+    btn.querySelector('.kit-btn-name').textContent = kit.name || ('Kit ' + (i + 1));
+    btn.onclick = (e) => {
+      if (e.target.classList.contains('kit-btn-del')) {
+        e.stopPropagation();
+        deleteKit(i);
+        return;
+      }
+      selectKit(i);
+    };
+    btn.ondblclick = (e) => {
+      if (e.target.classList.contains('kit-btn-del')) return;
+      renameKit(i);
+    };
+    list.appendChild(btn);
+  });
+  if (info) info.textContent = kits.length + (kits.length === 1 ? ' kit' : ' kits');
+  // Sync kit meta inputs
+  const active = kits[currentKit];
+  const gInput = document.getElementById('kitGroupInput');
+  const sInput = document.getElementById('kitSubgroupInput');
+  const pSlot  = document.getElementById('kitPreviewSlot');
+  const pLabel = document.getElementById('kitPreviewLabel');
+  if (active) {
+    if (gInput) gInput.value = active.group || '';
+    if (sInput) sInput.value = active.subgroup || '';
+    if (pLabel) pLabel.textContent = active.previewFile ? active.previewFile.name : 'No preview set';
+    if (pSlot)  pSlot.classList.toggle('filled', !!active.previewFile);
+  }
+}
+
+function addKit() {
+  const nextNum = kits.length + 1;
+  kits.push(makeKit('Kit ' + nextNum));
+  currentKit = kits.length - 1;
+  selectedPad = null;
+  renderKitList();
+  renderPadGrid();
+  hidePadDetail();
+  setStatus('Kit created: ' + kits[currentKit].name);
+}
+
+function deleteKit(idx) {
+  if (!kits[idx]) return;
+  const name = kits[idx].name || ('Kit ' + (idx + 1));
+  if (!confirm('Delete kit "' + name + '"? This cannot be undone.')) return;
+  kits.splice(idx, 1);
+  // Preserve invariant: in expansion there must be at least one kit
+  if (kits.length === 0) {
+    kits.push(makeKit('Untitled Kit'));
+    currentKit = 0;
+  } else if (currentKit >= kits.length) {
+    currentKit = kits.length - 1;
+  }
+  selectedPad = null;
+  renderKitList();
+  renderPadGrid();
+  hidePadDetail();
+  setStatus('Kit deleted');
+}
+
+function selectKit(idx) {
+  if (idx < 0 || idx >= kits.length) return;
+  currentKit = idx;
+  selectedPad = null;
+  renderKitList();
+  renderPadGrid();
+  hidePadDetail();
+}
+
+function renameKit(idx) {
+  if (!kits[idx]) return;
+  const current = kits[idx].name || '';
+  const next = prompt('Rename kit:', current);
+  if (next === null) return;
+  const trimmed = String(next).trim();
+  if (!trimmed) return;
+  kits[idx].name = trimmed;
+  renderKitList();
+  setStatus('Kit renamed: ' + trimmed);
+}
+
+function updateActiveKitMeta() {
+  const kit = kits[currentKit];
+  if (!kit) return;
+  const gInput = document.getElementById('kitGroupInput');
+  const sInput = document.getElementById('kitSubgroupInput');
+  if (gInput) kit.group = gInput.value.trim();
+  if (sInput) kit.subgroup = sInput.value.trim();
+}
+
+function onKitPreviewPicked(event) {
+  const file = event && event.target && event.target.files && event.target.files[0];
+  if (!file) return;
+  setKitPreviewFile(file);
+}
+
+function setKitPreviewFile(file) {
+  const kit = kits[currentKit];
+  if (!kit) return;
+  kit.previewFile = file;
+  renderKitList();
+  setStatus('Preview set: ' + file.name);
+}
+
+function clearKitPreview() {
+  const kit = kits[currentKit];
+  if (!kit) return;
+  kit.previewFile = null;
+  const input = document.getElementById('kitPreviewFileInput');
+  if (input) input.value = '';
+  renderKitList();
+  setStatus('Preview removed');
+}
+
+function _initKitPreviewDnD() {
+  const slot = document.getElementById('kitPreviewSlot');
+  if (!slot) return;
+  // Click opens the hidden file picker
+  slot.onclick = () => {
+    const input = document.getElementById('kitPreviewFileInput');
+    if (input) input.click();
+  };
+  slot.ondragover = (e) => { e.preventDefault(); slot.classList.add('dragover'); };
+  slot.ondragleave = () => slot.classList.remove('dragover');
+  slot.ondrop = (e) => {
+    e.preventDefault();
+    slot.classList.remove('dragover');
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) setKitPreviewFile(f);
+  };
+}
+
+// Toggle visible center controls based on appMode
+function updateModeVisibility() {
+  const bankRow = document.getElementById('bankRow');
+  const kitRow = document.getElementById('kitRow');
+  const kitMetaRow = document.getElementById('kitMetaRow');
+  if (!bankRow || !kitRow || !kitMetaRow) return;
+  if (appMode === 'expansion') {
+    bankRow.style.display = 'none';
+    kitRow.style.display = 'flex';
+    kitMetaRow.style.display = 'flex';
+    renderKitList();
+  } else {
+    bankRow.style.display = 'flex';
+    kitRow.style.display = 'none';
+    kitMetaRow.style.display = 'none';
+  }
+  renderPadGrid();
+}
+
 function triggerPad(idx) {
-  const pad = banks[currentBank][idx];
+  const pad = getActivePads()[idx];
   if (pad.sampleId === null) return;
   const sample = samples.find(s => s.id === pad.sampleId);
   if (!sample || !sample.buffer) return;
@@ -3416,7 +3635,7 @@ function getSampleName(id) {
 let previewTimeout = null;
 
 function previewPad(idx) {
-  const pad = banks[currentBank][idx];
+  const pad = getActivePads()[idx];
   if (pad.sampleId === null) return;
   const sample = samples.find(s => s.id === pad.sampleId);
   if (!sample || !sample.buffer) { setStatus('No audio buffer — try reloading the sample'); return; }
@@ -3465,7 +3684,7 @@ function stopPreview() {
 // PAD DETAIL
 // ════════════════════════════════════════════
 function showPadDetail(idx) {
-  const pad = banks[currentBank][idx];
+  const pad = getActivePads()[idx];
   document.getElementById('noSel').style.display = 'none';
   document.getElementById('padDetail').style.display = 'flex';
   document.getElementById('detPadNum').textContent = String(idx + 1).padStart(2, '0');
@@ -3537,7 +3756,7 @@ function hidePadDetail() {
 
 function updatePadName(v) {
   if (selectedPad === null) return;
-  banks[currentBank][selectedPad].name = v;
+  getActivePads()[selectedPad].name = v;
   renderPadGrid();
 }
 
@@ -3569,7 +3788,7 @@ function moveKnob(e) {
   let newVal = Math.max(0, Math.min(100, startVal + delta));
   el.dataset.val = newVal;
   if (selectedPad === null) return;
-  const pad = banks[currentBank][selectedPad];
+  const pad = getActivePads()[selectedPad];
   if (param === 'volume') { pad.volume = Math.round(newVal); setKnob('Vol', newVal, v => Math.round(v) + '', 0, 100); }
   else if (param === 'pitch') { const st = Math.round((newVal / 100) * 24 - 12); pad.pitch = st; setKnob('Pitch', newVal, v => { const s = Math.round((v/100)*24-12); return (s>0?'+':'')+s+' st'; }, -12, 12); }
   else if (param === 'pan') { const p = Math.round((newVal / 100) * 200 - 100); pad.pan = p; setKnob('Pan', newVal, v => { const vv = Math.round((v/100)*200-100); if(Math.abs(vv)<3) return 'C'; return (vv<0?'L':'R')+Math.abs(vv); }, -100, 100); }
@@ -3587,7 +3806,7 @@ function _triggerKnobPreview() {
   clearTimeout(_knobPreviewTimer);
   _knobPreviewTimer = setTimeout(() => {
     if (selectedPad === null) return;
-    const pad = banks[currentBank][selectedPad];
+    const pad = getActivePads()[selectedPad];
     if (!pad.sampleId) return;
     const sample = samples.find(s => s.id === pad.sampleId);
     if (!sample || !sample.buffer) return;
@@ -3618,7 +3837,7 @@ function resetKnob(el) {
   el.dataset.val = def;
   const param = el.dataset.param;
   if (selectedPad === null) return;
-  const pad = banks[currentBank][selectedPad];
+  const pad = getActivePads()[selectedPad];
   pad[param] = def;
   if (param === 'volume') { setKnob('Vol', def, v => Math.round(v) + '', 0, 100); }
   else if (param === 'pitch') { setKnob('Pitch', def, v => { const s = Math.round((v/100)*24-12); return (s>0?'+':'')+s+' st'; }, -12, 12); }
@@ -3629,9 +3848,9 @@ function resetKnob(el) {
 // Generic pad parameter update (selects, number inputs)
 function updatePadParam(param, value) {
   if (selectedPad === null) return;
-  banks[currentBank][selectedPad][param] = value;
+  getActivePads()[selectedPad][param] = value;
   // Update accordion summaries and trigger preview for audio params
-  updateAccordionSummaries(banks[currentBank][selectedPad]);
+  updateAccordionSummaries(getActivePads()[selectedPad]);
   if (['filterType','filterCutoff','filterResonance','ampAttack','ampDecay','ampSustain','ampRelease','volume','pitch','pan'].includes(param)) {
     _triggerKnobPreview();
   }
@@ -3686,7 +3905,7 @@ function drawWaveform(sampleId) {
   ctx.stroke();
   // Update markers for the current pad
   if (selectedPad !== null) {
-    const pad = banks[currentBank][selectedPad];
+    const pad = getActivePads()[selectedPad];
     updateWaveMarkers(pad, sample);
   }
 }
@@ -3733,7 +3952,7 @@ function updateWaveMarkers(pad, sample) {
 
 function onWaveMsInput(which, msStr) {
   if (selectedPad === null) return;
-  const pad = banks[currentBank][selectedPad];
+  const pad = getActivePads()[selectedPad];
   const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
   if (!sample || !sample.buffer) return;
   const sr = sample.buffer.sampleRate || 44100;
@@ -3758,7 +3977,7 @@ function initWaveMarkers() {
 
   function getPadAndSample() {
     if (selectedPad === null) return null;
-    const pad = banks[currentBank][selectedPad];
+    const pad = getActivePads()[selectedPad];
     const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
     if (!sample || !sample.buffer) return null;
     return { pad: pad, sample: sample };
@@ -3916,7 +4135,7 @@ const FX_TYPES = {
 };
 
 function renderFxChain(idx) {
-  const pad = banks[currentBank][idx];
+  const pad = getActivePads()[idx];
   const chain = document.getElementById('fxChain');
   chain.innerHTML = '';
   pad.effects.forEach((fx, fi) => {
@@ -3946,22 +4165,22 @@ function renderFxChain(idx) {
 
 function toggleFx(fi) {
   if (selectedPad === null) return;
-  banks[currentBank][selectedPad].effects[fi].open ^= true;
+  getActivePads()[selectedPad].effects[fi].open ^= true;
   renderFxChain(selectedPad);
 }
 function toggleFxOn(fi) {
   if (selectedPad === null) return;
-  banks[currentBank][selectedPad].effects[fi].on ^= true;
+  getActivePads()[selectedPad].effects[fi].on ^= true;
   renderFxChain(selectedPad);
 }
 function removeFx(fi) {
   if (selectedPad === null) return;
-  banks[currentBank][selectedPad].effects.splice(fi, 1);
+  getActivePads()[selectedPad].effects.splice(fi, 1);
   renderFxChain(selectedPad);
 }
 function updateFxParam(fi, pi, val, input) {
   if (selectedPad === null) return;
-  const fx = banks[currentBank][selectedPad].effects[fi];
+  const fx = getActivePads()[selectedPad].effects[fi];
   fx.params[pi] = parseFloat(val);
   const def = FX_TYPES[fx.type];
   const valEl = document.getElementById(`fxv_${fi}_${pi}`);
@@ -3983,7 +4202,7 @@ function buildFxPicker() {
 function addFx(type) {
   if (selectedPad === null) return;
   const def = FX_TYPES[type];
-  banks[currentBank][selectedPad].effects.push({
+  getActivePads()[selectedPad].effects.push({
     type, on: true, open: true,
     params: def.params.map(p => p.def)
   });
@@ -4101,7 +4320,7 @@ function renderSampleList() {
       <div class="sample-play" onclick="playSample('${s.id}')">
         <svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9"/></svg>
       </div>`;
-    el.onclick = () => { if (selectedPad !== null) { banks[currentBank][selectedPad].sampleId = s.id; renderPadGrid(); showPadDetail(selectedPad); } };
+    el.onclick = () => { if (selectedPad !== null) { getActivePads()[selectedPad].sampleId = s.id; renderPadGrid(); showPadDetail(selectedPad); } };
     list.appendChild(el);
   });
 }
@@ -4120,7 +4339,7 @@ function miniWave(buffer) {
 
 function dropSampleOnPad(idx) {
   if (dragSample === null) return;
-  var pad = banks[currentBank][idx];
+  var pad = getActivePads()[idx];
   // If pad already has a primary sample, place into next empty layer and prompt mode
   if (pad.sampleId !== null) {
     if (!pad.layers) pad.layers = [null, null, null];
@@ -4423,7 +4642,7 @@ function renderMidiPanel() {
   const MPC_ORDER = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
   MPC_ORDER.forEach(i => {
     const midiNote = MIDI_BASE_NOTE + i;
-    const pad  = banks[currentBank][i];
+    const pad  = getActivePads()[i];
     const name = pad.sampleId ? getSampleName(pad.sampleId) : '—';
     const div  = document.createElement('div');
     div.className    = 'midi-pad-slot';
@@ -4490,7 +4709,7 @@ let _reorderAssignments = null; // preview assignments before confirm
 
 function showReorderPreview() {
   const mode = MODES[activeMode];
-  const bank = banks[currentBank];
+  const bank = getActivePads();
   const loadedSamples = bank.map((pad, pi) => pad.sampleId ? { pi, id: pad.sampleId } : null).filter(Boolean);
   if (loadedSamples.length === 0) { setStatus('No samples to reorder on this bank'); return; }
 
@@ -4551,7 +4770,7 @@ function showReorderPreview() {
 
 function applyReorder() {
   if (!_reorderAssignments) return;
-  const bank = banks[currentBank];
+  const bank = getActivePads();
   // Clear current bank
   bank.forEach(pad => { pad.sampleId = null; });
   // Apply new assignments
@@ -4993,9 +5212,9 @@ function showCtxMenu(e, idx) {
 function closeCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; }
 function ctxAssignSample() { if (ctxTargetPad !== null && selectedPad !== ctxTargetPad) selectPad(ctxTargetPad); }
 function ctxPreviewPad() { if (ctxTargetPad !== null) triggerPad(ctxTargetPad); closeCtxMenu(); }
-function ctxCopyPad() { if (ctxTargetPad !== null) { copiedPad = JSON.parse(JSON.stringify(banks[currentBank][ctxTargetPad])); setStatus('Pad copied'); } closeCtxMenu(); }
-function ctxPastePad() { if (ctxTargetPad !== null && copiedPad) { banks[currentBank][ctxTargetPad] = JSON.parse(JSON.stringify(copiedPad)); renderPadGrid(); setStatus('Pad pasted'); } closeCtxMenu(); }
-function ctxClearPad() { if (ctxTargetPad !== null) { banks[currentBank][ctxTargetPad] = makePad(); renderPadGrid(); if (selectedPad === ctxTargetPad) hidePadDetail(); } closeCtxMenu(); }
+function ctxCopyPad() { if (ctxTargetPad !== null) { copiedPad = JSON.parse(JSON.stringify(getActivePads()[ctxTargetPad])); setStatus('Pad copied'); } closeCtxMenu(); }
+function ctxPastePad() { if (ctxTargetPad !== null && copiedPad) { getActivePads()[ctxTargetPad] = JSON.parse(JSON.stringify(copiedPad)); renderPadGrid(); setStatus('Pad pasted'); } closeCtxMenu(); }
+function ctxClearPad() { if (ctxTargetPad !== null) { getActivePads()[ctxTargetPad] = makePad(); renderPadGrid(); if (selectedPad === ctxTargetPad) hidePadDetail(); } closeCtxMenu(); }
 
 // ════════════════════════════════════════════
 // EXPORT
@@ -6288,7 +6507,7 @@ let activeLayer = 0; // which layer is being edited in the detail panel
 function renderLayersPanel(padIdx) {
   const panel = document.getElementById('layersPanel');
   if (!panel) return;
-  const pad = banks[currentBank][padIdx];
+  const pad = getActivePads()[padIdx];
   const allSampleIds = [pad.sampleId, ...(pad.layers || [null,null,null])];
   const isLive3 = targetDevice === 'mpc-live-3';
   panel.innerHTML = '';
@@ -6355,7 +6574,7 @@ function renderLayersPanel(padIdx) {
 }
 
 function clearLayer(padIdx, li) {
-  const pad = banks[currentBank][padIdx];
+  const pad = getActivePads()[padIdx];
   if (li === 0) { pad.sampleId = null; pad.name = ''; }
   else {
     if (!pad.layers) pad.layers = [null,null,null];
@@ -6402,7 +6621,7 @@ function renderSamplePool() {
     `;
     el.onclick = () => {
       if (selectedPad !== null) {
-        const pad = banks[currentBank][selectedPad];
+        const pad = getActivePads()[selectedPad];
         if (activeLayer === 0) { pad.sampleId = s.id; }
         else {
           if (!pad.layers) pad.layers = [null,null,null];
@@ -7258,7 +7477,7 @@ function renderVoice3x(el, pad) {
 
 function setMuteGroupPreset3x(preset) {
   if (selectedPad === null) return;
-  const pad = banks[currentBank][selectedPad];
+  const pad = getActivePads()[selectedPad];
   const map = { hh: '1', cym: '2', grpA: '3', grpB: '4', none: 'Off' };
   pad.muteGroup3x = map[preset] ?? 'Off';
   const el = document.getElementById('padMuteGroup3x');
@@ -7272,7 +7491,7 @@ function setMuteGroupPreset3x(preset) {
 const MG_PRESETS = { hh: 1, cym: 2, grpA: 3, grpB: 4, none: 0 };
 function setMuteGroupPreset(preset) {
   if (selectedPad === null) return;
-  const pad = banks[currentBank][selectedPad];
+  const pad = getActivePads()[selectedPad];
   pad.muteGroup = MG_PRESETS[preset] ?? 0;
   const el = document.getElementById('padMuteGroup');
   if (el) el.value = pad.muteGroup;
@@ -7312,7 +7531,7 @@ function renderMuteGroupsPanel() {
   const grid = document.getElementById('mgGrid');
   if (!grid) return;
   grid.innerHTML = '';
-  const bankPads = banks[currentBank];
+  const bankPads = getActivePads();
   // Count pads per group
   const groupPads = {};
   bankPads.forEach((pad, i) => {
@@ -7364,7 +7583,7 @@ function renderMuteGroupAssignGrid() {
   grid.innerHTML = '';
   const MPC_ORDER = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
   MPC_ORDER.forEach(i => {
-    const pad = banks[currentBank][i];
+    const pad = getActivePads()[i];
     const inGroup = (pad.muteGroup ?? 0) === groupNum;
     const div = document.createElement('div');
     div.className = 'mg-assign-pad' + (inGroup ? ' in-group' : '');
@@ -7449,7 +7668,7 @@ var _layerModePromptPadIdx = null;
 function closeLayerModeModal(mode) {
   document.getElementById('layerModeModal').classList.remove('open');
   if (mode && _layerModePromptPadIdx !== null) {
-    var pad = banks[currentBank][_layerModePromptPadIdx];
+    var pad = getActivePads()[_layerModePromptPadIdx];
     pad.layerPlayStyle = mode;
     if (selectedPad === _layerModePromptPadIdx) showPadDetail(_layerModePromptPadIdx);
     renderPadGrid();
@@ -8131,8 +8350,9 @@ function chooseFlow(mode) {
       kits.push(makeKit('Untitled Kit'));
       currentKit = 0;
     }
-    // UI reveal of kit list panel + bank bar hiding lands in Fase 6 PASO 3
+    if (typeof updateModeVisibility === 'function') updateModeVisibility();
   } else {
+    if (typeof updateModeVisibility === 'function') updateModeVisibility();
     // Extended flow: chain into existing device+mode welcome modal
     if (typeof openWelcomeModal === 'function') openWelcomeModal(true);
   }
@@ -8635,6 +8855,9 @@ function updateXPNModeGrid() {
     renderLiveTplPreview();
     // Fase 6: initialize appMode from storage (also ensures kit[] invariant)
     if (typeof initAppModeFromStorage === 'function') initAppModeFromStorage();
+    // Reveal/hide kit vs bank rows based on appMode, wire preview drop zone
+    if (typeof updateModeVisibility === 'function') updateModeVisibility();
+    if (typeof _initKitPreviewDnD === 'function') _initKitPreviewDnD();
     // Show flow chooser modal on first run (respects xpn_app_mode flag).
     // If user already picked flow, this early-returns. If they picked Extended
     // but never set up device+mode, SETUP button in topbar lets them do that.
