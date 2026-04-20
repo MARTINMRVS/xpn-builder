@@ -850,13 +850,13 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 .swing-knob-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
 .swing-knob-label{font-size:9px;letter-spacing:.18em;color:var(--ink2);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;font-weight:500}
 .swing-knob-val{font-size:8px;color:var(--ink2);font-family:'IBM Plex Mono',monospace}
-/* ── PE Swing slider (bipolar: 50=straight, center tick marks the zero point) ── */
+/* ── PE Swing slider (MPC-style: 50 = straight, 75 = max swing) ── */
 .pe-swing-wrap{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;padding:0 4px}
 .pe-swing-label{font-size:9px;letter-spacing:.18em;color:var(--ink2);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;font-weight:500}
-.pe-swing-slider{-webkit-appearance:none;appearance:none;width:90px;height:4px;outline:none;cursor:pointer;border-radius:2px;background:linear-gradient(to right,var(--border2) 0%,var(--border2) 48%,var(--accent) 48%,var(--accent) 52%,var(--border2) 52%,var(--border2) 100%);margin:0}
-.pe-swing-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:10px;height:14px;border-radius:2px;background:var(--accent);cursor:pointer;border:1px solid var(--accent2,var(--accent));box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.pe-swing-val{font-size:9px;color:var(--accent);font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;font-weight:600}
+.pe-swing-slider{-webkit-appearance:none;appearance:none;width:90px;height:3px;outline:none;cursor:pointer;border-radius:2px;background:var(--border2);margin:0}
+.pe-swing-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:10px;height:14px;border-radius:2px;background:var(--accent);cursor:pointer;border:1px solid var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.3)}
 .pe-swing-slider::-moz-range-thumb{width:10px;height:14px;border-radius:2px;background:var(--accent);cursor:pointer;border:1px solid var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.3)}
-.pe-swing-val{font-size:8px;color:var(--ink2);font-family:'IBM Plex Mono',monospace;min-width:28px;text-align:center}
 .swing-knob{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--border2);position:relative;cursor:ns-resize;background:var(--panel3);flex-shrink:0}
 .swing-knob svg{width:100%;height:100%}
 
@@ -6469,7 +6469,9 @@ async function renderPatternToWav() {
       const stepVel = steps[step];
       if (!stepVel) continue;
       // MPC-style swing: odd steps delayed, straight at 50%
-      const swingDelay = (step % 2 === 0) ? 0 : ((peSwing - 50) / 50) * stepSec * 0.5;
+      // MPC swing: peSwing ∈ [50,75]. delay = (peSwing-50)/25 * stepSec/2.
+      // At 50 → 0 (straight). At 75 → stepSec/2 (second 16th starts at 75% of the pair → max shuffle).
+      const swingDelay = (step % 2 === 0) ? 0 : ((peSwing - 50) / 25) * stepSec * 0.5;
       const t = step * stepSec + swingDelay;
       const velScale = Math.max(0, Math.min(1, stepVel / 100));
       const src = offlineCtx.createBufferSource();
@@ -6614,7 +6616,9 @@ function openPatternEditor() {
   document.getElementById('peModal').classList.add('open');
   document.getElementById('peSetDemoBtn').classList.toggle('set', peDemoConfirmed);
   document.getElementById('peSetDemoBtn').textContent = peDemoConfirmed ? '✓ Demo Set' : 'Set as Demo Preview';
-  // Sync swing slider to current peSwing (50 = straight)
+  // Sync swing slider to current peSwing. MPC range is 50-75 (50 = straight,
+  // 75 = max shuffle); clamp defensively in case legacy state fell outside.
+  peSwing = Math.max(50, Math.min(75, peSwing | 0));
   document.getElementById('peSwingVal').textContent = peSwing + '%';
   const _swingSlider = document.getElementById('peSwingSlider');
   if (_swingSlider) _swingSlider.value = peSwing;
@@ -7011,7 +7015,8 @@ function pePlay() {
       }, vizDelay);
 
       // MPC-style swing: 50%=straight, >50=swing, <50=reverse
-      const swingDelay = (peCurrentStepSched % 2 === 0) ? 0 : ((peSwing - 50) / 50) * stepSec * 0.5;
+      // MPC swing: peSwing ∈ [50,75]. See renderPatternToWav for derivation.
+      const swingDelay = (peCurrentStepSched % 2 === 0) ? 0 : ((peSwing - 50) / 25) * stepSec * 0.5;
       peNextNoteTime += stepSec + swingDelay;
       peCurrentStepSched++;
     }
@@ -8497,13 +8502,13 @@ function renderCompatibilityCheck(container) {
           </div>
         </div>
         <div class="pe-tport-sep"></div>
-        <!-- SWING slider (horizontal, bipolar: 50=straight, <50=reverse, >50=swing) -->
-        <div class="pe-swing-wrap" title="50%=straight · drag to add swing">
-          <span class="pe-swing-label">SWING</span>
-          <input type="range" min="0" max="100" value="50" class="pe-swing-slider" id="peSwingSlider"
+        <!-- SWING slider (MPC-style: 50 = straight, 75 = max swing triplet feel).
+             Classic MPC groove sits around 58-66. Double-click resets to 50. -->
+        <div class="pe-swing-wrap" title="50%=straight · 66%=classic MPC · 75%=max swing · double-click to reset">
+          <span class="pe-swing-label">SWING <span id="peSwingVal" class="pe-swing-val">50%</span></span>
+          <input type="range" min="50" max="75" value="50" step="1" class="pe-swing-slider" id="peSwingSlider"
                  oninput="peSwing=parseInt(this.value);document.getElementById('peSwingVal').textContent=peSwing+'%';"
                  ondblclick="this.value=50;peSwing=50;document.getElementById('peSwingVal').textContent='50%';"/>
-          <span id="peSwingVal" class="pe-swing-val">50%</span>
         </div>
         <div class="pe-tport-sep"></div>
         <!-- Master volume in pattern mode -->
