@@ -2001,6 +2001,24 @@ const banks = Array.from({length: NUM_BANKS}, () =>
   Array.from({length: PADS_PER_BANK}, () => makePad())
 );
 
+// ── Kits: named programs for Expansion Pack flow (Fase 6) ──
+// Independent from banks[]. Extended flow keeps using banks[currentBank].
+// Expansion flow uses kits[currentKit].pads (same 16-pad shape as a bank).
+let appMode = 'expansion';    // 'expansion' | 'extended' — UI in Fase 6 PASO 2 will drive switching
+let currentKit = 0;
+let kits = [];                // array of kit objects (see makeKit)
+function makeKit(name) {
+  return {
+    id: 'kit_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+    name: name || 'Untitled Kit',
+    group: '',                 // primary tag (e.g. "HipHop")
+    subgroup: '',              // secondary tag (e.g. "Kit")
+    pads: Array.from({length: PADS_PER_BANK}, () => makePad()),
+    previewFile: null,         // File object MP3/WAV for [Previews]/ folder
+    sequenceData: null         // per-kit sequence/pattern data (wired in later phase)
+  };
+}
+
 let samples = []; // {id, name, file, buffer, duration, size}
 let artworkDataUrl = null;
 let artworkOffsetX = 0, artworkOffsetY = 0, artworkZoom = 100;
