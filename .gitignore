@@ -30,3 +30,6 @@ coverage/
 # Temp
 /tmp/
 *.tmp
+
+# Claude Code per-machine config
+.claude/launch.json
