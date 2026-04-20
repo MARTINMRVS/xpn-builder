@@ -184,6 +184,7 @@ Nivel avanzado, solo expansiones premium oficiales de Akai. Fuera del alcance ac
 - ✅ Fase 4 — Remover debug flag
 - ✅ Fase 5A — Investigación samplers (COMPLETADA 2026-04-20)
 - ⏳ Fase 5B — Preview con filtro + ADSR en Web Audio
+- ✅ Fase 5B-parcial — Fixes críticos Pattern Editor (B1 velocity playback, B2 renderPatternToWav, B4/B5 kit-awareness)
 - ✅ Fase 6 — Implementar flujo Expansion Pack (classic way) — COMPLETADA 2026-04-20:
     - Múltiples kits con nombre propio
     - Sistema de tags/grupos en nombres de archivo
@@ -252,3 +253,9 @@ Fase 6 implementada y mergeada. 5 commits en branch
 fase-6-expansion. PR #1 en GitHub. +554/-42 líneas.
 64/64 tests passing. Flujo Expansion Pack funcional con
 kit manager, welcome modal, export con Expansion.xml oficial.
+
+Pattern Editor: 3 fixes críticos mergeados (PR #2). Velocity
+ahora suena en playback. renderPatternToWav reescrito usando PE
+real con velocity/swing/mutes. Pattern editor y export de
+sequences ahora kit-aware en expansion mode. Score 6→8/10.
+Bugs moderados B6-B10 pendientes para ronda de polish.
