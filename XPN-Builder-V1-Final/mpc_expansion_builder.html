@@ -3620,7 +3620,10 @@ function _initKitPreviewDnD() {
   };
 }
 
-// Toggle visible center controls based on appMode, plus topbar badge + description
+// Toggle visible center controls based on appMode, plus topbar badge + description.
+// Uses removeProperty() instead of setting inline display on the rows that should
+// be visible — that way the CSS rule (.bank-row { display: flex } etc.) stays
+// authoritative and no stale inline style can shadow it across mode switches.
 function updateModeVisibility() {
   const bankRow = document.getElementById('bankRow');
   const kitRow = document.getElementById('kitRow');
@@ -3630,11 +3633,11 @@ function updateModeVisibility() {
   if (bankRow && kitRow && kitMetaRow) {
     if (appMode === 'expansion') {
       bankRow.style.display = 'none';
-      kitRow.style.display = 'flex';
-      kitMetaRow.style.display = 'flex';
+      kitRow.style.removeProperty('display');
+      kitMetaRow.style.removeProperty('display');
       renderKitList();
     } else {
-      bankRow.style.display = 'flex';
+      bankRow.style.removeProperty('display');
       kitRow.style.display = 'none';
       kitMetaRow.style.display = 'none';
     }
@@ -3643,7 +3646,10 @@ function updateModeVisibility() {
     badge.textContent = (appMode === 'expansion') ? 'EXPANSION' : 'EXTENDED';
     badge.classList.toggle('expansion', appMode === 'expansion');
   }
-  if (descField) descField.style.display = (appMode === 'expansion') ? 'flex' : 'none';
+  if (descField) {
+    if (appMode === 'expansion') descField.style.removeProperty('display');
+    else descField.style.display = 'none';
+  }
   renderPadGrid();
 }
 
@@ -8642,6 +8648,11 @@ function xpnForceStart() {
     modal.style.pointerEvents = 'none';
     modal.remove();
   }
+  // Fase 6 safety: after the device/mode chooser closes make sure the row
+  // visibility reflects the current appMode (bank row in extended, kit row
+  // in expansion). Covers the case where the chooser was chained in after
+  // the flow modal and some intermediate state left inline styles stale.
+  if (typeof updateModeVisibility === 'function') updateModeVisibility();
   console.log('XPN Started — device:', device, 'mode:', mode);
 }
 </script>
