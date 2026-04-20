@@ -184,7 +184,7 @@ Nivel avanzado, solo expansiones premium oficiales de Akai. Fuera del alcance ac
 - ✅ Fase 4 — Remover debug flag
 - ✅ Fase 5A — Investigación samplers (COMPLETADA 2026-04-20)
 - ⏳ Fase 5B — Preview con filtro + ADSR en Web Audio
-- ⏳ Fase 6 — Implementar flujo Expansion Pack (classic way):
+- ✅ Fase 6 — Implementar flujo Expansion Pack (classic way) — COMPLETADA 2026-04-20:
     - Múltiples kits con nombre propio
     - Sistema de tags/grupos en nombres de archivo
     - Carpeta [Previews] con MP3 por kit
@@ -246,3 +246,9 @@ Nivel avanzado, solo expansiones premium oficiales de Akai. Fuera del alcance ac
 - Roadmap actualizado con fases 5A-9.
 **Decisión clave:** Incorporar formato oficial de expansiones MPC como flujo principal de XPN Builder.
 **Próxima sesión:** Planificar implementación Fase 6 (flujo Expansion Pack).
+
+### 2026-04-20 (continuación)
+Fase 6 implementada y mergeada. 5 commits en branch
+fase-6-expansion. PR #1 en GitHub. +554/-42 líneas.
+64/64 tests passing. Flujo Expansion Pack funcional con
+kit manager, welcome modal, export con Expansion.xml oficial.
