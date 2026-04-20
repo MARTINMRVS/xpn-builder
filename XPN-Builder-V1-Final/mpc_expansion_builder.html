@@ -2739,6 +2739,25 @@ async function _runAssignment(audioFiles) {
   const bankStats = Array.from({length: NUM_BANKS}, () => ({ total: 0, matched: 0 }));
   let totalAssigned = 0;
 
+  // Fase 6 follow-up: in expansion mode the long/kit/fill distinction doesn't
+  // apply — a kit is a single named 16-pad target. Delegate to the kit-aware
+  // path and short-circuit the bank-wise summary below.
+  if (appMode === 'expansion') {
+    totalAssigned = _assignExpansion(scored, mode, bankStats, addLog);
+    const kitLabel = (kits[currentKit] && kits[currentKit].name) || ('Kit ' + (currentKit + 1));
+    addLog('─────────────────────────────────────', '');
+    addLog(`${kitLabel}: ${bankStats[0].matched}/${bankStats[0].total} matched`, bankStats[0].matched === bankStats[0].total ? 'log-ok' : 'log-warn');
+    addLog(`Total: ${totalAssigned}/${audioFiles.length} assigned → ${kitLabel}`, totalAssigned === audioFiles.length ? 'log-ok' : 'log-warn');
+    if (!_xpnAllowBankDuplicates) addLog('No-duplicate mode active', 'log-ok');
+    renderPadGrid();
+    renderSampleList();
+    updateStatus();
+    if (typeof renderKitList === 'function') renderKitList();
+    setStatus(`${mode.name} → ${kitLabel}: ${totalAssigned} assigned`);
+    if (audioFiles.length >= 8) showSmartSuggestions(audioFiles.length, totalAssigned);
+    return;
+  }
+
   if (assignMode === 'long') {
     totalAssigned = _assignLong(scored, mode, bankStats, addLog);
   } else if (assignMode === 'kit') {
@@ -2766,6 +2785,89 @@ async function _runAssignment(audioFiles) {
   updateStatus();
   setStatus(`${mode.name} [${assignMode.toUpperCase()}]: ${totalAssigned} assigned — ${parts.join(' · ')}`);
   if (audioFiles.length >= 8) showSmartSuggestions(audioFiles.length, totalAssigned);
+}
+
+// ── EXPANSION flow: fill the current kit (one 16-pad target) ──
+// Used from _runAssignment when appMode === 'expansion'. Writes to
+// kits[currentKit].pads instead of banks[]. Remaining samples after the kit
+// is full stay in the pool (user can create another kit and re-run assign).
+// Reuses bankStats[0] as the stats bucket so _runAssignment's summary still
+// has numbers to read — the caller relabels the row as the kit name.
+function _assignExpansion(scored, mode, bankStats, addLog) {
+  // Kit invariant: ensure a kit exists and currentKit points at it
+  if (!kits[currentKit]) {
+    if (kits.length === 0) { kits.push(makeKit('Untitled Kit')); currentKit = 0; }
+    else { currentKit = 0; }
+  }
+  const kit = kits[currentKit];
+  const kitLabel = kit.name || ('Kit ' + (currentKit + 1));
+  const pads = kit.pads;
+
+  const kitSlots = [];
+  for (let pi = 0; pi < PADS_PER_BANK; pi++) {
+    kitSlots.push({ pi, slotType: mode.slots[pi] || 'sampler', filled: pads[pi].sampleId !== null });
+  }
+
+  const assigned = new Set();
+  const kitNames = new Set();
+  pads.forEach(p => { if (p.sampleId) { const s = samples.find(x => x.id === p.sampleId); if (s) kitNames.add(s.name); } });
+  let count = 0, dupsAvoided = 0;
+
+  // Pass 1: exact slot-type matches by best detected type
+  for (const item of scored) {
+    if (!item.sampleId || assigned.has(item.sampleId)) continue;
+    if (!_xpnAllowBankDuplicates && kitNames.has(item.name)) { dupsAvoided++; continue; }
+    const slot = kitSlots.find(s => !s.filled && s.slotType === item.bestType);
+    if (slot) {
+      pads[slot.pi].sampleId = item.sampleId;
+      pads[slot.pi].name = '';
+      slot.filled = true;
+      assigned.add(item.sampleId);
+      kitNames.add(item.name);
+      bankStats[0].total++; bankStats[0].matched++;
+      count++;
+      addLog(`${item.name.substring(0,22).padEnd(22)} → ${kitLabel}:P${String(slot.pi+1).padStart(2,'0')} [${item.score}] exact`, 'log-ok');
+    }
+  }
+
+  // Pass 2: fill remaining kit slots by name similarity to the slot label
+  const emptySlots = kitSlots.filter(s => !s.filled);
+  const unassigned = scored.filter(item => item.sampleId && !assigned.has(item.sampleId));
+  for (const slot of emptySlots) {
+    if (unassigned.length === 0) break;
+    const slotLabel = (SLOT_LABELS[slot.slotType] || slot.slotType).toLowerCase();
+    let bestIdx = -1, bestSim = -1;
+    for (let i = 0; i < unassigned.length; i++) {
+      if (!_xpnAllowBankDuplicates && kitNames.has(unassigned[i].name)) continue;
+      const sim = nameSimilarity(unassigned[i].name, slotLabel) + (unassigned[i].score / 200);
+      if (sim > bestSim) { bestSim = sim; bestIdx = i; }
+    }
+    // Fallback: all remaining were blocked by no-dup — pick any
+    if (bestIdx === -1) {
+      bestIdx = 0; bestSim = -1;
+      for (let i = 0; i < unassigned.length; i++) {
+        const sim = nameSimilarity(unassigned[i].name, slotLabel) + (unassigned[i].score / 200);
+        if (sim > bestSim) { bestSim = sim; bestIdx = i; }
+      }
+    }
+    const pick = unassigned.splice(bestIdx, 1)[0];
+    pads[slot.pi].sampleId = pick.sampleId;
+    pads[slot.pi].name = '';
+    slot.filled = true;
+    assigned.add(pick.sampleId);
+    kitNames.add(pick.name);
+    bankStats[0].total++;
+    count++;
+    addLog(`${pick.name.substring(0,22).padEnd(22)} → ${kitLabel}:P${String(slot.pi+1).padStart(2,'0')} [sim] fill`, 'log-warn');
+  }
+
+  // Leftover samples (kit full) stay in the pool
+  const leftover = scored.filter(item => item.sampleId && !assigned.has(item.sampleId)).length;
+  if (leftover > 0) {
+    addLog(`${leftover} sample(s) kept in pool — kit is full. Create another kit or drag manually.`, 'log-warn');
+  }
+  if (dupsAvoided > 0) console.log('[XPN NoDup] EXPANSION: ' + dupsAvoided + ' duplicates avoided');
+  return count;
 }
 
 // ── LONG mode: distribute by type across all banks, leave empty pads ──
