@@ -955,6 +955,14 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 .welcome-start-btn:hover{opacity:.85}
 .welcome-start-btn:disabled{opacity:.3;cursor:not-allowed}
 
+/* ── FLOW CHOOSER MODAL (Fase 6) ── */
+.flow-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.flow-choice-btn{background:var(--panel);border:1.5px solid var(--border2);border-radius:6px;padding:22px 20px;text-align:left;color:var(--ink);cursor:pointer;transition:all .15s;font-family:inherit;display:flex;flex-direction:column;gap:8px}
+.flow-choice-btn:hover{border-color:var(--accent);background:var(--accent-dim)}
+.flow-choice-title{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.flow-choice-sub{font-size:11px;line-height:1.5;color:var(--ink2)}
+.flow-choice-hint{text-align:center;font-size:10px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;margin-top:8px}
+
 /* ── TEMPLATE EDITOR MODAL ── */
 .tpl-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:8000;display:none;align-items:center;justify-content:center}
 .tpl-overlay.open{display:flex}
@@ -1136,7 +1144,7 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
     <button class="layout-preset-btn" data-preset="global" onclick="toggleGlobalPanel()" title="Program-level parameters (Semi/Fine/Poly)">GLOBAL</button>
     <button class="layout-preset-btn" onclick="openTemplateEditor()" title="Edit pad template layout">TEMPLATE</button>
   </div>
-  <button class="tb-btn ghost setup-btn" id="setupBtn" onclick="openWelcomeModal(true)" title="Reopen device/mode setup">SETUP</button>
+  <button class="tb-btn ghost setup-btn" id="setupBtn" onclick="openFlowModal(true)" title="Reopen setup (flow / device / mode)">SETUP</button>
   <button class="fullscreen-btn" onclick="openShortcutsOverlay()" title="Keyboard shortcuts" style="font-size:11px;font-weight:700">?</button>
   <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()" title="Toggle fullscreen">⛶</button>
   <div class="tb-sep"></div>
@@ -7935,6 +7943,24 @@ function xpnForceStart() {
 }
 </script>
 
+<!-- ══ FLOW CHOOSER MODAL (Fase 6) ══ -->
+<div class="welcome-overlay" id="flowOverlay">
+  <div class="welcome-box" style="width:720px;max-width:96vw">
+    <div class="welcome-title">Choose your workflow</div>
+    <div class="flow-choices">
+      <button class="flow-choice-btn" onclick="chooseFlow('expansion')">
+        <div class="flow-choice-title">Expansion Pack</div>
+        <div class="flow-choice-sub">Create a pro expansion with named kits, previews and sequences — the standard MPC format</div>
+      </button>
+      <button class="flow-choice-btn" onclick="chooseFlow('extended')">
+        <div class="flow-choice-title">Extended Bank (A-H)</div>
+        <div class="flow-choice-sub">Fill 128 pads across 8 banks — ideal for large sample libraries and live sets</div>
+      </button>
+    </div>
+    <div class="flow-choice-hint">You can switch anytime from SETUP in the topbar</div>
+  </div>
+</div>
+
 <!-- ══ WELCOME MODAL ══ -->
 <div class="welcome-overlay" id="welcomeOverlay">
   <div class="welcome-box">
@@ -8077,6 +8103,53 @@ var _welcomeDevices = [
 ];
 
 var _welcomeModeKeys = ['BEAT','DRUM','LIVE','HIPHOP','ELEC','CUSTOM'];
+
+// ── Flow chooser modal (Fase 6): Expansion Pack vs Extended ──
+var _xpnAppModeStorageKey = 'xpn_app_mode';
+
+function openFlowModal(force) {
+  // If already chosen and not forced, skip
+  try { if (!force && localStorage.getItem(_xpnAppModeStorageKey)) return; } catch(e) {}
+  var overlay = document.getElementById('flowOverlay');
+  if (!overlay) return;
+  overlay.classList.add('open');
+}
+
+function closeFlowModal() {
+  var overlay = document.getElementById('flowOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function chooseFlow(mode) {
+  if (mode !== 'expansion' && mode !== 'extended') return;
+  appMode = mode;
+  try { localStorage.setItem(_xpnAppModeStorageKey, mode); } catch(e) {}
+  closeFlowModal();
+  if (mode === 'expansion') {
+    // Ensure at least one kit exists when entering expansion flow
+    if (!kits || kits.length === 0) {
+      kits.push(makeKit('Untitled Kit'));
+      currentKit = 0;
+    }
+    // UI reveal of kit list panel + bank bar hiding lands in Fase 6 PASO 3
+  } else {
+    // Extended flow: chain into existing device+mode welcome modal
+    if (typeof openWelcomeModal === 'function') openWelcomeModal(true);
+  }
+}
+
+function initAppModeFromStorage() {
+  var stored = null;
+  try { stored = localStorage.getItem(_xpnAppModeStorageKey); } catch(e) {}
+  if (stored === 'expansion' || stored === 'extended') {
+    appMode = stored;
+  }
+  // Maintain kit[] invariant for expansion mode (UI depends on it in later phases)
+  if (appMode === 'expansion' && (!kits || kits.length === 0)) {
+    kits.push(makeKit('Untitled Kit'));
+    currentKit = 0;
+  }
+}
 
 function openWelcomeModal(force) {
   if (!force && localStorage.getItem('xpn_setup_done')) return;
@@ -8560,8 +8633,14 @@ function updateXPNModeGrid() {
     } catch(e) {}
     // Render live preview
     renderLiveTplPreview();
-    // Show welcome modal on first run (respects xpn_setup_done flag)
-    setTimeout(function() { openWelcomeModal(false); }, 300);
+    // Fase 6: initialize appMode from storage (also ensures kit[] invariant)
+    if (typeof initAppModeFromStorage === 'function') initAppModeFromStorage();
+    // Show flow chooser modal on first run (respects xpn_app_mode flag).
+    // If user already picked flow, this early-returns. If they picked Extended
+    // but never set up device+mode, SETUP button in topbar lets them do that.
+    setTimeout(function() {
+      if (typeof openFlowModal === 'function') openFlowModal(false);
+    }, 300);
   }
 
   // DOMContentLoaded already fired by the time this <script> at end-of-body runs,
