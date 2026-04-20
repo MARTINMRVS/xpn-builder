@@ -206,7 +206,9 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .pe-bars-btns{display:flex;gap:4px}
 .pe-bar-btn{padding:3px 8px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
 .pe-bar-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
-.pe-pattern-btns{display:flex;gap:4px;flex-wrap:wrap;max-width:440px}
+.pe-pattern-btns{display:flex;gap:4px;flex-wrap:wrap;flex:1;min-width:0}
+.pe-fill-row{display:flex;align-items:center;gap:8px;padding:4px 12px;border-top:1px solid var(--border);background:var(--panel);flex-shrink:0}
+.pe-fill-label{font-size:9px;letter-spacing:.18em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;flex-shrink:0;min-width:32px}
 .pe-pat-btn{padding:4px 10px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
 .pe-pat-btn:hover{border-color:var(--accent);color:var(--accent)}
 .pe-spacer{flex:1}
@@ -8487,26 +8489,6 @@ function renderCompatibilityCheck(container) {
           </div>
         </div>
         <div class="pe-tport-sep"></div>
-        <div style="display:flex;flex-direction:column;gap:3px">
-          <span style="font-size:8px;letter-spacing:.18em;color:var(--ink3);font-family:'IBM Plex Mono',monospace">FILL</span>
-          <div class="pe-pattern-btns">
-            <div class="pe-pat-btn" onclick="peFill('classic44')">4/4</div>
-            <div class="pe-pat-btn" onclick="peFill('trap')">Trap</div>
-            <div class="pe-pat-btn" onclick="peFill('hiphop')">Boom</div>
-            <div class="pe-pat-btn" onclick="peFill('electronic')">Electro</div>
-            <div class="pe-pat-btn" onclick="peFill('boom_bap')">Boom Bap</div>
-            <div class="pe-pat-btn" onclick="peFill('drill')">Drill</div>
-            <div class="pe-pat-btn" onclick="peFill('house')">House</div>
-            <div class="pe-pat-btn" onclick="peFill('afrobeat')">Afro</div>
-            <div class="pe-pat-btn" onclick="peFill('reggaeton')">Reggaeton</div>
-            <div class="pe-pat-btn" onclick="peFill('lofi')">Lo-fi</div>
-            <div class="pe-pat-btn" onclick="peFill('dancehall')">Dancehall</div>
-            <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
-            <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
-            <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
-          </div>
-        </div>
-        <div class="pe-tport-sep"></div>
         <div class="swing-knob-wrap">
           <span class="swing-knob-label">SWING</span>
           <div class="swing-knob" id="peSwingKnob" onmousedown="startSwingKnobDrag(event,'pe')" title="50%=straight · Drag up/down">
@@ -8526,6 +8508,26 @@ function renderCompatibilityCheck(container) {
         <div class="pe-tport-sep"></div>
         <button class="pe-set-demo-btn" id="peSetDemoBtn" onclick="peSetAsDemo()">Set as Demo Preview</button>
         <button class="pe-close-btn" onclick="closePatternEditor()">Close ✕</button>
+      </div>
+      <!-- FILL row (second row of PE topbar) — full width so all 14 templates fit without clipping -->
+      <div class="pe-fill-row">
+        <span class="pe-fill-label">FILL</span>
+        <div class="pe-pattern-btns">
+          <div class="pe-pat-btn" onclick="peFill('classic44')">4/4</div>
+          <div class="pe-pat-btn" onclick="peFill('trap')">Trap</div>
+          <div class="pe-pat-btn" onclick="peFill('hiphop')">Boom</div>
+          <div class="pe-pat-btn" onclick="peFill('electronic')">Electro</div>
+          <div class="pe-pat-btn" onclick="peFill('boom_bap')">Boom Bap</div>
+          <div class="pe-pat-btn" onclick="peFill('drill')">Drill</div>
+          <div class="pe-pat-btn" onclick="peFill('house')">House</div>
+          <div class="pe-pat-btn" onclick="peFill('afrobeat')">Afro</div>
+          <div class="pe-pat-btn" onclick="peFill('reggaeton')">Reggaeton</div>
+          <div class="pe-pat-btn" onclick="peFill('lofi')">Lo-fi</div>
+          <div class="pe-pat-btn" onclick="peFill('dancehall')">Dancehall</div>
+          <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
+          <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
+          <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
+        </div>
       </div>
     </div>
     <div class="pe-body">
