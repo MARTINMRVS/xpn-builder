@@ -606,6 +606,9 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .tb-dropdown-item{padding:7px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;cursor:pointer;color:var(--ink2);transition:all .12s;letter-spacing:.04em}
 .tb-dropdown-item:hover{background:var(--accent-dim);color:var(--ink)}
 .tb-dropdown-sep{height:1px;background:var(--border);margin:3px 0}
+.tb-dropdown-inline{display:flex;align-items:center;gap:6px;padding:6px 14px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink2)}
+.tb-dropdown-inline-label{letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;min-width:40px}
+.tb-dropdown-menu.right{left:auto;right:0}
 
 /* pe track vol slider */
 .pe-kit-vol{-webkit-appearance:none;width:36px;height:2px;background:var(--border2);outline:none;cursor:pointer;flex-shrink:0}
@@ -1134,54 +1137,58 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
     </div>
   </div>
   <div class="tb-spacer"></div>
-  <!-- Zoom controls -->
-  <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
-    <button class="zoom-btn" onclick="setZoom(appZoom-5)" title="Zoom out">−</button>
-    <span id="zoomLabel" class="zoom-label">100%</span>
-    <button class="zoom-btn" onclick="setZoom(appZoom+5)" title="Zoom in">+</button>
-  </div>
-  <div class="tb-sep"></div>
-  <!-- Skin selector: 4 quick-access squares + overflow picker -->
-  <div style="position:relative;display:flex;align-items:center;gap:3px;flex-shrink:0" id="skinSelectorWrap">
-    <div class="skin-sq" data-skin="dark-studio"     onclick="applySkin('dark-studio')"     title="Dark Studio"     style="background:#0d0f14;outline:1px solid #C8A96E;outline-offset:1px"></div>
-    <div class="skin-sq" data-skin="classic-grey"    onclick="applySkin('classic-grey')"    title="Classic Grey"    style="background:#1a1d23;outline:1px solid #E8453C;outline-offset:1px"></div>
-    <div class="skin-sq" data-skin="gold-wood"       onclick="applySkin('gold-wood')"       title="Gold &amp; Wood" style="background:#1a1208;outline:1px solid #C9A84C;outline-offset:1px"></div>
-    <div class="skin-sq" data-skin="midnight-purple" onclick="applySkin('midnight-purple')" title="Midnight Purple" style="background:#0a0812;outline:1px solid #9B59B6;outline-offset:1px"></div>
-    <button class="zoom-btn" onclick="toggleSkinPicker(event)" title="More skins" style="width:18px;font-size:8px;letter-spacing:.05em">···</button>
-    <div class="skin-picker-overlay" id="skinPickerOverlay"></div>
-  </div>
-  <div class="tb-sep"></div>
-  <!-- Master Volume -->
+  <!-- Master Volume (always visible) -->
   <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
     <span style="font-size:9px;letter-spacing:.14em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;text-transform:uppercase">VOL</span>
     <input type="range" min="0" max="100" value="100" style="-webkit-appearance:none;width:64px;height:2px;background:var(--border2);outline:none;cursor:pointer;border-radius:1px" oninput="setMasterVolume(this.value)" title="Master Volume"/>
     <span id="masterVolLabel" style="font-size:9px;color:var(--ink2);font-family:'IBM Plex Mono',monospace;width:28px">100%</span>
   </div>
   <div class="tb-sep"></div>
-  <!-- Layout presets -->
+  <!-- Layout presets (essentials only: KIT / EDIT / SEQ) -->
   <div style="display:flex;gap:2px;flex-shrink:0">
     <button class="layout-preset-btn active" data-preset="kit" onclick="applyLayoutPreset('kit')" title="Kit layout">KIT</button>
     <button class="layout-preset-btn" data-preset="edit" onclick="applyLayoutPreset('edit')" title="Edit layout: wider right panel">EDIT</button>
     <button class="layout-preset-btn" data-preset="seq" onclick="applyLayoutPreset('seq')" title="Open pattern editor">SEQ</button>
-    <button class="layout-preset-btn" data-preset="global" onclick="toggleGlobalPanel()" title="Program-level parameters (Semi/Fine/Poly)">GLOBAL</button>
-    <button class="layout-preset-btn" onclick="openTemplateEditor()" title="Edit pad template layout">TEMPLATE</button>
   </div>
-  <button class="tb-btn ghost setup-btn" id="setupBtn" onclick="openFlowModal(true)" title="Reopen setup (flow / device / mode)">SETUP</button>
-  <button class="fullscreen-btn" onclick="openShortcutsOverlay()" title="Keyboard shortcuts" style="font-size:11px;font-weight:700">?</button>
-  <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()" title="Toggle fullscreen">⛶</button>
   <div class="tb-sep"></div>
-  <!-- New Kit dropdown -->
-  <div class="tb-dropdown" id="newDropdown">
-    <button class="tb-btn ghost" onclick="toggleNewDropdown()" data-tip="New kit options">New ▾</button>
-    <div class="tb-dropdown-menu" id="newDropdownMenu">
-      <div class="tb-dropdown-item" onclick="clearAll();toggleNewDropdown()">Clear All Pads</div>
+  <!-- More dropdown (secondary actions / settings) -->
+  <div class="tb-dropdown" id="moreDropdown">
+    <button class="tb-btn ghost" onclick="toggleMoreDropdown()" title="More tools &amp; settings">⋯ More</button>
+    <div class="tb-dropdown-menu right" id="moreDropdownMenu">
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();openFlowModal(true)">Setup (flow / device / mode)</div>
       <div class="tb-dropdown-sep"></div>
-      <div class="tb-dropdown-item" onclick="createFromScratch()">Create Your Own Kit</div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();toggleGlobalPanel()">Global Params (Semi / Fine / Poly)</div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();openTemplateEditor()">Template Editor</div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();openMidiPanel()">MIDI Mapping</div>
+      <div class="tb-dropdown-sep"></div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();clearAll()">Clear All Pads</div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();createFromScratch()">Create From Scratch</div>
+      <div class="tb-dropdown-sep"></div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();openExport()">Export .XPN (same as Build)</div>
+      <div class="tb-dropdown-sep"></div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();openShortcutsOverlay()">Keyboard Shortcuts</div>
+      <div class="tb-dropdown-item" onclick="closeMoreDropdown();toggleFullscreen()" id="fullscreenMenuItem">Toggle Fullscreen</div>
+      <div class="tb-dropdown-sep"></div>
+      <div class="tb-dropdown-inline">
+        <span class="tb-dropdown-inline-label">Zoom</span>
+        <button class="zoom-btn" onclick="setZoom(appZoom-5)" title="Zoom out">−</button>
+        <span id="zoomLabel" class="zoom-label">100%</span>
+        <button class="zoom-btn" onclick="setZoom(appZoom+5)" title="Zoom in">+</button>
+      </div>
+      <div class="tb-dropdown-inline">
+        <span class="tb-dropdown-inline-label">Skin</span>
+        <div style="position:relative;display:flex;align-items:center;gap:3px" id="skinSelectorWrap">
+          <div class="skin-sq" data-skin="dark-studio"     onclick="applySkin('dark-studio')"     title="Dark Studio"     style="background:#0d0f14;outline:1px solid #C8A96E;outline-offset:1px"></div>
+          <div class="skin-sq" data-skin="classic-grey"    onclick="applySkin('classic-grey')"    title="Classic Grey"    style="background:#1a1d23;outline:1px solid #E8453C;outline-offset:1px"></div>
+          <div class="skin-sq" data-skin="gold-wood"       onclick="applySkin('gold-wood')"       title="Gold &amp; Wood" style="background:#1a1208;outline:1px solid #C9A84C;outline-offset:1px"></div>
+          <div class="skin-sq" data-skin="midnight-purple" onclick="applySkin('midnight-purple')" title="Midnight Purple" style="background:#0a0812;outline:1px solid #9B59B6;outline-offset:1px"></div>
+          <button class="zoom-btn" onclick="toggleSkinPicker(event)" title="More skins" style="width:18px;font-size:8px;letter-spacing:.05em">···</button>
+          <div class="skin-picker-overlay" id="skinPickerOverlay"></div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="midi-topbar-dot" id="midiTopbarDot" title="MIDI status"></div>
-  <button class="tb-btn ghost" onclick="openMidiPanel()" data-tip="MIDI mapping">MIDI</button>
-  <button class="tb-btn ghost" onclick="openExport()" data-tip="Export expansion package">Export .XPN</button>
   <div class="tb-sep"></div>
   <button class="tb-btn primary" onclick="openExport()">⬇ Build Expansion</button>
   <span id="creatorSig" style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--accent);opacity:.35;font-variant:small-caps;flex-shrink:0;pointer-events:none;user-select:none;margin-left:4px">MRVS</span>
@@ -7153,6 +7160,20 @@ document.addEventListener('click', e => {
     const menu = document.getElementById('newDropdownMenu');
     if (menu) menu.classList.remove('open');
   }
+});
+
+// ── Topbar "More" dropdown (Fase 3) ──
+function toggleMoreDropdown() {
+  const menu = document.getElementById('moreDropdownMenu');
+  if (menu) menu.classList.toggle('open');
+}
+function closeMoreDropdown() {
+  const menu = document.getElementById('moreDropdownMenu');
+  if (menu) menu.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const dd = document.getElementById('moreDropdown');
+  if (dd && !dd.contains(e.target)) closeMoreDropdown();
 });
 
 function createFromScratch() {
