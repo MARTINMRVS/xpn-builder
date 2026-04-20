@@ -6098,31 +6098,56 @@ function ptRenderDone() {
 
 async function renderPatternToWav() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const bpm = parseInt(document.getElementById('ptBpm').value) || 90;
-  const bars = parseInt(document.getElementById('ptBars').value) || 2;
+  // Use PE engine state (authoritative) with reasonable fallbacks when PE has
+  // never been opened — read bpm/bars from the export modal in that case.
+  const bpm = (typeof peBpm === 'number' && peBpm > 0)
+    ? peBpm
+    : (parseInt(document.getElementById('ptBpm') && document.getElementById('ptBpm').value) || 90);
+  const bars = (typeof peBars === 'number' && peBars > 0)
+    ? peBars
+    : (parseInt(document.getElementById('ptBars') && document.getElementById('ptBars').value) || 1);
   const stepSec = 60 / bpm / 4;
   const totalSteps = 16 * bars;
-  const totalSec = totalSteps * stepSec + 0.5; // +0.5s tail
+  const totalSec = totalSteps * stepSec + 2.0; // longer tail so decays/reverbs aren't cut
   const sr = 44100;
   const offlineCtx = new OfflineAudioContext(2, Math.ceil(totalSec * sr), sr);
 
-  PT_ROWS.forEach(rowKey => {
-    const sampleId = findPadSampleByType(rowKey);
-    if (sampleId === null) return;
-    const sample = samples.find(s => s.id === sampleId);
-    if (!sample || !sample.buffer) return;
+  // Resolve the 16-pad source for the active context (kit-aware via helper).
+  const activePads = (typeof getActivePads === 'function') ? getActivePads() : banks[peActiveSeqBank || 0];
+  // Use the live PE pattern alias when available; otherwise the current bank/kit pattern map.
+  const pattern = (pePattern && typeof pePattern === 'object') ? pePattern : (pePatterns && pePatterns[peActiveSeqBank || 0]) || {};
+
+  for (let padIdx = 0; padIdx < 16; padIdx++) {
+    if (peMuted && peMuted[padIdx]) continue;
+    const pad = activePads[padIdx];
+    if (!pad || pad.sampleId === null || pad.sampleId === undefined) continue;
+    const sample = samples.find(s => s.id === pad.sampleId);
+    if (!sample || !sample.buffer) continue;
+    const steps = pattern[padIdx] || [];
+    const trackVol = (peTrackVols && peTrackVols[padIdx] !== undefined) ? peTrackVols[padIdx] / 100 : 1;
+    const padVol = (pad.volume != null ? pad.volume : 100) / 100;
+    const pan = (pad.pan || 0) / 100;
     for (let step = 0; step < totalSteps; step++) {
-      const stepInBar = step % 16;
-      if (!ptPattern[rowKey][stepInBar]) continue;
-      const t = step * stepSec;
+      const stepVel = steps[step];
+      if (!stepVel) continue;
+      // MPC-style swing: odd steps delayed, straight at 50%
+      const swingDelay = (step % 2 === 0) ? 0 : ((peSwing - 50) / 50) * stepSec * 0.5;
+      const t = step * stepSec + swingDelay;
+      const velScale = Math.max(0, Math.min(1, stepVel / 100));
       const src = offlineCtx.createBufferSource();
       src.buffer = sample.buffer;
       const gain = offlineCtx.createGain();
-      gain.gain.value = rowKey === 'kick' ? 1.0 : rowKey === 'snare' ? 0.85 : 0.65;
-      src.connect(gain); gain.connect(offlineCtx.destination);
+      gain.gain.value = padVol * trackVol * masterVolume * velScale;
+      if (offlineCtx.createStereoPanner) {
+        const panNode = offlineCtx.createStereoPanner();
+        panNode.pan.value = pan;
+        src.connect(gain); gain.connect(panNode); panNode.connect(offlineCtx.destination);
+      } else {
+        src.connect(gain); gain.connect(offlineCtx.destination);
+      }
       src.start(t);
     }
-  });
+  }
 
   const rendered = await offlineCtx.startRendering();
   return audioBufferToWav(rendered);
