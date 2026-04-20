@@ -29,8 +29,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .statusbar{height:24px;flex-shrink:0}
 /* ── PANEL COLLAPSE ── */
 .left-panel,.right-panel{display:flex;flex-direction:row}
-.left-panel{width:200px;min-width:24px;flex-shrink:0;transition:width .2s,min-width .2s}
-.right-panel{width:240px;min-width:24px;flex-shrink:0;flex-direction:row-reverse;transition:width .2s,min-width .2s}
+.left-panel{width:180px;min-width:24px;flex-shrink:0;transition:width .2s,min-width .2s}
+.right-panel{width:220px;min-width:24px;flex-shrink:0;flex-direction:row-reverse;transition:width .2s,min-width .2s}
 .left-panel.collapsed,.right-panel.collapsed{width:24px;min-width:24px}
 .panel-body{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;min-width:0;transition:opacity .15s}
 .left-panel.collapsed .panel-body,.right-panel.collapsed .panel-body{opacity:0;pointer-events:none;display:none}
@@ -448,8 +448,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .bank-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
 .bank-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
 
-.pad-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;flex:1;min-height:0}
-.pad{background:var(--pad-empty);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;padding:4px;transition:background .12s,border-color .12s,box-shadow .12s;position:relative;overflow:hidden;min-height:0}
+.pad-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;flex:1;min-height:0;min-width:0}
+.pad{background:var(--pad-empty);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;padding:4px;transition:background .12s,border-color .12s,box-shadow .12s;position:relative;overflow:hidden;min-height:0;min-width:0}
 .pad:hover{border-color:var(--border2)}
 .pad.loaded{border-color:var(--border2)}
 .pad.selected{box-shadow:0 0 0 1px rgba(255,255,255,.35)}
@@ -1090,9 +1090,6 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
     </select>
     <div class="device-note" id="deviceNote"></div>
   </div>
-  <div class="tb-sep"></div>
-  <span class="format-badge">Pad Works XPN</span>
-  <span class="device-badge" id="deviceBadge">MPC Live 2</span>
   <div class="tb-sep"></div>
   <!-- AUTO ASSIGN popover -->
   <div class="tb-popover-wrap" id="autoAssignWrap">
