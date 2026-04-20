@@ -259,3 +259,8 @@ ahora suena en playback. renderPatternToWav reescrito usando PE
 real con velocity/swing/mutes. Pattern editor y export de
 sequences ahora kit-aware en expansion mode. Score 6→8/10.
 Bugs moderados B6-B10 pendientes para ronda de polish.
+
+8 genre pattern templates mergeados (PR #3): boom bap, drill,
+house, afrobeat, reggaeton, lo-fi, dancehall, jersey club.
+Velocity dinámica (0-100) en vez de binaria. Legacy normalization
+helper para patterns originales. 12 templates totales.
