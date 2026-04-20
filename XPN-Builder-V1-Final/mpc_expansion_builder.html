@@ -6557,7 +6557,8 @@ function pePlay() {
 
       peRows.forEach(row => {
         if (!row.hasSample || peMuted[row.padIdx]) return;
-        if (!pePattern[row.padIdx][stepInLoop]) return;
+        const stepVel = pePattern[row.padIdx][stepInLoop];
+        if (!stepVel) return;
         const pad = banks[peActiveSeqBank][row.padIdx];
         const sample = samples.find(x => x.id === pad.sampleId);
         if (!sample || !sample.buffer) return;
@@ -6566,8 +6567,9 @@ function pePlay() {
         const gain = audioCtx.createGain();
         const vol = (pad.volume / 100) * masterVolume;
         const trackVol = peTrackVols[row.padIdx] !== undefined ? peTrackVols[row.padIdx] / 100 : 1;
+        const velScale = Math.max(0, Math.min(1, stepVel / 100));
         gain.gain.setValueAtTime(0.001, t);
-        gain.gain.linearRampToValueAtTime(vol * trackVol, t + 0.003);
+        gain.gain.linearRampToValueAtTime(vol * trackVol * velScale, t + 0.003);
         // Pan
         const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
         if (panNode) { panNode.pan.value = (pad.pan || 0) / 100; src.connect(gain); gain.connect(panNode); panNode.connect(audioCtx.destination); }
