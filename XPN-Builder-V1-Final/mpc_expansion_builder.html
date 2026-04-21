@@ -703,6 +703,17 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 
 /* ── TEXT OVERLAY ON ARTWORK ── */
 .artwork-text-layer{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+/* Artwork filter overlays — applied to the background image via CSS filter */
+.artwork-drop.art-filter-bw{filter:grayscale(1)}
+.artwork-drop.art-filter-contrast{filter:contrast(1.4)}
+.artwork-drop.art-filter-vintage{filter:sepia(.4) saturate(.8)}
+.artwork-drop.art-filter-dark{filter:brightness(.6) contrast(1.2)}
+.artwork-drop.art-filter-grain::before{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.18;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");mix-blend-mode:overlay}
+.art-filter-row{display:flex;align-items:center;gap:3px;margin-top:6px;flex-wrap:wrap}
+.art-filter-label{font-size:8px;letter-spacing:.18em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;margin-right:2px}
+.art-filter-btn{padding:3px 6px;font-size:8px;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
+.art-filter-btn:hover{border-color:var(--accent);color:var(--accent)}
+.art-filter-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
 .artwork-text-item{position:absolute;cursor:move;user-select:none;pointer-events:all;white-space:nowrap;line-height:1;transform:translate(-50%,-50%);text-shadow:0 1px 5px rgba(0,0,0,.85)}
 .artwork-text-item.selected{outline:1px dashed var(--accent);outline-offset:3px}
 .art-text-toolbar{display:flex;gap:4px;align-items:center;margin-top:5px;flex-wrap:wrap}
@@ -1331,6 +1342,16 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
           <input type="range" id="artZoomSlider" min="20" max="300" value="100" oninput="artZoomSet(this.value)" style="-webkit-appearance:none;flex:1;height:2px;background:var(--border2);outline:none;cursor:pointer;border-radius:1px"/>
           <span style="font-size:9px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;width:32px;text-align:right" id="artZoomVal">100%</span>
         </div>
+      </div>
+      <!-- Filters row -->
+      <div class="art-filter-row" id="artFilterRow">
+        <span class="art-filter-label">FILTER</span>
+        <button class="art-filter-btn active" data-filter="none" onclick="setArtworkFilter('none',this)" title="Original">Orig</button>
+        <button class="art-filter-btn" data-filter="bw" onclick="setArtworkFilter('bw',this)" title="Black &amp; white">B&amp;W</button>
+        <button class="art-filter-btn" data-filter="contrast" onclick="setArtworkFilter('contrast',this)" title="High contrast">Ctrst</button>
+        <button class="art-filter-btn" data-filter="vintage" onclick="setArtworkFilter('vintage',this)" title="Sepia + desat">Vint</button>
+        <button class="art-filter-btn" data-filter="dark" onclick="setArtworkFilter('dark',this)" title="Darken">Dark</button>
+        <button class="art-filter-btn" data-filter="grain" onclick="setArtworkFilter('grain',this)" title="Subtle noise overlay">Grain</button>
       </div>
       <!-- Text tool -->
       <div class="art-text-toolbar">
@@ -2868,6 +2889,23 @@ function _assignExpansion(scored, mode, bankStats, addLog) {
   pads.forEach(p => { if (p.sampleId) { const s = samples.find(x => x.id === p.sampleId); if (s) kitNames.add(s.name); } });
   let count = 0, dupsAvoided = 0;
 
+  // Multi-kit: do not reuse samples already assigned in other kits. Filter the
+  // candidate list so the second/third kit picks only fresh material. If the
+  // user wants cross-kit sharing they can drag samples manually from the pool.
+  const usedInOtherKits = new Set();
+  kits.forEach((k, i) => {
+    if (i === currentKit) return;
+    (k.pads || []).forEach(p => { if (p && p.sampleId != null) usedInOtherKits.add(p.sampleId); });
+  });
+  if (usedInOtherKits.size > 0) {
+    const before = scored.length;
+    scored = scored.filter(item => !item.sampleId || !usedInOtherKits.has(item.sampleId));
+    const filtered = before - scored.length;
+    if (filtered > 0) {
+      addLog(`Skipped ${filtered} sample(s) already used in other kits`, 'log-warn');
+    }
+  }
+
   // Pass 1: exact slot-type matches by best detected type
   for (const item of scored) {
     if (!item.sampleId || assigned.has(item.sampleId)) continue;
@@ -2920,6 +2958,11 @@ function _assignExpansion(scored, mode, bankStats, addLog) {
   const leftover = scored.filter(item => item.sampleId && !assigned.has(item.sampleId)).length;
   if (leftover > 0) {
     addLog(`${leftover} sample(s) kept in pool — kit is full. Create another kit or drag manually.`, 'log-warn');
+  }
+  // Partial-fill notice when there weren't enough unused samples for this kit.
+  const filledSlots = kitSlots.filter(s => s.filled).length;
+  if (filledSlots < PADS_PER_BANK && leftover === 0 && usedInOtherKits.size > 0) {
+    addLog(`${kitLabel}: ${filledSlots}/${PADS_PER_BANK} filled (no more unassigned samples)`, 'log-warn');
   }
   if (dupsAvoided > 0) console.log('[XPN NoDup] EXPANSION: ' + dupsAvoided + ' duplicates avoided');
   return count;
@@ -3713,6 +3756,11 @@ function selectKit(idx) {
   if (idx < 0 || idx >= kits.length) return;
   currentKit = idx;
   selectedPad = null;
+  // Reset the hidden file input so re-uploading the same file name for a
+  // different kit still fires onchange. The label is refreshed by renderKitList
+  // from kit.previewFile.
+  const pInput = document.getElementById('kitPreviewFileInput');
+  if (pInput) pInput.value = '';
   renderKitList();
   renderPadGrid();
   hidePadDetail();
@@ -4979,6 +5027,136 @@ function renderArtTextLayer() {
 }
 
 // ════════════════════════════════════════════
+// ARTWORK FILTERS + COMPOSITE EXPORT
+// ════════════════════════════════════════════
+var artworkFilter = 'none'; // 'none' | 'bw' | 'contrast' | 'vintage' | 'dark' | 'grain'
+
+function setArtworkFilter(filter, btn) {
+  artworkFilter = filter;
+  const drop = document.getElementById('artworkDrop');
+  if (drop) {
+    ['bw','contrast','vintage','dark','grain'].forEach(f => drop.classList.remove('art-filter-' + f));
+    if (filter !== 'none') drop.classList.add('art-filter-' + filter);
+  }
+  document.querySelectorAll('.art-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  else {
+    const match = document.querySelector('.art-filter-btn[data-filter="' + filter + '"]');
+    if (match) match.classList.add('active');
+  }
+}
+
+// Canvas-based filter pixel pass. Keeps output stable across browsers even
+// when CSS filters on <canvas> aren't supported for toDataURL pipelines.
+function _applyArtworkFilterToCanvas(canvas, filter) {
+  if (!filter || filter === 'none') return;
+  const ctx = canvas.getContext('2d');
+  if (filter === 'grain') {
+    const w = canvas.width, h = canvas.height;
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * 40; // ±20
+      d[i]   = Math.max(0, Math.min(255, d[i]   + n));
+      d[i+1] = Math.max(0, Math.min(255, d[i+1] + n));
+      d[i+2] = Math.max(0, Math.min(255, d[i+2] + n));
+    }
+    ctx.putImageData(img, 0, 0);
+    return;
+  }
+  const w = canvas.width, h = canvas.height;
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], g = d[i+1], b = d[i+2];
+    if (filter === 'bw') {
+      const y = 0.299*r + 0.587*g + 0.114*b;
+      r = g = b = y;
+    } else if (filter === 'contrast') {
+      const k = 1.4;
+      r = (r - 128) * k + 128;
+      g = (g - 128) * k + 128;
+      b = (b - 128) * k + 128;
+    } else if (filter === 'vintage') {
+      const tr = 0.393*r + 0.769*g + 0.189*b;
+      const tg = 0.349*r + 0.686*g + 0.168*b;
+      const tb = 0.272*r + 0.534*g + 0.131*b;
+      // sepia 0.4 mix + saturate 0.8 approximation
+      r = r * 0.6 + tr * 0.4;
+      g = g * 0.6 + tg * 0.4;
+      b = b * 0.6 + tb * 0.4;
+      const y = 0.299*r + 0.587*g + 0.114*b;
+      r = y + (r - y) * 0.8;
+      g = y + (g - y) * 0.8;
+      b = y + (b - y) * 0.8;
+    } else if (filter === 'dark') {
+      r *= 0.6; g *= 0.6; b *= 0.6;
+      r = (r - 128) * 1.2 + 128;
+      g = (g - 128) * 1.2 + 128;
+      b = (b - 128) * 1.2 + 128;
+    }
+    d[i]   = Math.max(0, Math.min(255, r));
+    d[i+1] = Math.max(0, Math.min(255, g));
+    d[i+2] = Math.max(0, Math.min(255, b));
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+// Compose the final artwork (image + filter + text) into a square PNG data
+// URL. Used by the export pipeline so the ZIP gets a flattened asset instead
+// of only the raw uploaded image.
+async function composeArtworkForExport(size) {
+  size = size || 1000;
+  if (!artworkDataUrl) return null;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = size; c.height = size;
+        const ctx = c.getContext('2d');
+        // Mimic CSS background-size:zoom% + background-position centered w/ offset.
+        // Offset pixels are stored against the live preview element size; scale
+        // them proportionally onto the 1000px canvas.
+        const drop = document.getElementById('artworkDrop');
+        const previewW = drop ? drop.clientWidth  || 240 : 240;
+        const scale = size / previewW;
+        const zoom = (artworkZoom || 100) / 100;
+        // background-size:zoom% → the image is sized to zoom * container
+        const drawW = size * zoom;
+        const drawH = drawW * (img.naturalHeight / img.naturalWidth);
+        const offX = (artworkOffsetX || 0) * scale;
+        const offY = (artworkOffsetY || 0) * scale;
+        const dx = (size - drawW) / 2 + offX;
+        const dy = (size - drawH) / 2 + offY;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, dx, dy, drawW, drawH);
+        _applyArtworkFilterToCanvas(c, artworkFilter);
+        // Text layer — draw each item at its % position. Shadow matches CSS.
+        (artTextItems || []).forEach(item => {
+          ctx.save();
+          const px = (item.size || 22) * scale;
+          const weight = item.bold ? '700' : '400';
+          ctx.font = weight + ' ' + px + 'px ' + (item.font || 'sans-serif');
+          ctx.fillStyle = item.color || '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowColor = 'rgba(0,0,0,0.85)';
+          ctx.shadowBlur = 5 * scale;
+          ctx.shadowOffsetY = 1 * scale;
+          ctx.fillText(item.text, (item.x/100) * size, (item.y/100) * size);
+          ctx.restore();
+        });
+        resolve(c.toDataURL('image/jpeg', 0.92));
+      } catch(e) { reject(e); }
+    };
+    img.onerror = reject;
+    img.src = artworkDataUrl;
+  });
+}
+
+// ════════════════════════════════════════════
 // MIDI MAPPING
 // ════════════════════════════════════════════
 let midiAccess = null;
@@ -5713,7 +5891,12 @@ async function buildExpansion(fwVersion) {
 
     setP(20, 'Adding artwork...');
     if (artworkDataUrl) {
-      const imgData = artworkDataUrl.split(',')[1];
+      let finalDataUrl = artworkDataUrl;
+      try {
+        const composed = await composeArtworkForExport(1000);
+        if (composed) finalDataUrl = composed;
+      } catch(e) { console.warn('[XPN] artwork compose failed, falling back to raw', e); }
+      const imgData = finalDataUrl.split(',')[1];
       root.folder('Artwork').file('thumbnail.jpg', imgData, {base64: true});
       root.folder('Artwork').file('preview.jpg', imgData, {base64: true});
     }
@@ -6178,10 +6361,15 @@ async function writeExpansionPackFiles(root, expName, author, fw, setP) {
   var desc = descEl ? (descEl.value || '').trim() : '';
   root.file('Expansion.xml', buildExpansionXml(expName, author, desc));
 
-  // 2. Artwork
+  // 2. Artwork — flatten image + filter + text into a single JPG.
   setP(18, 'Adding artwork...');
   if (artworkDataUrl) {
-    const imgData = artworkDataUrl.split(',')[1];
+    let finalDataUrl = artworkDataUrl;
+    try {
+      const composed = await composeArtworkForExport(1000);
+      if (composed) finalDataUrl = composed;
+    } catch(e) { console.warn('[XPN] artwork compose failed, falling back to raw', e); }
+    const imgData = finalDataUrl.split(',')[1];
     root.folder('Artwork').file('thumbnail.jpg', imgData, {base64: true});
     root.folder('Artwork').file('preview.jpg', imgData, {base64: true});
   }
@@ -6231,10 +6419,20 @@ async function writeExpansionPackFiles(root, expName, author, fw, setP) {
     // .mid — MIDI fallback sibling, also per-kit
     const midiData = buildMidiFileForKit(kit, (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90);
     sequences.file(fileBase + '.mid', midiData);
-    // Preview MP3 for the kit, if any
+    // Preview audio for the kit.
+    // (A) User-uploaded file → use as-is (MP3 or WAV, keep original extension).
+    // (B) No file but kit has pattern data → render with renderKitToWav() and
+    //     pack the resulting WAV (MPC accepts WAV previews too).
+    // (C) Neither → skip.
     if (kit.previewFile) {
       const pBuf = await kit.previewFile.arrayBuffer();
-      previews.file(fileBase + '.xpm.mp3', pBuf);
+      const origExt = (kit.previewFile.name.match(/\.([a-z0-9]+)$/i) || [null, 'mp3'])[1].toLowerCase();
+      previews.file(fileBase + '.xpm.' + origExt, pBuf);
+    } else {
+      try {
+        const autoWav = await renderKitToWav(kit);
+        if (autoWav) previews.file(fileBase + '.xpm.wav', autoWav);
+      } catch (e) { console.warn('[XPN] preview render failed for kit ' + kitLabel, e); }
     }
     setP(55 + ((ki + 1) / Math.max(1, kits.length)) * 30, 'Kit: ' + kitLabel);
   }
@@ -6693,6 +6891,61 @@ async function renderPatternToWav() {
     }
   }
 
+  const rendered = await offlineCtx.startRendering();
+  return audioBufferToWav(rendered);
+}
+
+// Kit-scoped version of renderPatternToWav. Uses kit.pads + kit.sequenceData
+// (and kit.trackVols) so each kit renders independently at export time.
+// Returns an ArrayBuffer (WAV) or null when the kit has no active steps
+// / no samples available.
+async function renderKitToWav(kit) {
+  if (!kit) return null;
+  const pattern = kit.sequenceData || {};
+  const hasAnyStep = Object.keys(pattern).some(k => Array.isArray(pattern[k]) && pattern[k].some(v => v > 0));
+  if (!hasAnyStep) return null;
+  const activePads = kit.pads;
+  if (!activePads || !activePads.some(p => p && p.sampleId != null)) return null;
+
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const bpm = (typeof peBpm === 'number' && peBpm > 0) ? peBpm : 90;
+  const bars = (typeof peBars === 'number' && peBars > 0) ? peBars : 1;
+  const stepSec = 60 / bpm / 4;
+  const totalSteps = 16 * bars;
+  const totalSec = totalSteps * stepSec + 2.0;
+  const sr = 44100;
+  const offlineCtx = new OfflineAudioContext(2, Math.ceil(totalSec * sr), sr);
+
+  const kitTrackVols = kit.trackVols || {};
+  for (let padIdx = 0; padIdx < 16; padIdx++) {
+    const pad = activePads[padIdx];
+    if (!pad || pad.sampleId == null) continue;
+    const sample = samples.find(s => s.id === pad.sampleId);
+    if (!sample || !sample.buffer) continue;
+    const steps = pattern[padIdx] || [];
+    const trackVol = (kitTrackVols[padIdx] !== undefined) ? kitTrackVols[padIdx] / 100 : 1;
+    const padVol = (pad.volume != null ? pad.volume : 100) / 100;
+    const pan = (pad.pan || 0) / 100;
+    for (let step = 0; step < totalSteps; step++) {
+      const stepVel = steps[step];
+      if (!stepVel) continue;
+      const swingDelay = (step % 2 === 0) ? 0 : ((peSwing - 50) / 25) * stepSec * 0.5;
+      const t = step * stepSec + swingDelay;
+      const velScale = Math.max(0, Math.min(1, stepVel / 100));
+      const src = offlineCtx.createBufferSource();
+      src.buffer = sample.buffer;
+      const gain = offlineCtx.createGain();
+      gain.gain.value = padVol * trackVol * masterVolume * velScale;
+      if (offlineCtx.createStereoPanner) {
+        const panNode = offlineCtx.createStereoPanner();
+        panNode.pan.value = pan;
+        src.connect(gain); gain.connect(panNode); panNode.connect(offlineCtx.destination);
+      } else {
+        src.connect(gain); gain.connect(offlineCtx.destination);
+      }
+      src.start(t);
+    }
+  }
   const rendered = await offlineCtx.startRendering();
   return audioBufferToWav(rendered);
 }
@@ -7966,7 +8219,14 @@ function toggleSamplePool() {
 // UTILITIES
 // ════════════════════════════════════════════
 function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModal(id) {
+  // Fix: stop the demo preview mini-player when leaving the export modal
+  // (PLAY on Demo Preview Track was continuing after close).
+  if (id === 'exportModal' && typeof ptPlaying !== 'undefined' && ptPlaying) {
+    try { ptStopPlay(); } catch(e){}
+  }
+  document.getElementById(id).classList.remove('open');
+}
 function openFxPicker() { openModal('fxModal'); }
 
 function updateStatus() {
