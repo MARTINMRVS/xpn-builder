@@ -244,6 +244,26 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 /* Kit part flash on pad play */
 @keyframes pe-kit-flash{0%{background:rgba(200,169,110,.3)}100%{background:transparent}}
 .pe-kit-part.pe-kit-flash{animation:pe-kit-flash .2s ease-out forwards}
+/* Signal flash per row on each scheduled step */
+.pe-kit-part.signal-flash{animation:pe-signal-flash .12s ease-out forwards}
+@keyframes pe-signal-flash{0%{background:var(--flash-color,rgba(200,169,110,.3))}100%{background:transparent}}
+.pe-signal-led{width:4px;height:4px;border-radius:50%;background:transparent;transition:background .08s;flex-shrink:0;margin-right:2px}
+.pe-signal-led.on{background:var(--green);box-shadow:0 0 4px rgba(90,154,106,.6)}
+/* Split button (humanize with undo) */
+.pe-split-btn{display:flex;border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;align-items:stretch}
+.pe-split-left{padding:4px 6px;border-right:1px solid var(--border2);cursor:pointer;font-size:10px;color:var(--ink3);display:flex;align-items:center}
+.pe-split-left:hover{background:var(--panel3);color:var(--accent)}
+.pe-split-left.disabled{opacity:.35;pointer-events:none}
+.pe-split-right{padding:4px 8px;cursor:pointer;font-size:9px;letter-spacing:.1em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;display:flex;align-items:center}
+.pe-split-right:hover{background:var(--panel3);color:var(--accent)}
+/* Mini transport shown when PE modal is closed and playback continues */
+.mini-transport{position:fixed;bottom:0;left:0;right:0;height:32px;background:var(--panel);border-top:1px solid var(--accent);display:none;align-items:center;padding:0 12px;gap:8px;z-index:500;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink2);letter-spacing:.1em}
+.mini-transport.active{display:flex}
+.mini-transport .mt-btn{padding:3px 10px;border:1px solid var(--border2);background:transparent;color:var(--ink2);cursor:pointer;border-radius:var(--radius2);font-family:inherit;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+.mini-transport .mt-btn:hover{border-color:var(--accent);color:var(--accent)}
+.mini-transport .mt-sep{width:1px;height:18px;background:var(--border)}
+.mini-transport .mt-text{cursor:pointer;flex:1;color:var(--ink3)}
+.mini-transport .mt-text:hover{color:var(--accent)}
 /* Smooth resize transitions */
 .center-panel,.pad-grid{transition:all .06s ease}
 .pe-status{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink3);letter-spacing:.06em}
@@ -6806,6 +6826,7 @@ function openPatternEditor() {
   }
   renderPeSequencer();
   document.getElementById('peModal').classList.add('open');
+  if (typeof updateMiniTransport === 'function') updateMiniTransport();
   document.getElementById('peSetDemoBtn').classList.toggle('set', peDemoConfirmed);
   document.getElementById('peSetDemoBtn').textContent = peDemoConfirmed ? '✓ Demo Set' : 'Set as Demo Preview';
   // Sync swing slider to current peSwing. MPC range is 50-75 (50 = straight,
@@ -6883,7 +6904,9 @@ function renderPeSequencer() {
     const kitPart = document.createElement('div');
     kitPart.className = 'pe-kit-part' + (peMuted[row.padIdx] ? ' muted-track' : '');
     kitPart.style.opacity = row.hasSample ? '1' : '0.4';
+    kitPart.style.setProperty('--flash-color', (row.color || '#c8a96e') + '4d');
     kitPart.innerHTML = `
+      <span class="pe-signal-led" id="pe-led-${row.padIdx}"></span>
       <span class="pe-kit-num" title="Click to preview" style="cursor:pointer;padding:0 2px;border-radius:2px;transition:background .1s" onclick="event.stopPropagation();pePadNumClick(event,${row.padIdx})">${String(row.padIdx+1).padStart(2,'0')}</span>
       <div class="pe-kit-color" style="background:${skinTintColor(row.color, currentSkin)}"></div>
       <span class="pe-kit-name">${row.label}</span>
@@ -7015,11 +7038,32 @@ function pePadNumClick(e, padIdx) {
 
 // ── Back to Pads ──
 function peGoToPadView() {
-  peStop();
-  closePatternEditor();
+  // Do NOT stop playback — scheduler keeps running; mini transport appears.
+  document.getElementById('peModal').classList.remove('open');
   currentBank = peActiveSeqBank;
   document.querySelectorAll('.bank-btn').forEach((b, i) => b.classList.toggle('active', i === currentBank));
   renderPadGrid();
+  updateMiniTransport();
+}
+
+function updateMiniTransport() {
+  const mt = document.getElementById('miniTransport');
+  if (!mt) return;
+  const modalOpen = document.getElementById('peModal') && document.getElementById('peModal').classList.contains('open');
+  const show = pePlaying && !modalOpen;
+  mt.classList.toggle('active', show);
+  if (show) {
+    const bpmEl = document.getElementById('mtBpm');
+    if (bpmEl) bpmEl.textContent = peBpm;
+    const bar = (Math.floor(peCurrentStepSched / peTotalSteps) % peBars) + 1;
+    const barEl = document.getElementById('mtBar');
+    if (barEl) barEl.textContent = bar + '/' + peBars;
+  }
+}
+
+function mtReopenPE() {
+  if (typeof openPatternEditor === 'function') openPatternEditor();
+  updateMiniTransport();
 }
 
 function peStartRubberBand(e, container) {
@@ -7193,24 +7237,9 @@ function peApplyEuclidean(padIdx, hits, steps) {
   renderPeSequencer();
 }
 
-function peOpenEuclidPopover(evt) {
-  const pop = document.getElementById('peEuclidPopover');
+function peOpenGeneratePopover(evt) {
+  const pop = document.getElementById('peGeneratePopover');
   if (!pop) return;
-  // Populate the pad dropdown with currently loaded rows (prefer those with samples)
-  const sel = document.getElementById('peEuclidPad');
-  if (sel) {
-    sel.innerHTML = '';
-    peRows.forEach(r => {
-      const opt = document.createElement('option');
-      opt.value = r.padIdx;
-      opt.textContent = 'Pad ' + String(r.padIdx + 1).padStart(2, '0') + ' — ' + (r.label || r.type || '—') + (r.hasSample ? '' : ' (empty)');
-      sel.appendChild(opt);
-    });
-    // Default: first row with a sample, or first row overall
-    const firstWithSample = peRows.find(r => r.hasSample);
-    sel.value = firstWithSample ? firstWithSample.padIdx : (peRows[0] ? peRows[0].padIdx : 0);
-  }
-  // Anchor the popover near the Euclid button
   try {
     const rect = evt && evt.currentTarget && evt.currentTarget.getBoundingClientRect();
     if (rect) {
@@ -7222,25 +7251,354 @@ function peOpenEuclidPopover(evt) {
   pop.classList.add('open');
 }
 
-function peApplyEuclidFromPopover() {
-  const sel = document.getElementById('peEuclidPad');
-  const hitsEl = document.getElementById('peEuclidHits');
-  const stepsEl = document.getElementById('peEuclidSteps');
-  if (!sel || !hitsEl || !stepsEl) return;
-  const padIdx = parseInt(sel.value);
-  const hits = parseInt(hitsEl.value);
-  const steps = parseInt(stepsEl.value);
-  peApplyEuclidean(padIdx, hits, steps);
-  document.getElementById('peEuclidPopover').classList.remove('open');
-  setPeStatus('Euclidean: ' + hits + '/' + steps + ' → pad ' + (padIdx + 1));
+// ════════════════════════════════════════════
+// GENERATE RHYTHMS — style-aware multi-track generator. Fills every row
+// in peRows with a pattern appropriate to its slotType and the chosen style.
+// Re-run for variations (random ranges re-evaluated; fixed anchors stay).
+// ════════════════════════════════════════════
+function _peRandInt(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
+function _peEmptyRow() { return Array(16).fill(0); }
+
+function peGenerateRhythm(style) {
+  const rules = _PE_STYLE_RULES[style] || _PE_STYLE_RULES.pure;
+  let affected = 0;
+  peRows.forEach(row => {
+    const padIdx = row.padIdx;
+    if (!pePattern[padIdx]) pePattern[padIdx] = Array(64).fill(0);
+    const gen = rules(row.type);
+    if (!gen) return;
+    // Tile the 16-step template across peTotalSteps
+    for (let s = 0; s < peTotalSteps; s++) {
+      pePattern[padIdx][s] = gen[s % 16];
+    }
+    affected++;
+  });
+  renderPeSequencer();
+  setPeStatus('Generated (' + style + ') → ' + affected + ' tracks');
 }
+
+function peApplyGenerate() {
+  const sel = document.getElementById('peGenStyle');
+  const style = sel ? sel.value : 'pure';
+  peGenerateRhythm(style);
+}
+
+// Style rule table — returns a 16-step velocity array for a given slot type,
+// or null to leave the row empty. Random ranges re-evaluate on each call.
+var _PE_STYLE_RULES = {
+  pure: function(type) {
+    const steps = 16;
+    const hits = _peRandInt(2, 8);
+    const out = _peEmptyRow();
+    let bucket = 0;
+    for (let i = 0; i < steps; i++) {
+      bucket += hits;
+      if (bucket >= steps) { bucket -= steps; out[i] = 100; }
+    }
+    return out;
+  },
+  rnb: function(type) {
+    const out = _peEmptyRow();
+    if (type === 'kick') {
+      const target = _peRandInt(2, 4);
+      const positions = [];
+      const tries = 40;
+      for (let i = 0; i < tries && positions.length < target; i++) {
+        const p = _peRandInt(0, 15);
+        if (positions.every(q => Math.abs(q - p) >= 3)) positions.push(p);
+      }
+      positions.forEach(p => { out[p] = _peRandInt(85, 100); });
+      return out;
+    }
+    if (type === 'snare' || type === 'clap') {
+      out[4] = _peRandInt(90, 100);
+      out[12] = _peRandInt(90, 100);
+      // ghost notes adjacent
+      [3, 5, 11, 13].forEach(s => { if (Math.random() < 0.5) out[s] = _peRandInt(20, 35); });
+      return out;
+    }
+    if (type === 'hihat_close') {
+      [0,2,4,6,8,10,12,14].forEach(s => { out[s] = _peRandInt(80, 90); });
+      [1,3,5,7,9,11,13,15].forEach(s => { if (Math.random() < 0.5) out[s] = _peRandInt(50, 65); });
+      return out;
+    }
+    if (type === 'hihat_open') {
+      const n = _peRandInt(1, 2);
+      const used = new Set();
+      for (let i = 0; i < n; i++) {
+        const p = _peRandInt(0, 15);
+        if (!used.has(p)) { used.add(p); out[p] = _peRandInt(70, 85); }
+      }
+      return out;
+    }
+    if (type === 'percussion' || type === 'perc') {
+      const n = _peRandInt(1, 3);
+      for (let i = 0; i < n; i++) out[_peRandInt(0, 15)] = _peRandInt(25, 40);
+      return out;
+    }
+    // tom/cymbal/bass/sampler/fx → light euclidean
+    if (['tom','cymbal','bass','sampler','fx'].includes(type)) {
+      const hits = _peRandInt(1, 3);
+      let bucket = 0;
+      for (let i = 0; i < 16; i++) {
+        bucket += hits;
+        if (bucket >= 16) { bucket -= 16; out[i] = _peRandInt(40, 70); }
+      }
+      return out;
+    }
+    return null;
+  },
+  trap: function(type) {
+    const out = _peEmptyRow();
+    if (type === 'kick') {
+      const target = _peRandInt(2, 4);
+      const positions = [];
+      for (let i = 0; i < 60 && positions.length < target; i++) {
+        const p = (Math.random() < 0.7) ? _peRandInt(0, 7) * 2 + 1 : _peRandInt(0, 15);
+        if (positions.every(q => Math.abs(q - p) >= 3)) positions.push(p);
+      }
+      positions.forEach(p => { out[p] = _peRandInt(95, 100); });
+      return out;
+    }
+    if (type === 'snare' || type === 'clap') {
+      out[4] = 100; out[12] = 100;
+      return out;
+    }
+    if (type === 'hihat_close') {
+      const cycle = [100, 60, 80, 50];
+      for (let i = 0; i < 16; i++) out[i] = cycle[i % 4];
+      // pre-snare rolls
+      out[2] = 100; out[3] = 80;
+      out[10] = 100; out[11] = 80;
+      return out;
+    }
+    if (type === 'hihat_open') {
+      const n = _peRandInt(1, 2);
+      const offs = [1,3,5,7,9,11,13,15];
+      for (let i = 0; i < n; i++) out[offs[_peRandInt(0, offs.length - 1)]] = _peRandInt(85, 100);
+      return out;
+    }
+    if (type === 'rim') {
+      const n = _peRandInt(0, 2);
+      for (let i = 0; i < n; i++) {
+        const p = _peRandInt(0, 15);
+        if (p !== 4 && p !== 12) out[p] = _peRandInt(40, 60);
+      }
+      return out;
+    }
+    if (['percussion','perc','tom','cymbal'].includes(type)) {
+      const hits = _peRandInt(1, 3);
+      let bucket = 0;
+      for (let i = 0; i < 16; i++) {
+        bucket += hits;
+        if (bucket >= 16) { bucket -= 16; out[i] = _peRandInt(30, 50); }
+      }
+      return out;
+    }
+    return null;
+  },
+  drill: function(type) {
+    const out = _peEmptyRow();
+    if (type === 'kick') {
+      const target = _peRandInt(3, 5);
+      const placed = [];
+      let guard = 80;
+      while (placed.length < target && guard-- > 0) {
+        const p = _peRandInt(0, 15);
+        const ok = placed.every(q => {
+          if (q === p) return false;
+          if (Math.abs(q - p) === 1) {
+            // 2 consecutive allowed only if separated from rest by 4
+            return placed.filter(x => x !== q).every(x => Math.abs(x - p) >= 4);
+          }
+          return Math.abs(q - p) >= 2;
+        });
+        if (ok) placed.push(p);
+      }
+      placed.forEach(p => { out[p] = _peRandInt(90, 100); });
+      return out;
+    }
+    if (type === 'snare' || type === 'clap') {
+      out[4] = 100; out[12] = 100;
+      return out;
+    }
+    if (type === 'hihat_close') {
+      for (let i = 0; i < 16; i++) out[i] = _peRandInt(50, 100);
+      // remove 2-3 random hits
+      const remove = _peRandInt(2, 3);
+      for (let i = 0; i < remove; i++) out[_peRandInt(0, 15)] = 0;
+      return out;
+    }
+    if (type === 'hihat_open') { out[15] = 100; return out; }
+    if (type === 'rim') {
+      const n = _peRandInt(1, 3);
+      const offs = [1,3,5,7,9,11,13,15];
+      for (let i = 0; i < n; i++) out[offs[_peRandInt(0, offs.length - 1)]] = _peRandInt(35, 50);
+      return out;
+    }
+    if (['percussion','perc'].includes(type)) {
+      const hits = _peRandInt(2, 4);
+      let bucket = 0;
+      for (let i = 0; i < 16; i++) {
+        bucket += hits;
+        if (bucket >= 16) { bucket -= 16; out[i] = _peRandInt(40, 60); }
+      }
+      return out;
+    }
+    return null;
+  },
+  afro: function(type) {
+    const out = _peEmptyRow();
+    if (type === 'kick') {
+      const pool = [0, 6, 12];
+      const target = _peRandInt(2, 3);
+      const picked = [];
+      while (picked.length < target && pool.length) {
+        const idx = _peRandInt(0, pool.length - 1);
+        picked.push(pool.splice(idx, 1)[0]);
+      }
+      picked.forEach(p => { out[p] = _peRandInt(90, 100); });
+      return out;
+    }
+    if (type === 'snare' || type === 'clap') {
+      out[4] = _peRandInt(95, 100); out[12] = _peRandInt(95, 100);
+      return out;
+    }
+    if (type === 'hihat_close') {
+      [0,2,4,6,8,10,12,14].forEach(s => { out[s] = 85; });
+      [1,3,5,7,9,11,13,15].forEach(s => { out[s] = 65; });
+      return out;
+    }
+    if (type === 'tom') {
+      const stepLen = (Math.random() < 0.5) ? 7 : 12;
+      const hits = _peRandInt(3, 5);
+      const tmp = Array(stepLen).fill(0);
+      let bucket = 0;
+      for (let i = 0; i < stepLen; i++) {
+        bucket += hits;
+        if (bucket >= stepLen) { bucket -= stepLen; tmp[i] = _peRandInt(60, 85); }
+      }
+      for (let s = 0; s < 16; s++) out[s] = tmp[s % stepLen];
+      return out;
+    }
+    if (type === 'percussion' || type === 'perc') {
+      const stepLen = (Math.random() < 0.5) ? 5 : 9;
+      const hits = _peRandInt(4, 6);
+      const tmp = Array(stepLen).fill(0);
+      let bucket = 0;
+      for (let i = 0; i < stepLen; i++) {
+        bucket += hits;
+        if (bucket >= stepLen) { bucket -= stepLen; tmp[i] = _peRandInt(55, 80); }
+      }
+      for (let s = 0; s < 16; s++) out[s] = tmp[s % stepLen];
+      return out;
+    }
+    if (type === 'cymbal') {
+      if (Math.random() < 0.5) out[_peRandInt(0, 15)] = _peRandInt(50, 70);
+      return out;
+    }
+    return null;
+  },
+  lofi: function(type) {
+    const out = _peEmptyRow();
+    const euclid = (hits, velFn) => {
+      let bucket = 0;
+      for (let i = 0; i < 16; i++) {
+        bucket += hits;
+        if (bucket >= 16) { bucket -= 16; out[i] = velFn(); }
+      }
+    };
+    if (type === 'kick') { euclid(_peRandInt(2, 3), () => _peRandInt(70, 95)); return out; }
+    if (type === 'snare' || type === 'clap') {
+      out[4] = _peRandInt(80, 95);
+      out[12] = _peRandInt(80, 95);
+      const ghost = (Math.random() < 0.5) ? 3 : 5;
+      out[ghost] = _peRandInt(25, 35);
+      return out;
+    }
+    if (type === 'hihat_close') { euclid(_peRandInt(5, 7), () => _peRandInt(40, 80)); return out; }
+    if (type === 'hihat_open') {
+      if (Math.random() < 0.5) out[_peRandInt(0, 15)] = _peRandInt(50, 65);
+      return out;
+    }
+    if (type === 'percussion' || type === 'perc') {
+      const n = _peRandInt(1, 2);
+      for (let i = 0; i < n; i++) out[_peRandInt(0, 15)] = _peRandInt(25, 40);
+      return out;
+    }
+    euclid(_peRandInt(1, 2), () => _peRandInt(35, 55));
+    return out;
+  },
+  house: function(type) {
+    const out = _peEmptyRow();
+    if (type === 'kick') {
+      [0, 4, 8, 12].forEach(p => { out[p] = 100; });
+      return out;
+    }
+    if (type === 'snare') return null;
+    if (type === 'clap') {
+      out[4] = _peRandInt(95, 100); out[12] = _peRandInt(95, 100);
+      return out;
+    }
+    if (type === 'hihat_close') {
+      [2, 6, 10, 14].forEach(p => { out[p] = _peRandInt(85, 95); });
+      return out;
+    }
+    if (type === 'hihat_open') {
+      if (Math.random() < 0.5) out[(Math.random() < 0.5) ? 14 : 15] = _peRandInt(75, 85);
+      return out;
+    }
+    if (type === 'percussion' || type === 'perc') {
+      const hits = _peRandInt(3, 5);
+      let bucket = 0;
+      for (let i = 0; i < 16; i++) {
+        bucket += hits;
+        if (bucket >= 16) { bucket -= 16; out[i] = _peRandInt(30, 50); }
+      }
+      return out;
+    }
+    if (type === 'tom') {
+      const n = _peRandInt(0, 2);
+      for (let i = 0; i < n; i++) out[_peRandInt(0, 15)] = _peRandInt(45, 65);
+      return out;
+    }
+    return null;
+  }
+};
 
 // ════════════════════════════════════════════
 // HUMANIZE — velocity jitter ±15 on active steps + optional ghost
 // notes (vel 20-35) on empty steps next to active ones. Non-destructive:
 // re-drawing a step or peClearAll() reverts to a clean slate.
 // ════════════════════════════════════════════
+var peHumanizeHistory = [];
+
+function _peUpdateHumanizeUndoBtn() {
+  const btn = document.getElementById('peHumanizeUndoBtn');
+  if (btn) btn.classList.toggle('disabled', peHumanizeHistory.length === 0);
+}
+
+function peUndoHumanize() {
+  if (peHumanizeHistory.length === 0) return;
+  const prev = peHumanizeHistory.pop();
+  Object.keys(prev).forEach(padIdx => {
+    pePattern[padIdx] = prev[padIdx];
+  });
+  renderPeSequencer();
+  _peUpdateHumanizeUndoBtn();
+  setPeStatus('Undo humanize (' + peHumanizeHistory.length + ' more)');
+}
+
 function peHumanize() {
+  // Snapshot current state before mutating (for undo)
+  const snap = {};
+  peRows.forEach(row => {
+    snap[row.padIdx] = (pePattern[row.padIdx] || []).slice();
+  });
+  peHumanizeHistory.push(snap);
+  if (peHumanizeHistory.length > 10) peHumanizeHistory.shift();
+  _peUpdateHumanizeUndoBtn();
+
   let jittered = 0, ghosted = 0;
   peRows.forEach(row => {
     const padIdx = row.padIdx;
@@ -7286,6 +7644,11 @@ let peSwing = 50;          // 0-100, 50=straight (MPC-style)
 let peNextNoteTime = 0;
 let peCurrentStepSched = 0;
 let peSchedulerTimerID = null;
+let peLedTimer = null;
+
+function peClearAllLeds() {
+  document.querySelectorAll('.pe-signal-led.on').forEach(el => el.classList.remove('on'));
+}
 
 function pePlay() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -7308,6 +7671,7 @@ function pePlay() {
       const stepInLoop = peCurrentStepSched % peTotalSteps;
       const t = peNextNoteTime;
 
+      const firedPads = [];
       peRows.forEach(row => {
         if (!row.hasSample || peMuted[row.padIdx]) return;
         const stepVel = pePattern[row.padIdx][stepInLoop];
@@ -7329,10 +7693,12 @@ function pePlay() {
           trackVolume: (peTrackVols[row.padIdx] !== undefined ? peTrackVols[row.padIdx] : 100)
         });
         if (src) peScheduled.push(src);
+        firedPads.push(row.padIdx);
       });
 
       const vizDelay = Math.max(0, (t - audioCtx.currentTime) * 1000);
       const capturedStep = stepInLoop;
+      const capturedFired = firedPads;
       setTimeout(() => {
         if (!pePlaying) return;
         document.querySelectorAll('.pe-cell').forEach(c => c.classList.remove('playing-step'));
@@ -7340,6 +7706,22 @@ function pePlay() {
           const c = document.getElementById(`pe-cell-${r.padIdx}-${capturedStep}`);
           if (c) c.classList.add('playing-step');
         });
+        // Signal LED per row that actually fired this step
+        peClearAllLeds();
+        capturedFired.forEach(padIdx => {
+          const led = document.getElementById('pe-led-' + padIdx);
+          if (led) led.classList.add('on');
+          const kitPart = document.querySelector('#pe-row-' + padIdx + ' .pe-kit-part');
+          if (kitPart) {
+            kitPart.classList.remove('signal-flash');
+            // force reflow so re-adding the class restarts the animation
+            void kitPart.offsetWidth;
+            kitPart.classList.add('signal-flash');
+          }
+        });
+        // Scheduled cleanup of LEDs (80ms). Tracked so peStop can cancel.
+        if (peLedTimer) clearTimeout(peLedTimer);
+        peLedTimer = setTimeout(peClearAllLeds, 80);
         checkBankSwitchOnStep(capturedStep);
       }, vizDelay);
 
@@ -7353,12 +7735,15 @@ function pePlay() {
   }
   scheduler();
   setPeStatus('Playing · ' + peBpm + ' BPM', 'ok');
+  updateMiniTransport();
 }
 
 function peStop() {
   pePlaying = false;
   clearTimeout(peSchedulerTimerID);
   peSchedulerTimerID = null;
+  if (peLedTimer) { clearTimeout(peLedTimer); peLedTimer = null; }
+  peClearAllLeds();
   peScheduled.forEach(s => { try { s.stop(); } catch(e){} });
   peScheduled = [];
   const btn = document.getElementById('peTportPlay');
@@ -7367,6 +7752,7 @@ function peStop() {
     btn.innerHTML = '<svg viewBox="0 0 12 12" style="width:13px;height:13px;fill:currentColor"><polygon points="2,1 11,6 2,11"/></svg>';
   }
   document.querySelectorAll('.pe-cell').forEach(c => c.classList.remove('playing-step'));
+  updateMiniTransport();
   setPeStatus('Stopped');
 }
 
@@ -8871,32 +9257,33 @@ function renderCompatibilityCheck(container) {
         <div class="pe-pat-btn" onclick="peFill('dancehall')">Dancehall</div>
         <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
         <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
-        <div class="pe-pat-btn pe-pat-btn-tool" onclick="peOpenEuclidPopover(event)">Euclid</div>
-        <div class="pe-pat-btn pe-pat-btn-tool" onclick="peHumanize()" title="Velocity jitter ±15 on active steps + optional ghost notes next to them">Humanize</div>
+        <div class="pe-pat-btn pe-pat-btn-tool" onclick="peOpenGeneratePopover(event)">Generate</div>
+        <div class="pe-split-btn" title="Humanize pattern — undo on left">
+          <div class="pe-split-left disabled" id="peHumanizeUndoBtn" onclick="peUndoHumanize()" title="Undo last humanize">↩</div>
+          <div class="pe-split-right" onclick="peHumanize()" title="Humanize pattern">Humanize</div>
+        </div>
         <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
       </div>
     </div>
 
-    <!-- Euclidean rhythm popover: small floating panel anchored near the button -->
-    <div class="pe-euclid-popover" id="peEuclidPopover">
-      <div class="pe-euclid-title">Euclidean Rhythm</div>
+    <!-- Generate Rhythms popover: style-aware multi-track generator -->
+    <div class="pe-euclid-popover" id="peGeneratePopover">
+      <div class="pe-euclid-title">Generate Rhythms</div>
       <div class="pe-euclid-row">
-        <label>Pad</label>
-        <select id="peEuclidPad"></select>
-      </div>
-      <div class="pe-euclid-row">
-        <label>Hits</label>
-        <input type="range" min="1" max="16" value="4" id="peEuclidHits" oninput="document.getElementById('peEuclidHitsVal').textContent=this.value"/>
-        <span id="peEuclidHitsVal" class="pe-euclid-val">4</span>
-      </div>
-      <div class="pe-euclid-row">
-        <label>Steps</label>
-        <input type="range" min="1" max="16" value="16" id="peEuclidSteps" oninput="document.getElementById('peEuclidStepsVal').textContent=this.value"/>
-        <span id="peEuclidStepsVal" class="pe-euclid-val">16</span>
+        <label>Style</label>
+        <select id="peGenStyle">
+          <option value="pure">Pure</option>
+          <option value="rnb">R&amp;B</option>
+          <option value="trap">Trap</option>
+          <option value="drill">Drill</option>
+          <option value="afro">Afro</option>
+          <option value="lofi">Lo-fi</option>
+          <option value="house">House</option>
+        </select>
       </div>
       <div class="pe-euclid-actions">
-        <button class="pe-euclid-btn" onclick="peApplyEuclidFromPopover()">Apply</button>
-        <button class="pe-euclid-btn pe-euclid-btn-ghost" onclick="document.getElementById('peEuclidPopover').classList.remove('open')">Cancel</button>
+        <button class="pe-euclid-btn" onclick="peApplyGenerate()">Generate</button>
+        <button class="pe-euclid-btn pe-euclid-btn-ghost" onclick="document.getElementById('peGeneratePopover').classList.remove('open')">Close</button>
       </div>
     </div>
 
@@ -8931,6 +9318,17 @@ function renderCompatibilityCheck(container) {
       </div>
     </div>
   </div>
+</div>
+
+<!-- Mini transport — visible only when PE playback is running and PE modal is closed -->
+<div class="mini-transport" id="miniTransport">
+  <button class="mt-btn" onclick="peStop()" title="Stop playback">Stop</button>
+  <div class="mt-sep"></div>
+  <span>BPM: <span id="mtBpm">90</span></span>
+  <div class="mt-sep"></div>
+  <span>Bar: <span id="mtBar">1/1</span></span>
+  <div class="mt-sep"></div>
+  <span class="mt-text" onclick="mtReopenPE()" title="Open Pattern Editor">Pattern playing — click to open editor</span>
 </div>
 
 
