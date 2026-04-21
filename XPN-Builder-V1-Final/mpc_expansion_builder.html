@@ -208,6 +208,21 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .pe-bar-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
 .pe-pattern-btns{display:flex;gap:4px;flex-wrap:wrap;flex:1;min-width:0}
 .pe-fill-row{display:flex;align-items:center;gap:8px;padding:4px 12px;border-top:1px solid var(--border);background:var(--panel);flex-shrink:0}
+.pe-pat-btn.pe-pat-btn-tool{border-color:var(--accent);color:var(--accent)}
+.pe-pat-btn.pe-pat-btn-tool:hover{background:var(--accent-dim)}
+/* Euclidean popover (floating panel) */
+.pe-euclid-popover{position:absolute;display:none;top:var(--pe-euclid-top,80px);left:var(--pe-euclid-left,20px);background:var(--panel2);border:1px solid var(--accent);border-radius:var(--radius);padding:10px 12px;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.55);min-width:240px}
+.pe-euclid-popover.open{display:block}
+.pe-euclid-title{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-family:'IBM Plex Mono',monospace;margin-bottom:8px}
+.pe-euclid-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:10px;color:var(--ink2);font-family:'IBM Plex Mono',monospace}
+.pe-euclid-row label{width:44px;color:var(--ink3);letter-spacing:.08em;text-transform:uppercase;font-size:9px}
+.pe-euclid-row select{flex:1;background:var(--panel3);border:1px solid var(--border);color:var(--ink);font-size:10px;padding:3px 4px;border-radius:var(--radius2);font-family:'IBM Plex Mono',monospace;outline:none}
+.pe-euclid-row input[type=range]{flex:1;accent-color:var(--accent);min-width:80px}
+.pe-euclid-val{min-width:20px;text-align:right;color:var(--accent);font-weight:600}
+.pe-euclid-actions{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+.pe-euclid-btn{padding:4px 12px;background:var(--accent);color:#0e0e10;border:none;border-radius:var(--radius2);font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-weight:600}
+.pe-euclid-btn.pe-euclid-btn-ghost{background:transparent;color:var(--ink3);border:1px solid var(--border2)}
+.pe-euclid-btn:hover{opacity:.85}
 .pe-fill-label{font-size:9px;letter-spacing:.18em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;flex-shrink:0;min-width:32px}
 .pe-pat-btn{padding:4px 10px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em;border:1px solid var(--border2);background:transparent;color:var(--ink3);cursor:pointer;border-radius:var(--radius2);transition:all .12s}
 .pe-pat-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -7149,6 +7164,78 @@ function peClearAll() {
   setPeStatus('Cleared');
 }
 
+// ════════════════════════════════════════════
+// EUCLIDEAN RHYTHM GENERATOR
+// Distributes `hits` evenly across `steps` using a bucket (Bresenham-style
+// approximation of Bjorklund). Returns length-`steps` array of velocities
+// (100 on hits, 0 elsewhere).
+// ════════════════════════════════════════════
+function peEuclidean(hits, steps) {
+  hits = Math.max(0, Math.min(steps, hits | 0));
+  steps = Math.max(1, steps | 0);
+  const pattern = [];
+  let bucket = 0;
+  for (let i = 0; i < steps; i++) {
+    bucket += hits;
+    if (bucket >= steps) { bucket -= steps; pattern.push(100); }
+    else pattern.push(0);
+  }
+  return pattern;
+}
+
+function peApplyEuclidean(padIdx, hits, steps) {
+  if (!pePattern[padIdx]) pePattern[padIdx] = Array(64).fill(0);
+  const eu = peEuclidean(hits, steps);
+  // Write over all peTotalSteps; repeat the euclidean cycle if steps < peTotalSteps
+  for (let s = 0; s < peTotalSteps; s++) {
+    pePattern[padIdx][s] = eu[s % steps];
+  }
+  renderPeSequencer();
+}
+
+function peOpenEuclidPopover(evt) {
+  const pop = document.getElementById('peEuclidPopover');
+  if (!pop) return;
+  // Populate the pad dropdown with currently loaded rows (prefer those with samples)
+  const sel = document.getElementById('peEuclidPad');
+  if (sel) {
+    sel.innerHTML = '';
+    peRows.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.padIdx;
+      opt.textContent = 'Pad ' + String(r.padIdx + 1).padStart(2, '0') + ' — ' + (r.label || r.type || '—') + (r.hasSample ? '' : ' (empty)');
+      sel.appendChild(opt);
+    });
+    // Default: first row with a sample, or first row overall
+    const firstWithSample = peRows.find(r => r.hasSample);
+    sel.value = firstWithSample ? firstWithSample.padIdx : (peRows[0] ? peRows[0].padIdx : 0);
+  }
+  // Anchor the popover near the Euclid button
+  try {
+    const rect = evt && evt.currentTarget && evt.currentTarget.getBoundingClientRect();
+    if (rect) {
+      pop.style.setProperty('--pe-euclid-top',  (rect.bottom + 6) + 'px');
+      pop.style.setProperty('--pe-euclid-left', Math.max(12, rect.left - 40) + 'px');
+      pop.style.position = 'fixed';
+    }
+  } catch(e) {}
+  pop.classList.add('open');
+}
+
+function peApplyEuclidFromPopover() {
+  const sel = document.getElementById('peEuclidPad');
+  const hitsEl = document.getElementById('peEuclidHits');
+  const stepsEl = document.getElementById('peEuclidSteps');
+  if (!sel || !hitsEl || !stepsEl) return;
+  const padIdx = parseInt(sel.value);
+  const hits = parseInt(hitsEl.value);
+  const steps = parseInt(stepsEl.value);
+  peApplyEuclidean(padIdx, hits, steps);
+  document.getElementById('peEuclidPopover').classList.remove('open');
+  setPeStatus('Euclidean: ' + hits + '/' + steps + ' → pad ' + (padIdx + 1));
+}
+
+
 function setPeStatus(msg, cls) {
   const el = document.getElementById('peStatus');
   el.textContent = msg;
@@ -8749,9 +8836,34 @@ function renderCompatibilityCheck(container) {
         <div class="pe-pat-btn" onclick="peFill('dancehall')">Dancehall</div>
         <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
         <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
+        <div class="pe-pat-btn pe-pat-btn-tool" onclick="peOpenEuclidPopover(event)">Euclid</div>
         <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
       </div>
     </div>
+
+    <!-- Euclidean rhythm popover: small floating panel anchored near the button -->
+    <div class="pe-euclid-popover" id="peEuclidPopover">
+      <div class="pe-euclid-title">Euclidean Rhythm</div>
+      <div class="pe-euclid-row">
+        <label>Pad</label>
+        <select id="peEuclidPad"></select>
+      </div>
+      <div class="pe-euclid-row">
+        <label>Hits</label>
+        <input type="range" min="1" max="16" value="4" id="peEuclidHits" oninput="document.getElementById('peEuclidHitsVal').textContent=this.value"/>
+        <span id="peEuclidHitsVal" class="pe-euclid-val">4</span>
+      </div>
+      <div class="pe-euclid-row">
+        <label>Steps</label>
+        <input type="range" min="1" max="16" value="16" id="peEuclidSteps" oninput="document.getElementById('peEuclidStepsVal').textContent=this.value"/>
+        <span id="peEuclidStepsVal" class="pe-euclid-val">16</span>
+      </div>
+      <div class="pe-euclid-actions">
+        <button class="pe-euclid-btn" onclick="peApplyEuclidFromPopover()">Apply</button>
+        <button class="pe-euclid-btn pe-euclid-btn-ghost" onclick="document.getElementById('peEuclidPopover').classList.remove('open')">Cancel</button>
+      </div>
+    </div>
+
     <div class="pe-body">
       <!-- Full-width info bar: bank selector + sequence name -->
       <div class="pe-info-bar">
