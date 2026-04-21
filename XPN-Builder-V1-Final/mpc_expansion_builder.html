@@ -222,6 +222,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .pe-vel-opt{padding:5px 14px;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--ink2);cursor:pointer;transition:background .1s;display:flex;align-items:center;gap:8px}
 .pe-vel-opt:hover{background:var(--accent-dim);color:var(--ink)}
 .pe-vel-opt .vel-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.pe-vel-opt .prob-icon{width:10px;font-size:11px;color:var(--accent);text-align:center;flex-shrink:0;line-height:1}
+.pe-vel-section-label{padding:4px 14px 2px;font-size:8px;letter-spacing:.2em;color:var(--ink3);font-family:'IBM Plex Mono',monospace;text-transform:uppercase}
+.pe-vel-sep{height:1px;background:var(--border);margin:3px 0}
+.pe-cell.low-prob{border-style:dashed}
 /* Kit part flash on pad play */
 @keyframes pe-kit-flash{0%{background:rgba(200,169,110,.3)}100%{background:transparent}}
 .pe-kit-part.pe-kit-flash{animation:pe-kit-flash .2s ease-out forwards}
@@ -2087,7 +2091,8 @@ function makeKit(name) {
     subgroup: '',              // secondary tag (e.g. "Kit")
     pads: Array.from({length: PADS_PER_BANK}, () => makePad()),
     previewFile: null,         // File object MP3/WAV for [Previews]/ folder
-    sequenceData: null         // per-kit sequence/pattern data (wired in later phase)
+    sequenceData: null,        // per-kit sequence/pattern data (wired in later phase)
+    probabilities: null        // per-kit step-probability map, lazily created {padIdx: {step: prob}}
   };
 }
 // Returns the live pad array currently visible in the center grid:
@@ -5952,9 +5957,13 @@ function buildMpcPattern(bankIdx, bankName, expName) {
     const pad = bankPads[i];
     const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
     const steps = pattern[i] || [];
+    const probsForPad = (peProbsAll[bankIdx] && peProbsAll[bankIdx][i]) || {};
     const events = [];
     steps.forEach((vel, step) => {
-      if (vel) events.push({ step, velocity: Math.round((vel / 100) * 127) });
+      if (!vel) return;
+      const ev = { step, velocity: Math.round((vel / 100) * 127) };
+      if (probsForPad[step] != null && probsForPad[step] < 100) ev.probability = probsForPad[step];
+      events.push(ev);
     });
     tracks.push({
       padIndex: i,
@@ -6036,9 +6045,13 @@ function buildMpcPatternForKit(kit, kitLabel, expName) {
     const pad = (kit && kit.pads && kit.pads[i]) || {};
     const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
     const steps = seq[i] || [];
+    const probsForPad = (kit && kit.probabilities && kit.probabilities[i]) || {};
     const events = [];
     steps.forEach((vel, step) => {
-      if (vel) events.push({ step, velocity: Math.max(1, Math.round((vel / 100) * 127)) });
+      if (!vel) return;
+      const ev = { step, velocity: Math.max(1, Math.round((vel / 100) * 127)) };
+      if (probsForPad[step] != null && probsForPad[step] < 100) ev.probability = probsForPad[step];
+      events.push(ev);
     });
     tracks.push({
       padIndex: i,
@@ -6683,12 +6696,17 @@ function audioBufferToWav(buffer) {
 let peBars = 1;
 let peBpm  = 90;
 // 8 independent sequences — one per bank
-let pePatterns     = Array.from({length: 8}, () => ({}));
-let peSeqNames     = Array(8).fill('');
-let peTrackVolsAll = Array.from({length: 8}, () => ({}));
+let pePatterns      = Array.from({length: 8}, () => ({}));
+let peSeqNames      = Array(8).fill('');
+let peTrackVolsAll  = Array.from({length: 8}, () => ({}));
+// Feature: per-step probability (0-100, default 100 = always plays).
+// Parallel to pePatterns so the scheduler can skip a scheduled step on a
+// dice roll. Sparse: any (padIdx, step) not present defaults to 100.
+let peProbsAll      = Array.from({length: 8}, () => ({}));
 let peActiveSeqBank = 0;
-let pePattern    = pePatterns[0];      // alias → active bank
-let peTrackVols  = peTrackVolsAll[0];  // alias → active bank
+let pePattern     = pePatterns[0];       // alias → active bank
+let peTrackVols   = peTrackVolsAll[0];   // alias → active bank
+let peProbs       = peProbsAll[0];       // alias → active bank
 let peSelectedCells = new Set();       // "padIdx-step" strings
 let peMuted   = {};   // padIdx → bool
 let peRows    = [];   // ordered list of {padIdx, label, type, color}
@@ -6717,15 +6735,18 @@ function openPatternEditor() {
       else { currentKit = 0; }
     }
     const kit = kits[currentKit];
-    if (!kit.sequenceData) kit.sequenceData = {};
-    if (!kit.trackVols)    kit.trackVols    = {};
+    if (!kit.sequenceData)  kit.sequenceData  = {};
+    if (!kit.trackVols)     kit.trackVols     = {};
+    if (!kit.probabilities) kit.probabilities = {};
     peActiveSeqBank = currentKit;   // reuse as "active pattern index" — avoids wider refactor
     pePattern   = kit.sequenceData;
     peTrackVols = kit.trackVols;
+    peProbs     = kit.probabilities;
   } else {
     peActiveSeqBank = currentBank;
     pePattern   = pePatterns[peActiveSeqBank];
     peTrackVols = peTrackVolsAll[peActiveSeqBank];
+    peProbs     = peProbsAll[peActiveSeqBank];
   }
 
   peRows = [];
@@ -6788,6 +6809,7 @@ function peSwitchSeqBank(bankIdx) {
   peActiveSeqBank = bankIdx;
   pePattern   = pePatterns[bankIdx];
   peTrackVols = peTrackVolsAll[bankIdx];
+  peProbs     = peProbsAll[bankIdx];
   peSelectedCells.clear();
   const mode = MODES[activeMode];
   const bankPads = banks[bankIdx];
@@ -6876,6 +6898,8 @@ function renderPeSequencer() {
       cell.dataset.pad  = row.padIdx;
       cell.dataset.step = s;
       cell.id = `pe-cell-${row.padIdx}-${s}`;
+      // Probability visual: dashed border if this step has a custom prob < 100
+      if (_peCellProb(row.padIdx, s) < 100) cell.classList.add('low-prob');
 
       let painting = false;
       let paintVal = 0;
@@ -6930,9 +6954,36 @@ var peVelTarget = null;
 function setStepVelocity(vel) {
   if (peVelTarget) {
     peSetStep(peVelTarget.padIdx, peVelTarget.step, vel);
-    peVelTarget = null;
+    // keep peVelTarget alive so the user can pick probability right after —
+    // only the picker closes. Click again to retarget.
   }
   document.getElementById('peVelPicker').style.display = 'none';
+}
+
+// Feature: set per-step probability (0-100). 100 = always plays (default).
+// Lower values make the scheduler dice-roll and sometimes skip the step.
+function setStepProbability(prob) {
+  if (peVelTarget) {
+    const { padIdx, step } = peVelTarget;
+    if (!peProbs[padIdx]) peProbs[padIdx] = {};
+    if (prob >= 100) {
+      delete peProbs[padIdx][step];  // sparse: don't store defaults
+    } else {
+      peProbs[padIdx][step] = prob;
+    }
+    // Visual: dashed border on cells with reduced probability
+    const cell = document.getElementById('pe-cell-' + padIdx + '-' + step);
+    if (cell) cell.classList.toggle('low-prob', prob < 100);
+    setPeStatus('Prob: ' + prob + '%');
+  }
+  document.getElementById('peVelPicker').style.display = 'none';
+}
+
+// Helper used by renderPeSequencer to reflect probability on freshly-drawn cells.
+function _peCellProb(padIdx, step) {
+  return (peProbs && peProbs[padIdx] && peProbs[padIdx][step] != null)
+    ? peProbs[padIdx][step]
+    : 100;
 }
 
 // ── Pad-number click-to-preview ──
@@ -7139,6 +7190,10 @@ function pePlay() {
         if (!row.hasSample || peMuted[row.padIdx]) return;
         const stepVel = pePattern[row.padIdx][stepInLoop];
         if (!stepVel) return;
+        // Per-step probability: dice roll. Missing entry = always play (100).
+        const probRow = peProbs && peProbs[row.padIdx];
+        const prob = (probRow && probRow[stepInLoop] != null) ? probRow[stepInLoop] : 100;
+        if (prob < 100 && Math.random() * 100 >= prob) return;
         const pad = getPatternPads()[row.padIdx];
         const sample = samples.find(x => x.id === pad.sampleId);
         if (!sample || !sample.buffer) return;
@@ -8753,12 +8808,19 @@ function renderCompatibilityCheck(container) {
     <div class="xtp-logp" id="xtpLogP"><div class="xtp-ll info">Click ▶ Run All Tests to begin</div></div>
   </div>
 </div>
-<!-- Velocity picker popup -->
+<!-- Velocity + Probability picker popup -->
 <div class="pe-vel-picker" id="peVelPicker">
+  <div class="pe-vel-section-label">VEL</div>
   <div class="pe-vel-opt" onclick="setStepVelocity(25)"><span class="vel-dot" style="opacity:.25"></span>25%</div>
   <div class="pe-vel-opt" onclick="setStepVelocity(50)"><span class="vel-dot" style="opacity:.5"></span>50%</div>
   <div class="pe-vel-opt" onclick="setStepVelocity(75)"><span class="vel-dot" style="opacity:.75"></span>75%</div>
   <div class="pe-vel-opt" onclick="setStepVelocity(100)"><span class="vel-dot"></span>100%</div>
+  <div class="pe-vel-sep"></div>
+  <div class="pe-vel-section-label">PROB</div>
+  <div class="pe-vel-opt" onclick="setStepProbability(25)"><span class="prob-icon">◌</span>25%</div>
+  <div class="pe-vel-opt" onclick="setStepProbability(50)"><span class="prob-icon">◐</span>50%</div>
+  <div class="pe-vel-opt" onclick="setStepProbability(75)"><span class="prob-icon">◕</span>75%</div>
+  <div class="pe-vel-opt" onclick="setStepProbability(100)"><span class="prob-icon">●</span>100%</div>
 </div>
 <button id="xpn-test-trigger" onclick="xtpOpen()">⊞ Tests</button>
 
