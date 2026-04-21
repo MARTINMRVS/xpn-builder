@@ -7235,6 +7235,41 @@ function peApplyEuclidFromPopover() {
   setPeStatus('Euclidean: ' + hits + '/' + steps + ' → pad ' + (padIdx + 1));
 }
 
+// ════════════════════════════════════════════
+// HUMANIZE — velocity jitter ±15 on active steps + optional ghost
+// notes (vel 20-35) on empty steps next to active ones. Non-destructive:
+// re-drawing a step or peClearAll() reverts to a clean slate.
+// ════════════════════════════════════════════
+function peHumanize() {
+  let jittered = 0, ghosted = 0;
+  peRows.forEach(row => {
+    const padIdx = row.padIdx;
+    if (!pePattern[padIdx]) return;
+    const steps = pePattern[padIdx];
+    // 1. jitter velocities on active steps
+    for (let s = 0; s < peTotalSteps; s++) {
+      const v = steps[s];
+      if (v > 0) {
+        const delta = Math.floor(Math.random() * 31) - 15;   // -15..+15
+        steps[s] = Math.max(1, Math.min(100, v + delta));
+        jittered++;
+      }
+    }
+    // 2. optional ghost notes adjacent to active steps (30% chance per slot)
+    for (let s = 0; s < peTotalSteps; s++) {
+      if (steps[s] > 0) continue;
+      const neighbourActive = (steps[s - 1] > 0) || (steps[s + 1] > 0);
+      if (!neighbourActive) continue;
+      if (Math.random() < 0.3) {
+        steps[s] = 20 + Math.floor(Math.random() * 16);   // 20..35 (ghost)
+        ghosted++;
+      }
+    }
+  });
+  renderPeSequencer();
+  setPeStatus('Humanize: ' + jittered + ' jittered' + (ghosted ? ', ' + ghosted + ' ghost notes' : ''));
+}
+
 
 function setPeStatus(msg, cls) {
   const el = document.getElementById('peStatus');
@@ -8837,6 +8872,7 @@ function renderCompatibilityCheck(container) {
         <div class="pe-pat-btn" onclick="peFill('jersey_club')">Jersey</div>
         <div class="pe-pat-btn" onclick="peFill('mode')">Mode</div>
         <div class="pe-pat-btn pe-pat-btn-tool" onclick="peOpenEuclidPopover(event)">Euclid</div>
+        <div class="pe-pat-btn pe-pat-btn-tool" onclick="peHumanize()" title="Velocity jitter ±15 on active steps + optional ghost notes next to them">Humanize</div>
         <div class="pe-pat-btn" onclick="peClearAll()">Clear</div>
       </div>
     </div>
