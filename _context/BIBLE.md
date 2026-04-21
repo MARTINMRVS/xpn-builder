@@ -312,3 +312,9 @@ half-speed (fórmula octaves bugueada), ahora rate correcto
 usando 2^(st/12). PE scheduler también usa FX chain con
 velOverride/trackVolume/polyphonic. playBuffer legacy intacto
 para sample pool + PT + layers extras. +139/-16, 64/64 tests.
+
+Sequencer tools — PR #12 merged. Probability per step (dice-roll
+scheduler, sparse storage, visual borde punteado, export a
+.mpcpattern). Euclidean rhythm generator (Bjorklund, popover UI
+con hits/steps, tiling). Humanize (velocity jitter +-15, ghost
+notes 30% chance vel 20-35). +222/-12, 64/64 tests.
