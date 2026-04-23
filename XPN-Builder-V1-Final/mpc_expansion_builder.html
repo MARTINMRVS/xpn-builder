@@ -8151,6 +8151,19 @@ function peSetAsDemo() {
   setPeStatus('Pattern set as demo preview — will render on export', 'ok');
 }
 
+// Boot PE data without opening the modal so the scheduler can run from the
+// PADs view. openPatternEditor() sets peRows / pePattern / peRowsScroll DOM,
+// then we immediately hide the modal and start playback — the mini transport
+// shows the running state. Idempotent: safe to call when already playing.
+function peQuickStart() {
+  if (pePlaying) return;
+  if (typeof openPatternEditor === 'function') openPatternEditor();
+  const modal = document.getElementById('peModal');
+  if (modal) modal.classList.remove('open');
+  if (typeof updateMiniTransport === 'function') updateMiniTransport();
+  if (typeof pePlay === 'function') pePlay();
+}
+
 // Space key inside pattern editor + copy/paste/duplicate
 document.addEventListener('keydown', e => {
   if (!document.getElementById('peModal').classList.contains('open')) return;
@@ -8441,11 +8454,23 @@ document.addEventListener('keydown', e => {
   // Don't fire for general typing in inputs
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.key === '?' && !mod) { openShortcutsOverlay(); return; }
+  // TAB — toggle between PADs view and SEQ (PE) view. Playback keeps running.
+  if (e.code === 'Tab' && !e.shiftKey && !mod) {
+    e.preventDefault();
+    const isOpen = document.getElementById('peModal').classList.contains('open');
+    if (isOpen) { if (typeof peGoToPadView === 'function') peGoToPadView(); }
+    else { if (typeof openPatternEditor === 'function') openPatternEditor(); }
+    return;
+  }
   if (e.code === 'Space') {
     e.preventDefault();
-    if (pePlaying) { peStop(); return; }
     if (ptPlaying) { ptStopPlay(); return; }
-    if (selectedPad !== null) previewPad(selectedPad);
+    // Global transport: Space toggles PE play/stop from either view. If we're
+    // on PADs with nothing playing, boot PE data in the background so the
+    // scheduler has peRows to iterate, then hand off to the mini transport.
+    if (pePlaying) { peStop(); return; }
+    if (typeof peQuickStart === 'function') peQuickStart();
+    else if (selectedPad !== null) previewPad(selectedPad);
   }
   // Delete selected sequencer cells
   if ((e.code === 'Delete' || e.code === 'Backspace') && document.getElementById('peModal').classList.contains('open')) {
