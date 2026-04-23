@@ -2721,6 +2721,12 @@ function _cleanupPopoverListeners() {
 function updateReorderBtnVisibility() {
   const btn = document.getElementById('reorderBtn');
   if (!btn) return;
+  // REORDER is a bank-wise concept (distributing across A-H). Hidden in
+  // expansion, where kits are discrete named 16-pad targets.
+  if (typeof appMode !== 'undefined' && appMode === 'expansion') {
+    btn.style.display = 'none';
+    return;
+  }
   const hasSamples = banks.some(bank => bank.some(p => p.sampleId !== null));
   btn.style.display = hasSamples ? '' : 'none';
 }
@@ -3879,6 +3885,14 @@ function updateModeVisibility() {
   if (descField) {
     if (appMode === 'expansion') descField.style.removeProperty('display');
     else descField.style.display = 'none';
+  }
+  // Hide Extended-only controls in expansion mode (bank-wise concepts)
+  const reorderBtn = document.getElementById('reorderBtn');
+  if (reorderBtn && appMode === 'expansion') reorderBtn.style.display = 'none';
+  // Dismiss any stale "Optimize across 8 banks" panel on mode flip
+  if (appMode === 'expansion') {
+    const sPanel = document.getElementById('smartSuggestPanel');
+    if (sPanel) { sPanel.classList.remove('visible'); sPanel.innerHTML = ''; }
   }
   renderPadGrid();
 }
@@ -5272,12 +5286,14 @@ function showSmartSuggestions(totalFiles, assignedCount) {
   const panel = document.getElementById('smartSuggestPanel');
   if (!panel) return;
   const unassigned = totalFiles - assignedCount;
+  const isExpansion = (typeof appMode !== 'undefined' && appMode === 'expansion');
   let html = `<div class="smart-suggest-title">Smart Assign — ${totalFiles} samples</div>`;
   html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#10003; ${assignedCount} samples assigned to pads</span></div>`;
   if (unassigned > 0) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#9888; ${unassigned} unmatched (in sample pool)</span></div>`;
-  if (totalFiles > 16) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">Distribute optimally across all 8 banks</span></div>`;
+  // "Distribute across 8 banks" / Optimize are Extended-only concepts
+  if (!isExpansion && totalFiles > 16) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">Distribute optimally across all 8 banks</span></div>`;
   html += `<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">`;
-  if (totalFiles > 16) html += `<span class="smart-suggest-action" onclick="optimizeAcrossBanks()">Optimize</span>`;
+  if (!isExpansion && totalFiles > 16) html += `<span class="smart-suggest-action" onclick="optimizeAcrossBanks()">Optimize</span>`;
   html += `<span class="smart-suggest-action" onclick="dismissSmartSuggest()" style="color:var(--ink3);border-color:var(--border2)">Dismiss</span></div>`;
   panel.innerHTML = html;
   panel.classList.add('visible');
