@@ -8268,7 +8268,19 @@ function openFxPicker() { openModal('fxModal'); }
 
 function updateStatus() {
   const used = banks.flat().filter(p => p.sampleId !== null).length;
-  document.getElementById('statPads').textContent = `${used}/128 pads used`;
+  const statPads = document.getElementById('statPads');
+  // Expansion: report current kit's fill rate, not /128 bank pads
+  if (typeof appMode !== 'undefined' && appMode === 'expansion' && typeof kits !== 'undefined' && kits[currentKit]) {
+    const kit = kits[currentKit];
+    const kitFilled = (kit.pads || []).filter(p => p && p.sampleId !== null).length;
+    const kitLabel = kit.name || ('Kit ' + (currentKit + 1));
+    const assignedIds = new Set();
+    kits.forEach(k => (k.pads || []).forEach(p => { if (p && p.sampleId != null) assignedIds.add(p.sampleId); }));
+    const pool = samples.filter(s => !assignedIds.has(s.id)).length;
+    statPads.textContent = `${kitLabel}: ${kitFilled}/16 pads assigned | ${pool} samples in pool`;
+  } else {
+    statPads.textContent = `${used}/128 pads used`;
+  }
   document.getElementById('statSize').textContent = (totalSizeBytes / 1024 / 1024).toFixed(2) + ' MB';
   const pc = document.getElementById('poolCount');
   if (pc) pc.textContent = samples.length + ' samples';
