@@ -539,6 +539,10 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .waveform-display{margin:0 12px;height:60px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:relative}
 .waveform-canvas{width:100%;height:100%}
 .waveform-playhead{position:absolute;top:0;bottom:0;width:1px;background:var(--accent);opacity:.8;pointer-events:none;left:0;transition:left .05s}
+.wave-zoom-row{display:flex;align-items:center;gap:6px;padding:4px 0 0;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--ink3)}
+.wave-zoom-btn{width:20px;height:18px;border:1px solid var(--border2);background:transparent;color:var(--ink2);cursor:pointer;border-radius:var(--radius2);font-family:inherit;font-size:11px;line-height:1;padding:0}
+.wave-zoom-btn:hover{border-color:var(--accent);color:var(--accent)}
+.wave-zoom-label{min-width:26px;text-align:center;color:var(--ink2)}
 .wave-marker{position:absolute;top:0;bottom:0;width:2px;cursor:ew-resize;z-index:10;transition:opacity .1s}
 .wave-marker:hover{opacity:.8}
 .wave-start{background:var(--green);left:0}
@@ -1511,6 +1515,13 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
           <input class="wave-ms-input" id="waveEndMsInput" type="number" min="0" step="1" value="0"
             onchange="onWaveMsInput('end',this.value)" title="End point in ms"/>
           <span class="wave-ms-label">END</span>
+        </div>
+        <div class="wave-zoom-row">
+          <span class="wave-ms-label">ZOOM</span>
+          <button class="wave-zoom-btn" onclick="waveZoomStep(-1)" title="Zoom out">−</button>
+          <span id="waveZoomLabel" class="wave-zoom-label">1×</span>
+          <button class="wave-zoom-btn" onclick="waveZoomStep(1)" title="Zoom in">+</button>
+          <button class="wave-zoom-btn" onclick="waveZoomReset()" title="Reset zoom (1×)" style="margin-left:4px">Fit</button>
         </div>
       </div>
       <!-- ACCORDION: LAYERS -->
@@ -4331,6 +4342,46 @@ function setKnob(id, pct, fmtFn, min, max) {
 // ════════════════════════════════════════════
 // WAVEFORM
 // ════════════════════════════════════════════
+// Waveform zoom state. _waveZoom is a multiplier (1 = full view, up to 16).
+// _waveOffset is the normalized left edge of the visible window in [0, 1 - 1/zoom].
+var _waveZoom = 1;
+var _waveOffset = 0;
+var _waveSampleIdForZoom = null; // reset offset when switching samples
+
+function _waveVisibleRange() {
+  const z = Math.max(1, _waveZoom);
+  const span = 1 / z;
+  const off = Math.max(0, Math.min(1 - span, _waveOffset));
+  _waveOffset = off;
+  return { start: off, end: off + span, span };
+}
+
+function waveZoomStep(dir) {
+  const levels = [1, 2, 4, 8, 16];
+  let idx = levels.indexOf(_waveZoom);
+  if (idx === -1) idx = 0;
+  idx = Math.max(0, Math.min(levels.length - 1, idx + dir));
+  _waveZoom = levels[idx];
+  _waveRedraw();
+}
+
+function waveZoomReset() {
+  _waveZoom = 1;
+  _waveOffset = 0;
+  _waveRedraw();
+}
+
+function _waveRedraw() {
+  const label = document.getElementById('waveZoomLabel');
+  if (label) label.textContent = _waveZoom + '×';
+  if (selectedPad !== null) {
+    const pad = getActivePads()[selectedPad];
+    if (pad && pad.sampleId != null) drawWaveform(pad.sampleId);
+  } else {
+    drawWaveform(null);
+  }
+}
+
 function drawWaveform(sampleId) {
   const canvas = document.getElementById('waveCanvas');
   const ctx = canvas.getContext('2d');
@@ -4347,10 +4398,19 @@ function drawWaveform(sampleId) {
     updateWaveMarkers(null, null);
     return;
   }
+  // Reset the view window when switching samples so we never land on an
+  // out-of-range offset from a shorter file.
+  if (_waveSampleIdForZoom !== sampleId) {
+    _waveSampleIdForZoom = sampleId;
+    _waveOffset = 0;
+  }
   const sample = samples.find(s => s.id === sampleId);
   if (!sample || !sample.buffer) return;
   const data = sample.buffer.getChannelData(0);
-  const step = Math.floor(data.length / canvas.width);
+  const vis = _waveVisibleRange();
+  const viewStart = Math.floor(data.length * vis.start);
+  const viewLen = Math.max(1, Math.floor(data.length * vis.span));
+  const step = Math.max(1, Math.floor(viewLen / canvas.width));
   ctx.fillStyle = '#1c1c1f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = '#c8a96e';
@@ -4358,7 +4418,7 @@ function drawWaveform(sampleId) {
   ctx.beginPath();
   const mid = canvas.height / 2;
   for (let x = 0; x < canvas.width; x++) {
-    const s = data[x * step] || 0;
+    const s = data[viewStart + x * step] || 0;
     ctx.moveTo(x, mid - s * mid * 0.85);
     ctx.lineTo(x, mid + s * mid * 0.85);
   }
@@ -4398,8 +4458,14 @@ function updateWaveMarkers(pad, sample) {
   const startPct = Math.max(0, Math.min(1, start / totalFrames));
   const endPct   = Math.max(0, Math.min(1, end   / totalFrames));
 
-  startEl.style.left = (startPct * 100) + '%';
-  endEl.style.left   = (endPct   * 100) + '%';
+  // Zoom-aware placement: translate absolute pcts into the visible window.
+  const vis = _waveVisibleRange();
+  const toVisible = p => ((p - vis.start) / vis.span) * 100;
+  const clampVisible = v => Math.max(-5, Math.min(105, v));
+  startEl.style.left = clampVisible(toVisible(startPct)) + '%';
+  endEl.style.left   = clampVisible(toVisible(endPct))   + '%';
+  startEl.style.display = (startPct < vis.start - 0.001 || startPct > vis.end + 0.001) ? 'none' : '';
+  endEl.style.display   = (endPct   < vis.start - 0.001 || endPct   > vis.end + 0.001) ? 'none' : '';
   endEl.style.right  = 'auto';
 
   const startMsVal = Math.round(start / sr * 1000);
@@ -4449,7 +4515,10 @@ function initWaveMarkers() {
     var rect = display.getBoundingClientRect();
     var totalFrames = ctx.sample.buffer.length;
     var x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    var pct = x / rect.width;
+    var viewPct = x / rect.width;
+    // Zoom transform: translate the visible-window pct into absolute pct.
+    var vis = _waveVisibleRange();
+    var pct = vis.start + viewPct * vis.span;
     var frame = Math.round(pct * totalFrames);
     if (isStart) {
       ctx.pad.sampleStart = Math.min(frame, (ctx.pad.sampleEnd >= 0 ? ctx.pad.sampleEnd : totalFrames) - 1);
@@ -4500,7 +4569,10 @@ function initWaveMarkers() {
       if (!ctx) return null;
       var rect = display.getBoundingClientRect();
       var totalFrames = ctx.sample.buffer.length;
-      var clickPct = (clientX - rect.left) / rect.width;
+      var vis = _waveVisibleRange();
+      // Translate click into absolute pct via the current visible window.
+      var viewPct = (clientX - rect.left) / rect.width;
+      var clickPct = vis.start + viewPct * vis.span;
       var startPct = (ctx.pad.sampleStart || 0) / totalFrames;
       var endPct = ((ctx.pad.sampleEnd >= 0) ? ctx.pad.sampleEnd : totalFrames) / totalFrames;
       // Pick whichever marker is closer
@@ -4535,6 +4607,31 @@ function initWaveMarkers() {
       }
       document.addEventListener('touchmove', onTouchMove, { passive: false });
       document.addEventListener('touchend', onTouchEnd);
+    }, { passive: false });
+
+    // Wheel: plain scroll = zoom (centered on cursor); shift+wheel = pan.
+    canvas.addEventListener('wheel', function(e) {
+      var ctx = getPadAndSample();
+      if (!ctx) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        var vis = _waveVisibleRange();
+        var delta = (e.deltaX || e.deltaY) / 800; // small steps
+        _waveOffset = Math.max(0, Math.min(1 - vis.span, _waveOffset + delta * vis.span));
+      } else {
+        var rect = canvas.getBoundingClientRect();
+        var cursorPct = (e.clientX - rect.left) / rect.width;
+        var visB = _waveVisibleRange();
+        var absCursor = visB.start + cursorPct * visB.span;
+        var levels = [1, 2, 4, 8, 16];
+        var idx = levels.indexOf(_waveZoom); if (idx === -1) idx = 0;
+        idx = Math.max(0, Math.min(levels.length - 1, idx + (e.deltaY < 0 ? 1 : -1)));
+        _waveZoom = levels[idx];
+        var newSpan = 1 / _waveZoom;
+        // Keep the point under the cursor stable when zooming.
+        _waveOffset = Math.max(0, Math.min(1 - newSpan, absCursor - cursorPct * newSpan));
+      }
+      _waveRedraw();
     }, { passive: false });
   }
 }
