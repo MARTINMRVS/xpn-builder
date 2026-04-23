@@ -2747,7 +2747,17 @@ async function priorityFillBanks(fileList, isFolder) {
   // Auto-select KIT when >16 samples (unless user already chose)
   if (audioFiles.length > 16 && assignMode === 'long') setAssignMode('kit');
 
-  // Confirm dialog for >20 samples
+  // Expansion mode: the LONG/KIT/FILL modal is Extended-only logic
+  // (distributing across Banks A-H). In Expansion a kit is one 16-pad target,
+  // so skip the modal and delegate to _runAssignment directly — it already
+  // branches on appMode === 'expansion' and fills kits[currentKit].
+  if (appMode === 'expansion') {
+    setAssignMode('kit');
+    await _runAssignment(audioFiles);
+    return;
+  }
+
+  // Confirm dialog for >20 samples (Extended only)
   if (audioFiles.length > 20) {
     _pendingAssignFiles = audioFiles;
     const msg = document.getElementById('assignConfirmMsg');
@@ -2831,8 +2841,17 @@ async function _runAssignment(audioFiles) {
     renderSampleList();
     updateStatus();
     if (typeof renderKitList === 'function') renderKitList();
-    setStatus(`${mode.name} → ${kitLabel}: ${totalAssigned} assigned`);
+    const pool = samples.filter(s => {
+      // sample in pool = not assigned to any kit
+      return !kits.some(k => (k.pads || []).some(p => p && p.sampleId === s.id));
+    }).length;
+    const kitSuffix = pool > 0
+      ? ` — ${pool} in pool, create another kit to assign more.`
+      : '';
+    setStatus(`${totalAssigned} assigned to ${kitLabel}.${kitSuffix}`);
     if (audioFiles.length >= 8) showSmartSuggestions(audioFiles.length, totalAssigned);
+    // Fix 5: offer to auto-create kits for remaining pool samples
+    if (typeof _maybeOfferAutoKits === 'function') _maybeOfferAutoKits(pool);
     return;
   }
 
