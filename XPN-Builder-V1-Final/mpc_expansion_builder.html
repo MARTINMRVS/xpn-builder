@@ -16,7 +16,7 @@
   --red:#c0504a;--green:#5a9a6a;--blue:#4a7ab0;
   --pad-empty:#1a1a1c;--pad-loaded:#1e1e22;
   --radius:4px;--radius2:2px;
-  --pe-row-h:28px;--pe-left-w:160px;
+  --pe-row-h:28px;--pe-left-w:180px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -7286,8 +7286,58 @@ function closePatternEditor() {
   document.getElementById('peModal').classList.remove('open');
 }
 
+// Compute the longest common prefix (by filename chars) shared by every row
+// that has a sample. Used to trim boilerplate prefixes like "TNZ-" so the
+// row label shows the meaningful tail (e.g. "KK_1" instead of "TNZ-KK_1").
+// Returns '' if the shared prefix is short (<3 chars) to avoid over-trimming.
+var _pePrefixCommon = '';
+
+function _peComputeCommonPrefix() {
+  const names = peRows
+    .filter(r => r.hasSample && r.label && !/^[—\-]/.test(r.label))
+    .map(r => String(r.label));
+  if (names.length < 2) { _pePrefixCommon = ''; return; }
+  let prefix = names[0];
+  for (let i = 1; i < names.length; i++) {
+    const s = names[i];
+    let j = 0;
+    while (j < prefix.length && j < s.length && prefix[j].toLowerCase() === s[j].toLowerCase()) j++;
+    prefix = prefix.slice(0, j);
+    if (!prefix) break;
+  }
+  // Only trim a meaningful prefix (≥3 chars, doesn't eat the entire name).
+  _pePrefixCommon = prefix.length >= 3 ? prefix : '';
+}
+
+// Build the display label for a track row. Strips shared prefix + extension
+// when we have a sample; otherwise falls back to the slot type short tag
+// plus an index so empty rows still read as "KICK 1", "HH CL 1", etc.
+function peDisplayLabelFor(row) {
+  if (!row) return '—';
+  if (row.hasSample && row.label) {
+    let name = String(row.label);
+    if (_pePrefixCommon && name.toLowerCase().startsWith(_pePrefixCommon.toLowerCase())) {
+      name = name.slice(_pePrefixCommon.length);
+    }
+    name = name.replace(/\.[^.]+$/, '');
+    return name || row.label;
+  }
+  const slotType = row.type || 'empty';
+  if (slotType === 'empty') return '—';
+  const tag = (typeof SLOT_SHORT !== 'undefined' && SLOT_SHORT[slotType]) || slotType.toUpperCase();
+  // Count how many rows of this type come before this one so the suffix
+  // reads 1/2/3 across duplicate pads.
+  let n = 1;
+  for (const r of peRows) {
+    if (r === row) break;
+    if (r.type === slotType) n++;
+  }
+  return tag + ' ' + n;
+}
+
 function renderPeSequencer() {
   peTotalSteps = 16 * peBars;
+  _peComputeCommonPrefix();
 
   // Beat number header
   const header = document.getElementById('peSeqHeader');
@@ -7322,7 +7372,7 @@ function renderPeSequencer() {
       <span class="pe-signal-led" id="pe-led-${row.padIdx}"></span>
       <span class="pe-kit-num" title="Click to preview" style="cursor:pointer;padding:0 2px;border-radius:2px;transition:background .1s" onclick="event.stopPropagation();pePadNumClick(event,${row.padIdx})">${String(row.padIdx+1).padStart(2,'0')}</span>
       <div class="pe-kit-color" style="background:${skinTintColor(row.color, currentSkin)}"></div>
-      <span class="pe-kit-name">${row.label}</span>
+      <span class="pe-kit-name" title="${row.label}">${peDisplayLabelFor(row)}</span>
       <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;width:18px;text-align:right;flex-shrink:0">${panLabel}</span>
       <input type="range" class="pe-kit-vol" min="0" max="100" value="${peTrackVols[row.padIdx]}"
         title="Track volume" onclick="event.stopPropagation()"
