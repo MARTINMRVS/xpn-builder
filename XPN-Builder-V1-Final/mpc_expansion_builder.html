@@ -3040,20 +3040,37 @@ function _buildScoredFromPool(mode) {
   }).sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
 }
 
+// Pending offer state — stashed so the modal buttons can resume the work
+// after the user picks Yes / No. Replacing window.confirm with an HTML modal
+// because Electron's default webContents swallows window.confirm silently
+// (see https://www.electronjs.org/docs/api/dialog — confirm() returns
+// immediately without blocking).
+var _autoKitPending = null;
+
 function _maybeOfferAutoKits(poolCount) {
+  console.log('[XPN AutoKit] offer check — appMode=', appMode, 'pool=', poolCount, 'kits=', kits.length);
   if (appMode !== 'expansion') return;
   if (!poolCount || poolCount < 16) return;
   const extraKits = Math.min(7, Math.floor(poolCount / 16));
   if (extraKits < 1) return;
-  const confirmed = window.confirm(
-    poolCount + ' samples remaining. Create ' + extraKits +
-    ' more kit' + (extraKits > 1 ? 's' : '') + ' automatically?'
-  );
-  if (!confirmed) return;
+  _autoKitPending = { poolCount, extraKits };
+  const msgEl = document.getElementById('autoKitConfirmMsg');
+  if (msgEl) {
+    msgEl.textContent = poolCount + ' samples remaining in the pool. Create ' +
+      extraKits + ' more kit' + (extraKits > 1 ? 's' : '') + ' automatically, using the fresh samples?';
+  }
+  openModal('autoKitConfirmModal');
+}
+
+function autoKitConfirmYes() {
+  closeModal('autoKitConfirmModal');
+  const pending = _autoKitPending;
+  _autoKitPending = null;
+  if (!pending) return;
+  const extraKits = pending.extraKits;
   const mode = MODES[activeMode];
   const log = document.getElementById('modeLog');
   const addLog = (msg, cls) => { if (log) { log.innerHTML += `<div class="${cls||''}">${msg}</div>`; log.scrollTop = 9999; } };
-  // Next "Kit N" number: scan existing names for "Kit <num>" pattern.
   let nextNum = 1;
   kits.forEach(k => {
     const m = (k.name || '').match(/^Kit\s+(\d+)$/);
@@ -3074,6 +3091,12 @@ function _maybeOfferAutoKits(poolCount) {
   renderSampleList();
   updateStatus();
   setStatus('Auto-created ' + extraKits + ' kit' + (extraKits > 1 ? 's' : '') + ' from remaining pool.');
+}
+
+function autoKitConfirmNo() {
+  closeModal('autoKitConfirmModal');
+  _autoKitPending = null;
+  setStatus('Kept remaining samples in the pool.');
 }
 
 // ── LONG mode: distribute by type across all banks, leave empty pads ──
@@ -10166,6 +10189,27 @@ function renderCompatibilityCheck(container) {
     <div class="modal-footer">
       <button class="tb-btn ghost" onclick="closeModal('assignConfirmModal')">Cancel</button>
       <button class="tb-btn primary" id="assignConfirmBtn" onclick="runConfirmedAssign()">Load Samples</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auto-create kits confirmation (expansion mode, after assign when pool ≥16) -->
+<div class="modal-bg" id="autoKitConfirmModal">
+  <div class="modal" style="width:340px">
+    <div class="modal-header">
+      <span class="modal-title">Auto-create Kits?</span>
+      <button class="modal-close" onclick="autoKitConfirmNo()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="autoKitConfirmMsg" style="font-size:11px;color:var(--ink2);line-height:1.7;margin-bottom:8px"></div>
+      <div style="font-size:9px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;line-height:1.5">
+        New kits inherit the current mode. Samples already used in existing
+        kits are skipped — each kit gets fresh material.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn ghost" onclick="autoKitConfirmNo()">No, keep in pool</button>
+      <button class="tb-btn primary" onclick="autoKitConfirmYes()">Yes, auto-fill</button>
     </div>
   </div>
 </div>
