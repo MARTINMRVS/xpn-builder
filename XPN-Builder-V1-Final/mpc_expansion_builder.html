@@ -1274,8 +1274,10 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
     <!-- MODES BAR -->
     <div class="modes-bar" id="modesBar"></div>
 
-    <!-- XPN MODE GRID — self-contained pad layout preview -->
-    <div id="xpn-mode-grid" style="display:none; padding:8px; background:#0D0F14; border-top:1px solid #C8A96E33;">
+    <!-- XPN MODE GRID — LEGACY duplicate of #modePreview. Kept in DOM so the
+         showXPNModeGrid/updateXPNModeGrid JS is a no-op. Forced display:none
+         even if old code tries to show it (see forced !important below). -->
+    <div id="xpn-mode-grid" style="display:none !important; padding:8px; background:#0D0F14; border-top:1px solid #C8A96E33;">
       <div id="xpn-mode-grid-title" style="display:flex; align-items:center; justify-content:space-between; font-size:9px; color:#C8A96E; letter-spacing:2px; margin-bottom:6px; font-family:'IBM Plex Mono',monospace;">
         <span id="xpn-mode-grid-label"></span>
         <span id="xpn-mode-grid-toggle" style="cursor:pointer; font-size:10px; color:#888; user-select:none;" onclick="toggleXPNModeGrid()">&#9650;</span>
@@ -10403,7 +10405,12 @@ function renderLiveTplPreview() {
 let _xpnGridCellsVisible = true;
 
 function showXPNModeGrid(modeName) {
+  // DEPRECATED: duplicated by #modePreview. Forced off to prevent the
+  // left-panel BEAT LAYOUT from rendering twice in expansion and extended.
   const grid = document.getElementById('xpn-mode-grid');
+  if (grid) grid.style.display = 'none';
+  return;
+  /* eslint-disable no-unreachable */
   const label = document.getElementById('xpn-mode-grid-label');
   const cells = document.getElementById('xpn-mode-grid-cells');
   if (!grid || !XPN_MODE_LAYOUTS[modeName]) { if (grid) grid.style.display = 'none'; return; }
