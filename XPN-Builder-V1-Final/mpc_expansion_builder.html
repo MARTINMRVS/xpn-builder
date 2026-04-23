@@ -2995,6 +2995,63 @@ function _assignExpansion(scored, mode, bankStats, addLog) {
   return count;
 }
 
+// ════════════════════════════════════════════
+// AUTO-CREATE KITS — Fix 5. After an expansion assignment, if the pool
+// still has ≥16 unassigned samples offer to auto-create enough kits to
+// absorb them. New kits inherit the current mode and are named
+// "Kit 2", "Kit 3", … starting at the next available index.
+// ════════════════════════════════════════════
+function _buildScoredFromPool(mode) {
+  const assignedIds = new Set();
+  kits.forEach(k => (k.pads || []).forEach(p => { if (p && p.sampleId != null) assignedIds.add(p.sampleId); }));
+  const pool = samples.filter(s => !assignedIds.has(s.id));
+  const uniqueTypes = [...new Set(Object.values(mode.slots))];
+  return pool.map(s => {
+    let bestScore = 0, bestType = null;
+    uniqueTypes.forEach(st => {
+      const sc = scoreSampleForSlot(s.name, st);
+      if (sc > bestScore) { bestScore = sc; bestType = st; }
+    });
+    return { file: s.file || null, name: s.name, score: bestScore, bestType, prefix: getFilenamePrefix(s.name), detected: detectSlotType(s.name), sampleId: s.id };
+  }).sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
+}
+
+function _maybeOfferAutoKits(poolCount) {
+  if (appMode !== 'expansion') return;
+  if (!poolCount || poolCount < 16) return;
+  const extraKits = Math.min(7, Math.floor(poolCount / 16));
+  if (extraKits < 1) return;
+  const confirmed = window.confirm(
+    poolCount + ' samples remaining. Create ' + extraKits +
+    ' more kit' + (extraKits > 1 ? 's' : '') + ' automatically?'
+  );
+  if (!confirmed) return;
+  const mode = MODES[activeMode];
+  const log = document.getElementById('modeLog');
+  const addLog = (msg, cls) => { if (log) { log.innerHTML += `<div class="${cls||''}">${msg}</div>`; log.scrollTop = 9999; } };
+  // Next "Kit N" number: scan existing names for "Kit <num>" pattern.
+  let nextNum = 1;
+  kits.forEach(k => {
+    const m = (k.name || '').match(/^Kit\s+(\d+)$/);
+    if (m) { const n = parseInt(m[1], 10); if (n >= nextNum) nextNum = n + 1; }
+  });
+  for (let i = 0; i < extraKits; i++) {
+    const newKit = makeKit('Kit ' + nextNum++);
+    kits.push(newKit);
+    currentKit = kits.length - 1;
+    const scored = _buildScoredFromPool(mode);
+    if (scored.length === 0) break;
+    const stats = [{ total: 0, matched: 0 }];
+    const filled = _assignExpansion(scored, mode, stats, addLog);
+    addLog(`Auto-kit ${newKit.name}: ${filled} pads filled`, 'log-ok');
+  }
+  if (typeof renderKitList === 'function') renderKitList();
+  renderPadGrid();
+  renderSampleList();
+  updateStatus();
+  setStatus('Auto-created ' + extraKits + ' kit' + (extraKits > 1 ? 's' : '') + ' from remaining pool.');
+}
+
 // ── LONG mode: distribute by type across all banks, leave empty pads ──
 function _assignLong(scored, mode, bankStats, addLog) {
   const slotList = [];
