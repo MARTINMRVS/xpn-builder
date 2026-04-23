@@ -481,6 +481,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .kit-list{display:flex;gap:4px;flex-wrap:wrap;align-items:center;max-width:560px;overflow-x:auto}
 .kit-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;cursor:pointer;border-radius:var(--radius2);border:1px solid var(--border2);background:transparent;color:var(--ink2);transition:all .15s}
 .kit-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.kit-btn.kit-pending{border-style:dashed;border-color:var(--accent);color:var(--accent);animation:kit-pending-pulse 1s ease-in-out infinite}
+@keyframes kit-pending-pulse{0%,100%{opacity:1}50%{opacity:.55}}
 .kit-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
 .kit-btn-name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kit-btn-count{font-size:8px;color:var(--ink3);letter-spacing:.04em}
@@ -3781,7 +3783,7 @@ function renderKitList() {
   kits.forEach((kit, i) => {
     const loaded = kit.pads.filter(p => p && p.sampleId !== null).length;
     const btn = document.createElement('button');
-    btn.className = 'kit-btn' + (i === currentKit ? ' active' : '');
+    btn.className = 'kit-btn' + (i === currentKit ? ' active' : '') + (i === pePendingKitSwitch ? ' kit-pending' : '');
     btn.title = 'Click to select. Double-click to rename.';
     btn.innerHTML =
       '<span class="kit-btn-name"></span>' +
@@ -3847,18 +3849,71 @@ function deleteKit(idx) {
   setStatus('Kit deleted');
 }
 
+var pePendingKitSwitch = null;
+
 function selectKit(idx) {
   if (idx < 0 || idx >= kits.length) return;
+  // Quantized kit switch: while the scheduler is running, defer the swap
+  // to the next bar boundary so the audio stays glitch-free. Tab highlights
+  // as pending via .kit-pending; checkKitSwitchOnStep performs the actual
+  // switch when stepInLoop % 16 === 0.
+  if (typeof pePlaying !== 'undefined' && pePlaying && idx !== currentKit) {
+    pePendingKitSwitch = idx;
+    if (typeof renderKitList === 'function') renderKitList();
+    if (typeof setStatus === 'function') setStatus('Kit ' + ((kits[idx] && kits[idx].name) || ('#' + (idx+1))) + ' queued — switching at bar end');
+    return;
+  }
+  _applyKitSwitch(idx);
+}
+
+function _applyKitSwitch(idx) {
   currentKit = idx;
   selectedPad = null;
-  // Reset the hidden file input so re-uploading the same file name for a
-  // different kit still fires onchange. The label is refreshed by renderKitList
-  // from kit.previewFile.
   const pInput = document.getElementById('kitPreviewFileInput');
   if (pInput) pInput.value = '';
   renderKitList();
   renderPadGrid();
   hidePadDetail();
+}
+
+// Called from the PE scheduler viz loop (see pePlay). Fires when crossing
+// into a new bar so the kit swap, including pePattern/peTrackVols rewiring
+// and peRows rebuild, happens between bars with no mid-bar glitch.
+function checkKitSwitchOnStep(stepInLoop) {
+  if (pePendingKitSwitch === null) return;
+  if (stepInLoop % 16 !== 0) return;
+  const target = pePendingKitSwitch;
+  pePendingKitSwitch = null;
+  _applyKitSwitch(target);
+  // Re-point PE state at the new kit's sequenceData/trackVols/probabilities.
+  if (appMode === 'expansion' && kits[target]) {
+    const kit = kits[target];
+    if (!kit.sequenceData)  kit.sequenceData  = {};
+    if (!kit.trackVols)     kit.trackVols     = {};
+    if (!kit.probabilities) kit.probabilities = {};
+    peActiveSeqBank = target;
+    pePattern   = kit.sequenceData;
+    peTrackVols = kit.trackVols;
+    peProbs     = kit.probabilities;
+    // Rebuild peRows so the scheduler iterates the new kit's pads
+    if (typeof MODES !== 'undefined' && typeof getPatternPads === 'function') {
+      const mode = MODES[activeMode];
+      const bankPads = getPatternPads();
+      peRows = [];
+      for (let i = 0; i < 16; i++) {
+        const pad = bankPads[i];
+        const slotType = (mode && mode.slots[i]) || 'empty';
+        const name = pad && pad.sampleId ? getSampleName(pad.sampleId) : (slotType !== 'empty' ? SLOT_LABELS[slotType] : '—');
+        peRows.push({ padIdx: i, label: name, type: slotType, color: (typeof getPadCategoryColor === 'function' && getPadCategoryColor(pad, i)) || (PE_ROW_COLORS && PE_ROW_COLORS[slotType]) || '#444', hasSample: pad && pad.sampleId !== null });
+        if (!(i in pePattern))   pePattern[i]   = Array(64).fill(0);
+        if (!(i in peTrackVols)) peTrackVols[i] = (pad && pad.volume != null) ? pad.volume : 100;
+      }
+      if (typeof renderPeSequencer === 'function' && document.getElementById('peModal').classList.contains('open')) {
+        renderPeSequencer();
+      }
+    }
+  }
+  if (typeof renderKitList === 'function') renderKitList();
 }
 
 function renameKit(idx) {
@@ -8172,6 +8227,7 @@ function pePlay() {
         if (peLedTimer) clearTimeout(peLedTimer);
         peLedTimer = setTimeout(peClearAllLeds, 80);
         checkBankSwitchOnStep(capturedStep);
+        if (typeof checkKitSwitchOnStep === 'function') checkKitSwitchOnStep(capturedStep);
       }, vizDelay);
 
       // MPC-style swing: 50%=straight, >50=swing, <50=reverse
