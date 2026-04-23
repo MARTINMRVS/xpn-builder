@@ -2884,8 +2884,13 @@ async function _runAssignment(audioFiles) {
       ? ` — ${pool} in pool, create another kit to assign more.`
       : '';
     setStatus(`${totalAssigned} assigned to ${kitLabel}.${kitSuffix}`);
-    if (audioFiles.length >= 8) showSmartSuggestions(audioFiles.length, totalAssigned);
-    // Fix 5: offer to auto-create kits for remaining pool samples
+    // Diagnostic (stays for future regression tracking): confirms the expansion
+    // branch runs to completion with the correct pool count before we hand off
+    // to the Smart Assign panel, which now owns the auto-kit CTA inline.
+    console.log('[XPN AutoKit] _runAssignment expansion done — appMode=', appMode, 'pool=', pool, 'kits=', kits.length);
+    if (audioFiles.length >= 8) showSmartSuggestions(audioFiles.length, totalAssigned, pool);
+    // Kept as fallback for callers that bypass the smart-suggest panel
+    // (e.g. programmatic assigns). No-op when the inline CTA already handled it.
     if (typeof _maybeOfferAutoKits === 'function') _maybeOfferAutoKits(pool);
     return;
   }
@@ -5530,21 +5535,85 @@ function renderMidiPanel() {
 // ════════════════════════════════════════════
 // SMART ASSIGN SUGGESTIONS
 // ════════════════════════════════════════════
-function showSmartSuggestions(totalFiles, assignedCount) {
+function showSmartSuggestions(totalFiles, assignedCount, poolOverride) {
   const panel = document.getElementById('smartSuggestPanel');
   if (!panel) return;
   const unassigned = totalFiles - assignedCount;
   const isExpansion = (typeof appMode !== 'undefined' && appMode === 'expansion');
+  // Recompute pool from live state so the caller doesn't need to supply it;
+  // caller CAN pass poolOverride as a hint when it has a fresh count handy.
+  let pool = poolOverride;
+  if (isExpansion && (pool == null)) {
+    pool = samples.filter(s => !kits.some(k => (k.pads || []).some(p => p && p.sampleId === s.id))).length;
+  }
+  const autoKitCount = isExpansion && pool >= 16 ? Math.min(7, Math.floor(pool / 16)) : 0;
+
   let html = `<div class="smart-suggest-title">Smart Assign — ${totalFiles} samples</div>`;
   html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#10003; ${assignedCount} samples assigned to pads</span></div>`;
   if (unassigned > 0) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#9888; ${unassigned} unmatched (in sample pool)</span></div>`;
   // "Distribute across 8 banks" / Optimize are Extended-only concepts
   if (!isExpansion && totalFiles > 16) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">Distribute optimally across all 8 banks</span></div>`;
+
+  // Inline auto-kit offer replaces the old modal — rendered only when we're
+  // in expansion mode and ≥16 samples are sitting unassigned in the pool.
+  if (autoKitCount > 0) {
+    html += `<div class="autokit-offer" style="margin-top:8px;padding:8px;border:1px solid var(--accent);border-radius:var(--radius);display:flex;flex-direction:column;gap:6px">
+      <span style="font-size:11px;color:var(--ink2);line-height:1.5">Create <b>${autoKitCount}</b> more kit${autoKitCount > 1 ? 's' : ''} automatically from the ${pool} pool samples?</span>
+      <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.08em">New kits inherit the current mode. Each kit gets fresh material — already-used samples are skipped.</span>
+      <button class="tb-btn primary" onclick="autoKitFillAll()" style="align-self:flex-end;padding:5px 12px;font-size:10px">Yes, auto-fill ${autoKitCount} kit${autoKitCount > 1 ? 's' : ''}</button>
+    </div>`;
+  }
+
   html += `<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">`;
   if (!isExpansion && totalFiles > 16) html += `<span class="smart-suggest-action" onclick="optimizeAcrossBanks()">Optimize</span>`;
   html += `<span class="smart-suggest-action" onclick="dismissSmartSuggest()" style="color:var(--ink3);border-color:var(--border2)">Dismiss</span></div>`;
   panel.innerHTML = html;
   panel.classList.add('visible');
+}
+
+// Inline auto-fill: create N kits (N = floor(pool/16), capped at 7) and fill
+// each one using the pool-aware scoring helper. Runs entirely off the current
+// DOM/state — no modal dependency. Hides the Smart Assign panel afterwards.
+function autoKitFillAll() {
+  if (appMode !== 'expansion') return;
+  const mode = MODES[activeMode];
+  const log = document.getElementById('modeLog');
+  const addLog = (msg, cls) => { if (log) { log.innerHTML += `<div class="${cls||''}">${msg}</div>`; log.scrollTop = 9999; } };
+
+  const countPool = () => samples.filter(s => !kits.some(k => (k.pads || []).some(p => p && p.sampleId === s.id))).length;
+  let poolNow = countPool();
+  const target = Math.min(7, Math.floor(poolNow / 16));
+  if (target < 1) return;
+
+  // Pick starting "Kit N" suffix so we don't collide with existing names.
+  let nextNum = 1;
+  kits.forEach(k => {
+    const m = (k.name || '').match(/^Kit\s+(\d+)$/);
+    if (m) { const n = parseInt(m[1], 10); if (n >= nextNum) nextNum = n + 1; }
+  });
+
+  let created = 0;
+  for (let i = 0; i < target; i++) {
+    if (countPool() === 0) break;
+    const newKit = makeKit('Kit ' + nextNum++);
+    kits.push(newKit);
+    currentKit = kits.length - 1;
+    const scored = _buildScoredFromPool(mode);
+    if (scored.length === 0) break;
+    const stats = [{ total: 0, matched: 0 }];
+    const filled = _assignExpansion(scored, mode, stats, addLog);
+    addLog(`Auto-kit ${newKit.name}: ${filled}/16 filled`, 'log-ok');
+    created++;
+  }
+
+  if (typeof renderKitList === 'function') renderKitList();
+  renderPadGrid();
+  renderSampleList();
+  updateStatus();
+  const leftover = countPool();
+  const tail = leftover > 0 ? ` ${leftover} still in pool.` : ' All samples assigned.';
+  setStatus(`Created ${created} kit${created !== 1 ? 's' : ''}.${tail}`);
+  dismissSmartSuggest();
 }
 
 function dismissSmartSuggest() {
