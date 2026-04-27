@@ -2773,6 +2773,7 @@ function nameSimilarity(a, b) {
 
 async function priorityFillBanks(fileList, isFolder) {
   if (!fileList || fileList.length === 0) return;
+  if (!_ensureAppModeChosen()) return;
 
   const audioFiles = Array.from(fileList).filter(f =>
     f.type.startsWith('audio/') || /\.(mp3|wav|aiff|aif|flac|ogg)$/i.test(f.name)
@@ -2888,10 +2889,7 @@ async function _runAssignment(audioFiles) {
     // branch runs to completion with the correct pool count before we hand off
     // to the Smart Assign panel, which now owns the auto-kit CTA inline.
     console.log('[XPN AutoKit] _runAssignment expansion done — appMode=', appMode, 'pool=', pool, 'kits=', kits.length);
-    if (audioFiles.length >= 8) showSmartSuggestions(audioFiles.length, totalAssigned, pool);
-    // Kept as fallback for callers that bypass the smart-suggest panel
-    // (e.g. programmatic assigns). No-op when the inline CTA already handled it.
-    if (typeof _maybeOfferAutoKits === 'function') _maybeOfferAutoKits(pool);
+    showSmartSuggestions(audioFiles.length, totalAssigned, pool);
     return;
   }
 
@@ -3050,64 +3048,10 @@ function _buildScoredFromPool(mode) {
   }).sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
 }
 
-// Pending offer state — stashed so the modal buttons can resume the work
-// after the user picks Yes / No. Replacing window.confirm with an HTML modal
-// because Electron's default webContents swallows window.confirm silently
-// (see https://www.electronjs.org/docs/api/dialog — confirm() returns
-// immediately without blocking).
-var _autoKitPending = null;
-
-function _maybeOfferAutoKits(poolCount) {
-  console.log('[XPN AutoKit] offer check — appMode=', appMode, 'pool=', poolCount, 'kits=', kits.length);
-  if (appMode !== 'expansion') return;
-  if (!poolCount || poolCount < 16) return;
-  const extraKits = Math.min(7, Math.floor(poolCount / 16));
-  if (extraKits < 1) return;
-  _autoKitPending = { poolCount, extraKits };
-  const msgEl = document.getElementById('autoKitConfirmMsg');
-  if (msgEl) {
-    msgEl.textContent = poolCount + ' samples remaining in the pool. Create ' +
-      extraKits + ' more kit' + (extraKits > 1 ? 's' : '') + ' automatically, using the fresh samples?';
-  }
-  openModal('autoKitConfirmModal');
-}
-
-function autoKitConfirmYes() {
-  closeModal('autoKitConfirmModal');
-  const pending = _autoKitPending;
-  _autoKitPending = null;
-  if (!pending) return;
-  const extraKits = pending.extraKits;
-  const mode = MODES[activeMode];
-  const log = document.getElementById('modeLog');
-  const addLog = (msg, cls) => { if (log) { log.innerHTML += `<div class="${cls||''}">${msg}</div>`; log.scrollTop = 9999; } };
-  let nextNum = 1;
-  kits.forEach(k => {
-    const m = (k.name || '').match(/^Kit\s+(\d+)$/);
-    if (m) { const n = parseInt(m[1], 10); if (n >= nextNum) nextNum = n + 1; }
-  });
-  for (let i = 0; i < extraKits; i++) {
-    const newKit = makeKit('Kit ' + nextNum++);
-    kits.push(newKit);
-    currentKit = kits.length - 1;
-    const scored = _buildScoredFromPool(mode);
-    if (scored.length === 0) break;
-    const stats = [{ total: 0, matched: 0 }];
-    const filled = _assignExpansion(scored, mode, stats, addLog);
-    addLog(`Auto-kit ${newKit.name}: ${filled} pads filled`, 'log-ok');
-  }
-  if (typeof renderKitList === 'function') renderKitList();
-  renderPadGrid();
-  renderSampleList();
-  updateStatus();
-  setStatus('Auto-created ' + extraKits + ' kit' + (extraKits > 1 ? 's' : '') + ' from remaining pool.');
-}
-
-function autoKitConfirmNo() {
-  closeModal('autoKitConfirmModal');
-  _autoKitPending = null;
-  setStatus('Kept remaining samples in the pool.');
-}
+// Auto-create kits flow now lives entirely in showSmartSuggestions /
+// autoKitFillAll (inline CTA in the Smart Assign panel). The previous
+// _maybeOfferAutoKits + autoKitConfirmModal pair was dead code after Fase 6
+// — removed in fix-appmode-root.
 
 // ── LONG mode: distribute by type across all banks, leave empty pads ──
 function _assignLong(scored, mode, bankStats, addLog) {
@@ -4820,6 +4764,7 @@ function setupDrop() {
 }
 
 async function loadAudioFiles(files) {
+  if (!_ensureAppModeChosen()) return;
   const audioFiles = Array.from(files).filter(f =>
     f.type.startsWith('audio/') || /\.(mp3|wav|aiff|aif|flac|ogg)$/i.test(f.name)
   );
@@ -10332,26 +10277,8 @@ function renderCompatibilityCheck(container) {
   </div>
 </div>
 
-<!-- Auto-create kits confirmation (expansion mode, after assign when pool ≥16) -->
-<div class="modal-bg" id="autoKitConfirmModal">
-  <div class="modal" style="width:340px">
-    <div class="modal-header">
-      <span class="modal-title">Auto-create Kits?</span>
-      <button class="modal-close" onclick="autoKitConfirmNo()">×</button>
-    </div>
-    <div class="modal-body">
-      <div id="autoKitConfirmMsg" style="font-size:11px;color:var(--ink2);line-height:1.7;margin-bottom:8px"></div>
-      <div style="font-size:9px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;line-height:1.5">
-        New kits inherit the current mode. Samples already used in existing
-        kits are skipped — each kit gets fresh material.
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="tb-btn ghost" onclick="autoKitConfirmNo()">No, keep in pool</button>
-      <button class="tb-btn primary" onclick="autoKitConfirmYes()">Yes, auto-fill</button>
-    </div>
-  </div>
-</div>
+<!-- Auto-create kits modal removed in fix-appmode-root: the CTA now lives
+     inline in the Smart Assign panel (autoKitFillAll). -->
 
 <!-- ══ KEYBOARD SHORTCUTS OVERLAY ══ -->
 <div class="shortcuts-overlay-bg" id="shortcutsOverlay" onclick="if(event.target===this)closeShortcutsOverlay()">
@@ -10604,6 +10531,10 @@ var _welcomeDevices = [
 
 // ── Flow chooser modal (Fase 6): Expansion Pack vs Extended ──
 var _xpnAppModeStorageKey = 'xpn_app_mode';
+// Set true once a flow has been chosen (either restored from localStorage or
+// picked via the modal). Sample-load entry points refuse to run while false
+// so users can't drag samples into a half-initialized "extended" default.
+var _appModeReady = false;
 
 function openFlowModal(force) {
   // If already chosen and not forced, skip
@@ -10621,6 +10552,7 @@ function closeFlowModal() {
 function chooseFlow(mode) {
   if (mode !== 'expansion' && mode !== 'extended') return;
   appMode = mode;
+  _appModeReady = true;
   try { localStorage.setItem(_xpnAppModeStorageKey, mode); } catch(e) {}
   closeFlowModal();
   if (mode === 'expansion') {
@@ -10629,12 +10561,15 @@ function chooseFlow(mode) {
       kits.push(makeKit('Untitled Kit'));
       currentKit = 0;
     }
-    if (typeof updateModeVisibility === 'function') updateModeVisibility();
-  } else {
-    if (typeof updateModeVisibility === 'function') updateModeVisibility();
+  }
+  if (typeof updateModeVisibility === 'function') updateModeVisibility();
+  if (typeof renderPadGrid === 'function') renderPadGrid();
+  if (typeof renderKitList === 'function') renderKitList();
+  if (mode === 'extended') {
     // Extended flow: chain into existing device+mode welcome modal
     if (typeof openWelcomeModal === 'function') openWelcomeModal(true);
   }
+  console.log('[XPN] appMode chosen:', mode, '— ready:', _appModeReady);
 }
 
 function initAppModeFromStorage() {
@@ -10642,12 +10577,24 @@ function initAppModeFromStorage() {
   try { stored = localStorage.getItem(_xpnAppModeStorageKey); } catch(e) {}
   if (stored === 'expansion' || stored === 'extended') {
     appMode = stored;
+    _appModeReady = true;
   }
   // Maintain kit[] invariant for expansion mode (UI depends on it in later phases)
   if (appMode === 'expansion' && (!kits || kits.length === 0)) {
     kits.push(makeKit('Untitled Kit'));
     currentKit = 0;
   }
+}
+
+// Sample-load gate: opened modal blocks the canvas, but native input clicks
+// and drag-drop can still slip through before the user picks a flow. This
+// helper is called from every load entry point — if no flow is chosen yet,
+// it forces the modal open and aborts the load.
+function _ensureAppModeChosen() {
+  if (_appModeReady) return true;
+  if (typeof openFlowModal === 'function') openFlowModal(true);
+  if (typeof setStatus === 'function') setStatus('Pick a workflow first — Expansion Pack or Extended.');
+  return false;
 }
 
 function openWelcomeModal(force) {
@@ -11102,12 +11049,15 @@ function updateXPNModeGrid() {
     // Reveal/hide kit vs bank rows based on appMode, wire preview drop zone
     if (typeof updateModeVisibility === 'function') updateModeVisibility();
     if (typeof _initKitPreviewDnD === 'function') _initKitPreviewDnD();
-    // Show flow chooser modal on first run (respects xpn_app_mode flag).
-    // If user already picked flow, this early-returns. If they picked Extended
-    // but never set up device+mode, SETUP button in topbar lets them do that.
-    setTimeout(function() {
-      if (typeof openFlowModal === 'function') openFlowModal(false);
-    }, 300);
+    // Force flow chooser modal open immediately when no choice is stored.
+    // No setTimeout — there was a race window where the user could drop
+    // samples in the 300ms gap, leaving appMode='extended' (the default)
+    // even though they wanted Expansion. _ensureAppModeChosen() also
+    // backstops every load entry point in case the modal is dismissed.
+    if (!_appModeReady && typeof openFlowModal === 'function') {
+      openFlowModal(true);
+    }
+    console.log('[XPN Boot] appMode=', appMode, '_appModeReady=', _appModeReady);
   }
 
   // DOMContentLoaded already fired by the time this <script> at end-of-body runs,
