@@ -69,7 +69,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 /* ── TOPBAR ── */
 .app-logo{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--accent);margin-right:2px}
 .app-name{font-size:9px;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase}
-.mode-badge{font-size:8px;letter-spacing:.18em;color:var(--ink);background:var(--border2);padding:2px 7px;border-radius:20px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;margin-left:6px;cursor:default;user-select:none}
+.mode-badge{font-size:8px;letter-spacing:.18em;color:var(--ink);background:var(--border2);padding:2px 7px;border-radius:20px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;margin-left:6px;cursor:pointer;user-select:none;transition:opacity .15s}
+.mode-badge:hover{opacity:.75;outline:1px solid var(--accent)}
 .mode-badge.expansion{background:var(--accent-dim);color:var(--accent)}
 .tb-sep{width:1px;height:18px;background:var(--border);margin:0 2px}
 .tb-field{display:flex;flex-direction:column;gap:1px}
@@ -1144,7 +1145,7 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 <div class="topbar">
   <span class="app-logo">XPN</span>
   <span class="app-name">Pad Works XPN</span>
-  <span class="mode-badge" id="modeBadge" title="Current workflow (click SETUP to change)">EXTENDED</span>
+  <span class="mode-badge" id="modeBadge" onclick="openFlowModal(true)" title="Click to switch workflow (Expansion Pack ↔ Extended)">EXTENDED</span>
   <div class="tb-sep"></div>
   <div class="tb-field">
     <span class="tb-label">Expansion Name</span>
@@ -11057,7 +11058,9 @@ function updateXPNModeGrid() {
     if (!_appModeReady && typeof openFlowModal === 'function') {
       openFlowModal(true);
     }
-    console.log('[XPN Boot] appMode=', appMode, '_appModeReady=', _appModeReady);
+    var _stored = null;
+    try { _stored = localStorage.getItem(_xpnAppModeStorageKey); } catch(e) {}
+    console.log('[XPN Boot] appMode=', appMode, '_appModeReady=', _appModeReady, 'localStorage xpn_app_mode=', _stored);
   }
 
   // DOMContentLoaded already fired by the time this <script> at end-of-body runs,
