@@ -774,6 +774,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 /* Selection rubber-band */
 .pe-rubber-band{position:absolute;border:1px dashed var(--accent);background:rgba(200,169,110,.08);pointer-events:none;z-index:50}
 .pe-cell.pe-cell-selected{outline:2px solid var(--accent);outline-offset:-1px;z-index:1}
+.pe-cell.pe-cell-ghost{outline:2px dashed var(--accent);outline-offset:-1px;background:rgba(200,169,110,.25)!important;z-index:2}
 
 /* Knob preview flash */
 @keyframes knob-preview-flash{0%{box-shadow:0 0 0 0 rgba(200,169,110,.5)}100%{box-shadow:none}}
@@ -7700,7 +7701,13 @@ function renderPeSequencer() {
       cell.onmousedown = (e) => {
         e.preventDefault();
         if (peTool === 'select') {
-          // Start rubber-band selection
+          const cellKey = `${row.padIdx}-${s}`;
+          // Click on an already-selected step → drag-move (or copy with Ctrl/Cmd).
+          // Otherwise start a fresh rubber-band selection.
+          if (peSelectedCells.has(cellKey)) {
+            peStartDragMoveSelection(e);
+            return;
+          }
           peStartRubberBand(e, stepsPart);
           return;
         }
@@ -8016,6 +8023,128 @@ function peStartRubberBand(e, container) {
     });
     band.remove();
     if (peSelectedCells.size > 0) setPeStatus(peSelectedCells.size + ' steps selected');
+  }
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ── Drag-move (or copy with Ctrl/Cmd) selected steps ──
+// Mousedown on an already-selected step starts this. Each pointer move quantises
+// the offset to (cell width × row height) and shows a ghost preview at the new
+// positions. Mouseup commits — falling outside the grid range cancels.
+function peStartDragMoveSelection(e) {
+  if (peSelectedCells.size === 0) return;
+  const isCopy = !!(e.ctrlKey || e.metaKey);
+  const startX = e.clientX, startY = e.clientY;
+
+  // Measure one cell + one row to convert px → grid units.
+  const sampleCell = document.querySelector('.pe-cell');
+  const sampleRow = document.querySelector('.pe-row');
+  if (!sampleCell || !sampleRow) return;
+  const cellW = sampleCell.getBoundingClientRect().width || 14;
+  const rowH = sampleRow.getBoundingClientRect().height || 18;
+
+  // Snapshot the selection: padIdx, step, velocity, probability. peRows
+  // ordering captures which visible row index each pad sits at, so vertical
+  // drags follow the displayed order rather than padIdx numerically.
+  const rowIndexByPad = {};
+  peRows.forEach((r, i) => { rowIndexByPad[r.padIdx] = i; });
+  const snapshot = [];
+  peSelectedCells.forEach(key => {
+    const parts = key.split('-');
+    const pi = Number(parts[0]);
+    const st = Number(parts[1]);
+    if (rowIndexByPad[pi] == null) return;
+    snapshot.push({
+      pi, st,
+      rowIdx: rowIndexByPad[pi],
+      vel: pePattern[pi] ? (pePattern[pi][st] || 0) : 0,
+      prob: _peCellProb(pi, st)
+    });
+  });
+  if (snapshot.length === 0) return;
+
+  let lastDx = NaN, lastDr = NaN;
+  function clearGhosts() {
+    document.querySelectorAll('.pe-cell-ghost').forEach(c => c.classList.remove('pe-cell-ghost'));
+  }
+  function showGhosts(dx, dr) {
+    clearGhosts();
+    snapshot.forEach(({ rowIdx, st }) => {
+      const targetRow = peRows[rowIdx + dr];
+      const targetSt = st + dx;
+      if (!targetRow || targetSt < 0 || targetSt >= peTotalSteps) return;
+      const ghost = document.getElementById(`pe-cell-${targetRow.padIdx}-${targetSt}`);
+      if (ghost) ghost.classList.add('pe-cell-ghost');
+    });
+  }
+
+  function onMove(ev) {
+    const dx = Math.round((ev.clientX - startX) / cellW);
+    const dr = Math.round((ev.clientY - startY) / rowH);
+    if (dx !== lastDx || dr !== lastDr) {
+      lastDx = dx; lastDr = dr;
+      showGhosts(dx, dr);
+      setPeStatus(`${isCopy ? 'Copy' : 'Move'} ${snapshot.length} → step Δ${dx >= 0 ? '+' : ''}${dx}, row Δ${dr >= 0 ? '+' : ''}${dr}`);
+    }
+  }
+
+  function onUp(ev) {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    clearGhosts();
+
+    const dx = Math.round((ev.clientX - startX) / cellW);
+    const dr = Math.round((ev.clientY - startY) / rowH);
+    if (dx === 0 && dr === 0) return; // click without drag, leave selection
+
+    // Validate: every target must land in a visible row + valid step range.
+    const targets = [];
+    for (const it of snapshot) {
+      const targetRow = peRows[it.rowIdx + dr];
+      const targetSt = it.st + dx;
+      if (!targetRow || targetSt < 0 || targetSt >= peTotalSteps) {
+        setPeStatus('Drag cancelled — out of range');
+        return;
+      }
+      targets.push({ from: it, toPad: targetRow.padIdx, toStep: targetSt });
+    }
+
+    // For move: clear sources first (skip when source == target to avoid
+    // wiping a value we're about to overwrite). For copy: leave originals.
+    if (!isCopy) {
+      const targetKeys = new Set(targets.map(t => `${t.toPad}-${t.toStep}`));
+      snapshot.forEach(({ pi, st }) => {
+        const k = `${pi}-${st}`;
+        if (targetKeys.has(k)) return;
+        peSetStep(pi, st, 0);
+        if (peProbs && peProbs[pi]) delete peProbs[pi][st];
+        const cell = document.getElementById(`pe-cell-${pi}-${st}`);
+        if (cell) cell.classList.remove('low-prob');
+      });
+    }
+
+    // Write targets (velocity + probability).
+    targets.forEach(({ from, toPad, toStep }) => {
+      peSetStep(toPad, toStep, from.vel || 0);
+      if (!peProbs[toPad]) peProbs[toPad] = {};
+      if (from.prob >= 100) delete peProbs[toPad][toStep];
+      else peProbs[toPad][toStep] = from.prob;
+      const cell = document.getElementById(`pe-cell-${toPad}-${toStep}`);
+      if (cell) cell.classList.toggle('low-prob', from.prob < 100);
+    });
+
+    // Refresh selection to follow the moved/copied cells.
+    peSelectedCells.clear();
+    document.querySelectorAll('.pe-cell-selected').forEach(c => c.classList.remove('pe-cell-selected'));
+    targets.forEach(({ toPad, toStep }) => {
+      const k = `${toPad}-${toStep}`;
+      peSelectedCells.add(k);
+      const cell = document.getElementById(`pe-cell-${toPad}-${toStep}`);
+      if (cell) cell.classList.add('pe-cell-selected');
+    });
+    setPeStatus(`${isCopy ? 'Copied' : 'Moved'} ${targets.length} step${targets.length !== 1 ? 's' : ''}`);
   }
 
   document.addEventListener('mousemove', onMove);
