@@ -491,6 +491,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 @keyframes kit-pending-pulse{0%,100%{opacity:1}50%{opacity:.55}}
 .kit-btn:hover:not(.active){border-color:var(--border2);color:var(--ink)}
 .kit-btn-name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kit-btn-name-input{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;background:var(--panel3);border:1px solid var(--accent);border-radius:2px;color:var(--ink);padding:1px 4px;outline:none;max-width:140px}
 .kit-btn-count{font-size:8px;color:var(--ink3);letter-spacing:.04em}
 .kit-btn-del{opacity:0;margin-left:2px;color:var(--ink3);cursor:pointer;font-size:10px;transition:opacity .12s}
 .kit-btn:hover .kit-btn-del{opacity:.6}
@@ -4009,16 +4010,61 @@ function checkKitSwitchOnStep(stepInLoop) {
   if (typeof renderKitList === 'function') renderKitList();
 }
 
+// Strips characters that the MPC export pipeline (and most filesystems) can't
+// safely round-trip in filenames. Mirrors the cleanup inside mpcSafeKitFileName
+// so editing the kit name and exporting it stay in sync.
+function _sanitizeKitName(raw) {
+  return String(raw || '').replace(/[\/\\:\*\?"<>\|]/g, '').trim();
+}
+
 function renameKit(idx) {
   if (!kits[idx]) return;
-  const current = kits[idx].name || '';
-  const next = prompt('Rename kit:', current);
-  if (next === null) return;
-  const trimmed = String(next).trim();
-  if (!trimmed) return;
-  kits[idx].name = trimmed;
-  renderKitList();
-  setStatus('Kit renamed: ' + trimmed);
+  const list = document.getElementById('kitList');
+  if (!list) return;
+  const btn = list.children[idx];
+  if (!btn) return;
+  const nameSpan = btn.querySelector('.kit-btn-name');
+  if (!nameSpan) return;
+  const current = kits[idx].name || ('Kit ' + (idx + 1));
+
+  // Replace the span with an inline input. Enter / blur commits, Esc cancels.
+  // Validation strips MPC-unsafe filename chars before commit.
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'kit-btn-name-input';
+  input.value = current;
+  input.maxLength = 64;
+  input.title = 'Forbidden chars: / \\ : * ? " < > |';
+
+  let committed = false;
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    const cleaned = _sanitizeKitName(input.value);
+    if (cleaned && cleaned !== current) {
+      kits[idx].name = cleaned;
+      setStatus('Kit renamed: ' + cleaned);
+    }
+    renderKitList();
+  };
+  const cancel = () => {
+    if (committed) return;
+    committed = true;
+    renderKitList();
+  };
+
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    e.stopPropagation();
+  };
+  input.onblur = commit;
+  input.onclick = (e) => e.stopPropagation();
+  input.ondblclick = (e) => e.stopPropagation();
+
+  nameSpan.replaceWith(input);
+  input.focus();
+  input.select();
 }
 
 function updateActiveKitMeta() {
