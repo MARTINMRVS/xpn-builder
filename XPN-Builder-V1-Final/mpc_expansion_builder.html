@@ -3140,7 +3140,15 @@ function _buildScoredFromPool(mode) {
       const sc = scoreSampleForSlot(s.name, st);
       if (sc > bestScore) { bestScore = sc; bestType = st; }
     });
-    return { file: s.file || null, name: s.name, score: bestScore, bestType, prefix: getFilenamePrefix(s.name), detected: detectSlotType(s.name), sampleId: s.id };
+    // Classifier-first: when the audio analyzer produced a confident type
+    // (anything other than the catch-all 'sampler'), let it override the
+    // filename-based bestType. This is the bridge that makes auto-assign
+    // work for content-named samples (e.g. "808_low.wav" → bass).
+    if (s.detectedType && s.detectedType !== 'sampler' && uniqueTypes.includes(s.detectedType)) {
+      bestType = s.detectedType;
+      bestScore = Math.max(bestScore, 60);
+    }
+    return { file: s.file || null, name: s.name, score: bestScore, bestType, prefix: getFilenamePrefix(s.name), detected: s.detectedType || detectSlotType(s.name), sampleId: s.id };
   }).sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
 }
 
@@ -5577,32 +5585,77 @@ function renderMidiPanel() {
 // ════════════════════════════════════════════
 // SMART ASSIGN SUGGESTIONS
 // ════════════════════════════════════════════
+// Returns the unassigned-pool sample list (samples not in any kit's pads).
+function _expansionPoolSamples() {
+  return samples.filter(s => !kits.some(k => (k.pads || []).some(p => p && p.sampleId === s.id)));
+}
+
+// Group pool samples by detectedType (falls back to filename detection when
+// the buffer wasn't decoded). Used by the Smart Assign breakdown panel and
+// by autoKitFillAll to pick a balanced kit count.
+function _groupPoolByDetectedType() {
+  const groups = {};
+  _expansionPoolSamples().forEach(s => {
+    const t = s.detectedType || detectSlotType(s.name) || 'sampler';
+    if (!groups[t]) groups[t] = [];
+    groups[t].push(s);
+  });
+  return groups;
+}
+
+// Recommended kit count = how many balanced kits the pool can fuel given a
+// rough target template (~3 kicks, ~2 snares, ~3 hats, ~1 clap per kit).
+// Uses the most-constrained type. Capped at 7 (MPC bank limit) and floor(pool/16).
+function _recommendedKitCount(groups, poolCount) {
+  const targets = { kick: 2, snare: 1, hihat_close: 2, hihat_open: 1, clap: 1 };
+  let recommended = Math.floor(poolCount / 16);
+  Object.entries(targets).forEach(([t, perKit]) => {
+    const have = (groups[t] || []).length;
+    if (have > 0) recommended = Math.min(recommended, Math.floor(have / perKit));
+  });
+  // Don't recommend zero when the pool is large — fall back to floor(pool/16).
+  if (recommended < 1) recommended = Math.floor(poolCount / 16);
+  return Math.min(7, Math.max(1, recommended));
+}
+
 function showSmartSuggestions(totalFiles, assignedCount, poolOverride) {
   const panel = document.getElementById('smartSuggestPanel');
   if (!panel) return;
   const unassigned = totalFiles - assignedCount;
   const isExpansion = (typeof appMode !== 'undefined' && appMode === 'expansion');
-  // Recompute pool from live state so the caller doesn't need to supply it;
-  // caller CAN pass poolOverride as a hint when it has a fresh count handy.
   let pool = poolOverride;
-  if (isExpansion && (pool == null)) {
-    pool = samples.filter(s => !kits.some(k => (k.pads || []).some(p => p && p.sampleId === s.id))).length;
-  }
+  if (isExpansion && (pool == null)) pool = _expansionPoolSamples().length;
   const autoKitCount = isExpansion && pool >= 16 ? Math.min(7, Math.floor(pool / 16)) : 0;
 
-  let html = `<div class="smart-suggest-title">Smart Assign — ${totalFiles} samples</div>`;
+  let html = `<div class="smart-suggest-title">Smart Assign — ${totalFiles} samples analyzed</div>`;
   html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#10003; ${assignedCount} samples assigned to pads</span></div>`;
   if (unassigned > 0) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#9888; ${unassigned} unmatched (in sample pool)</span></div>`;
-  // "Distribute across 8 banks" / Optimize are Extended-only concepts
   if (!isExpansion && totalFiles > 16) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">Distribute optimally across all 8 banks</span></div>`;
 
-  // Inline auto-kit offer replaces the old modal — rendered only when we're
-  // in expansion mode and ≥16 samples are sitting unassigned in the pool.
+  // Classifier breakdown: chips with counts per detected type. Only shown in
+  // expansion mode when the pool has anything to summarise.
+  if (isExpansion && pool > 0) {
+    const groups = _groupPoolByDetectedType();
+    const order = ['kick','snare','clap','rim','hihat_close','hihat_open','hihat_pedal','tom','cymbal','percussion','bass','sampler','fx'];
+    const chips = order
+      .filter(t => (groups[t] || []).length > 0)
+      .map(t => `<span class="pool-typebadge" style="background:${SLOT_COLORS[t] || SLOT_COLORS.sampler}" title="${groups[t].length} ${t} sample(s) detected">${CLASSIFIER_BADGES[t] || t.toUpperCase()} ${groups[t].length}</span>`)
+      .join(' ');
+    if (chips) {
+      html += `<div class="smart-suggest-row" style="flex-wrap:wrap;gap:4px;display:flex">${chips}</div>`;
+    }
+  }
+
   if (autoKitCount > 0) {
+    const groups = _groupPoolByDetectedType();
+    const recommended = _recommendedKitCount(groups, pool);
     html += `<div class="autokit-offer" style="margin-top:8px;padding:8px;border:1px solid var(--accent);border-radius:var(--radius);display:flex;flex-direction:column;gap:6px">
-      <span style="font-size:11px;color:var(--ink2);line-height:1.5">Create <b>${autoKitCount}</b> more kit${autoKitCount > 1 ? 's' : ''} automatically from the ${pool} pool samples?</span>
-      <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.08em">New kits inherit the current mode. Each kit gets fresh material — already-used samples are skipped.</span>
-      <button class="tb-btn primary" onclick="autoKitFillAll()" style="align-self:flex-end;padding:5px 12px;font-size:10px">Yes, auto-fill ${autoKitCount} kit${autoKitCount > 1 ? 's' : ''}</button>
+      <span style="font-size:11px;color:var(--ink2);line-height:1.5">Recommended: <b>${recommended}</b> balanced kit${recommended > 1 ? 's' : ''} from ${pool} pool samples.</span>
+      <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.08em">Distribution uses the audio classifier — kicks/snares/hats are spread evenly across kits.</span>
+      <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="tb-btn ghost" onclick="autoKitFillAll(1)" style="padding:5px 12px;font-size:10px">Create 1 kit</button>
+        <button class="tb-btn primary" onclick="autoKitFillAll(${recommended})" style="padding:5px 12px;font-size:10px">Create ${recommended} kit${recommended > 1 ? 's' : ''}</button>
+      </div>
     </div>`;
   }
 
@@ -5613,10 +5666,10 @@ function showSmartSuggestions(totalFiles, assignedCount, poolOverride) {
   panel.classList.add('visible');
 }
 
-// Inline auto-fill: create N kits (N = floor(pool/16), capped at 7) and fill
-// each one using the pool-aware scoring helper. Runs entirely off the current
-// DOM/state — no modal dependency. Hides the Smart Assign panel afterwards.
-function autoKitFillAll() {
+// Inline auto-fill: create N kits and fill each using the pool-aware scoring
+// helper. Caller passes the target count (Smart Assign panel exposes both
+// "Recommended N" and "Create 1 kit" buttons). Capped at floor(pool/16) and 7.
+function autoKitFillAll(requestedTarget) {
   if (appMode !== 'expansion') return;
   const mode = MODES[activeMode];
   const log = document.getElementById('modeLog');
@@ -5624,7 +5677,11 @@ function autoKitFillAll() {
 
   const countPool = () => samples.filter(s => !kits.some(k => (k.pads || []).some(p => p && p.sampleId === s.id))).length;
   let poolNow = countPool();
-  const target = Math.min(7, Math.floor(poolNow / 16));
+  const cap = Math.min(7, Math.floor(poolNow / 16));
+  // Backwards-compat: callers passing no argument get the default cap.
+  const target = (typeof requestedTarget === 'number')
+    ? Math.max(1, Math.min(cap || 1, requestedTarget))
+    : cap;
   if (target < 1) return;
 
   // Pick starting "Kit N" suffix so we don't collide with existing names.
