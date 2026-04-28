@@ -13,6 +13,7 @@
     "productName": "XPN Builder",
     "files": [
       "main.js",
+      "preload.js",
       "mpc_expansion_builder.html",
       "xpn_manual_v1.html",
       "icon.png"

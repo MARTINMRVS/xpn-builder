@@ -33,3 +33,4 @@ coverage/
 
 # Claude Code per-machine config
 .claude/launch.json
+BETA_KEYS_PRIVATE.txt

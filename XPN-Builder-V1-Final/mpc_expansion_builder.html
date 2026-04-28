@@ -1154,6 +1154,21 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 </head>
 <body>
 
+<!-- ── BETA ACTIVATION (gates the rest of the UI on first run) ── -->
+<div id="betaActivation" class="modal-bg open" style="z-index:9999">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <h2 style="color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:.22em;margin:0 0 6px">XPN BUILDER · BETA</h2>
+    <p style="color:var(--ink2);font-size:12px;margin:0 0 14px">Enter your beta key to activate</p>
+    <input type="text" id="betaKeyInput" placeholder="XPN-XXXX-XXXX-XXXX"
+      autocomplete="off" spellcheck="false"
+      style="width:100%;padding:10px;background:var(--panel2);border:1px solid var(--border2);color:var(--ink1);text-align:center;font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:2px;margin:0 0 12px;text-transform:uppercase"/>
+    <button onclick="activateBeta()"
+      style="width:100%;padding:10px;background:var(--accent);color:var(--bg);font-weight:600;border:none;cursor:pointer;font-family:'IBM Plex Mono',monospace;letter-spacing:.18em;font-size:11px">ACTIVATE</button>
+    <p id="betaError" style="color:#E74C3C;font-size:11px;margin:8px 0 0;display:none">Invalid key</p>
+    <p style="color:var(--ink3);font-size:10px;margin:16px 0 0">Beta expires September 30, 2026</p>
+  </div>
+</div>
+
 <!-- ── TOPBAR (outside zoom) ── -->
 <div class="topbar">
   <span class="app-logo">XPN</span>
@@ -1878,6 +1893,72 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 </div>
 
 <script>
+// ════════════════════════════════════════════
+// BETA ACTIVATION (license-key gate)
+// ════════════════════════════════════════════
+// Valid keys live as a base64-encoded JSON array. Not unbreakable — anyone
+// reading the source can decode it — but it keeps the keys out of plain text
+// in the bundle and lets us rotate the list per release.
+var _BETA_KEYS_B64 = "WyJYUE4tWkRGOS1UQjJOLVJSWFgiLCJYUE4tMlJBSC05Q0s3LVpNQ0oiLCJYUE4tTTc3Vi1VSFNELTlEQlMiLCJYUE4tRVNRNC1LSFZTLTYyRDYiLCJYUE4tODVHMy1XMjRNLVdIRVciLCJYUE4tNlpRUi1VUVVTLVhQVjUiLCJYUE4tV1FYQy1SNVE3LThHU1giLCJYUE4tOUROUS1ZRkU4LVpDRzkiLCJYUE4tSlc3Wi01SDlOLUNWNEwiLCJYUE4tSlJSWC1OQzNOLVlEVVUiLCJYUE4tU1lCSy1ENThMLVU4NTciLCJYUE4tUUQ0My1aOUNTLVZFNEUiLCJYUE4tMjNCSy0zU1pULUQzNUgiLCJYUE4tRkoyWS1CQTZaLVdTSFQiLCJYUE4tNTlXQi1LQ0xLLVpRRTYiLCJYUE4tUFlLTC1GOFhRLURRR0YiLCJYUE4tMlNSWC1XV1BELURRVkYiLCJYUE4tNTdRVS1SNUM2LUtUSzkiLCJYUE4tNTRYRy00RlZILTJFTjMiLCJYUE4tTlEyRC01ODVXLVdEQ1AiLCJYUE4tWEVHQS1BVUo5LVhLQUgiLCJYUE4tSEVLNS1BOVFGLUNWR1AiLCJYUE4tVUtBSi0zWUZDLVVSM1AiLCJYUE4tUTlMRS1KOFFZLThLMlMiLCJYUE4tQlNVQS1SQkUyLTlDRDIiLCJYUE4tVVozUC1LUFZKLUM1RjUiLCJYUE4tQjVNSi1LSE5LLVJHTUYiLCJYUE4tUE1TTS1HNk5ZLVBIQ1QiLCJYUE4tQktXWC1XRjlaLTJDREIiLCJYUE4tVDlFUi00QlEzLVZLN0oiXQ==";
+function _betaValidKeys() {
+  try { return JSON.parse(atob(_BETA_KEYS_B64)); } catch (e) { return []; }
+}
+function _betaCloseModal() {
+  var m = document.getElementById('betaActivation');
+  if (m) { m.classList.remove('open'); m.style.display = 'none'; }
+}
+function _betaShowError(msg) {
+  var e = document.getElementById('betaError');
+  if (!e) return;
+  if (msg) e.textContent = msg;
+  e.style.display = 'block';
+}
+function activateBeta() {
+  var input = document.getElementById('betaKeyInput');
+  if (!input) return;
+  var key = String(input.value || '').trim().toUpperCase();
+  var valid = _betaValidKeys();
+  if (valid.indexOf(key) === -1) { _betaShowError('Invalid key'); return; }
+  // Compute machine fingerprint via the preload bridge so a key activated on
+  // one Mac can't be reused on another. If the bridge isn't there (e.g. opened
+  // outside Electron) we just skip the fingerprint binding.
+  var fp = null;
+  try { if (window.xpnBeta && typeof window.xpnBeta.computeFingerprint === 'function') fp = window.xpnBeta.computeFingerprint(key); } catch (e) {}
+  try {
+    localStorage.setItem('xpn_beta_key', key);
+    if (fp) localStorage.setItem('xpn_beta_fingerprint', fp);
+  } catch (e) {}
+  _betaCloseModal();
+}
+(function _betaCheckOnBoot() {
+  // jsdom and other non-Electron contexts: leave the modal hidden so headless
+  // tests can interact with the page without poking through it.
+  var notElectron = !(typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent || ''));
+  if (notElectron) { _betaCloseModal(); return; }
+  var stored = null;
+  try { stored = localStorage.getItem('xpn_beta_key'); } catch (e) {}
+  if (!stored) return; // modal stays open until user activates
+  var valid = _betaValidKeys();
+  if (valid.indexOf(stored) === -1) {
+    try { localStorage.removeItem('xpn_beta_key'); localStorage.removeItem('xpn_beta_fingerprint'); } catch (e) {}
+    return;
+  }
+  // Verify fingerprint still matches this machine. Mismatch → wipe and re-prompt.
+  var current = null, savedFp = null;
+  try { if (window.xpnBeta && window.xpnBeta.computeFingerprint) current = window.xpnBeta.computeFingerprint(stored); } catch (e) {}
+  try { savedFp = localStorage.getItem('xpn_beta_fingerprint'); } catch (e) {}
+  if (current && savedFp && current !== savedFp) {
+    try { localStorage.removeItem('xpn_beta_key'); localStorage.removeItem('xpn_beta_fingerprint'); } catch (e) {}
+    return;
+  }
+  _betaCloseModal();
+})();
+// Enter key submits the modal
+document.addEventListener('DOMContentLoaded', function () {
+  var inp = document.getElementById('betaKeyInput');
+  if (inp) inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); activateBeta(); } });
+});
+
 // ════════════════════════════════════════════
 // SKINS
 // ════════════════════════════════════════════

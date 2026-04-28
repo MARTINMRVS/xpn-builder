@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440" />
+<title>XPN Builder — Paso 2 · 3 direcciones creativas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;700;900&family=Antonio:wght@400;600;700&family=Archivo:wght@400;500;700;900&family=Archivo+Narrow:wght@400;500;700&family=IBM+Plex+Mono:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    color: #e9e9e9;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .page {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 56px 40px 120px;
+  }
+
+  /* Page header */
+  .page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid #1d1d1d;
+    margin-bottom: 48px;
+  }
+  .page-header .meta {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #6a6a6a;
+  }
+  .page-header h1 {
+    margin: 10px 0 0;
+    font-family: "Unbounded", sans-serif;
+    font-weight: 700;
+    font-size: 40px;
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+    color: #f5f5f5;
+  }
+  .page-header h1 em {
+    font-style: normal;
+    color: #8a8a8a;
+    font-weight: 400;
+  }
+  .page-header .intro {
+    max-width: 420px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #9a9a9a;
+  }
+
+  /* Board frame */
+  .board {
+    border: 1px solid var(--line, #1d1d1d);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 64px;
+    background: var(--bg, #0D0F14);
+    color: var(--fg, #e9e9e9);
+    position: relative;
+  }
+  .board-head {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    align-items: stretch;
+    border-bottom: 1px solid var(--line);
+  }
+  .board-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 42px;
+    font-weight: 300;
+    line-height: 1;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--line);
+    padding: 22px 0;
+  }
+  .board-title {
+    padding: 18px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  .board-kicker {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted, #6a6a6a);
+  }
+  .board-name {
+    font-family: var(--display);
+    font-weight: var(--display-weight, 700);
+    font-size: 34px;
+    letter-spacing: var(--display-tracking, -0.01em);
+    color: var(--fg);
+    line-height: 1;
+  }
+  .board-refs {
+    padding: 18px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    border-left: 1px solid var(--line);
+    min-width: 320px;
+    text-align: right;
+  }
+  .board-refs .label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .board-refs .value {
+    font-size: 12px;
+    color: var(--fg);
+    letter-spacing: 0.04em;
+  }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1px;
+    background: var(--line);
+  }
+  .cell {
+    background: var(--bg);
+    padding: 24px;
+    min-height: 160px;
+    position: relative;
+  }
+  .cell-label {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .cell-number {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .span-4 { grid-column: span 4; }
+  .span-5 { grid-column: span 5; }
+  .span-6 { grid-column: span 6; }
+  .span-7 { grid-column: span 7; }
+  .span-8 { grid-column: span 8; }
+  .span-12 { grid-column: span 12; }
+
+  .tall { min-height: 280px; }
+  .xtall { min-height: 360px; }
+
+  /* Logo lockup cell */
+  .lockup {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    justify-content: center;
+    padding: 56px 40px;
+  }
+  .lockup-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .lockup-word {
+    font-family: var(--display);
+    font-weight: var(--display-weight, 700);
+    letter-spacing: var(--display-tracking, -0.01em);
+    font-size: 64px;
+    line-height: 0.9;
+    color: var(--fg);
+  }
+  .lockup-tag {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .lockup-sub {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+
+  /* Palette */
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--line);
+  }
+  .swatch {
+    padding: 14px 12px;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+  .swatch .hex { font-weight: 500; }
+  .swatch .name { opacity: 0.7; margin-top: 2px; }
+
+  /* Type sample */
+  .type-sample h2 {
+    font-family: var(--display);
+    font-weight: var(--display-weight, 700);
+    font-size: 72px;
+    line-height: 0.95;
+    letter-spacing: var(--display-tracking, -0.01em);
+    margin: 0 0 12px;
+    color: var(--fg);
+  }
+  .type-sample .sub {
+    font-family: var(--body, "IBM Plex Mono", monospace);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--fg);
+    opacity: 0.8;
+    margin-bottom: 16px;
+    max-width: 540px;
+  }
+  .type-sample .mono {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  /* Isotipo showcase */
+  .iso-cell {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+  }
+  .iso-tile {
+    background: var(--bg);
+    aspect-ratio: 1/1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 20px;
+  }
+  .iso-tile.invert {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* Mini UI mock */
+  .ui-mock {
+    background: var(--bg2, #06080c);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 14px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--fg);
+    margin-top: 12px;
+  }
+  .ui-mock .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .ui-mock .row:last-child { border: 0; }
+  .ui-mock .row .k { color: var(--muted); }
+  .ui-mock .row .v { color: var(--accent); font-weight: 500; }
+
+  /* Pad grid */
+  .pad-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-top: 14px;
+  }
+  .pad {
+    aspect-ratio: 1/1;
+    background: var(--pad-bg, #111418);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9px;
+    color: var(--muted);
+    position: relative;
+  }
+  .pad.on {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .pad.on::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 2px;
+  }
+  .pad.half {
+    background: color-mix(in oklab, var(--accent) 35%, var(--bg));
+    border-color: color-mix(in oklab, var(--accent) 50%, var(--bg));
+    color: var(--fg);
+  }
+
+  /* Waveform svg style */
+  .wave svg { width: 100%; height: 100%; display: block; }
+
+  /* Tagline strip */
+  .tagline-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 40px 32px;
+  }
+  .tagline-strip .t {
+    font-family: var(--display);
+    font-weight: var(--display-weight, 700);
+    font-size: 40px;
+    letter-spacing: var(--display-tracking, -0.01em);
+    line-height: 1.05;
+    color: var(--fg);
+  }
+  .tagline-strip .t em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .tagline-strip .alt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+
+  /* CTA button preview */
+  .cta-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .cta {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    border-radius: 2px;
+    border: 1px solid var(--accent);
+    color: var(--bg);
+    background: var(--accent);
+    font-weight: 500;
+  }
+  .cta.ghost {
+    background: transparent;
+    color: var(--accent);
+  }
+  .cta.soft {
+    background: color-mix(in oklab, var(--accent) 12%, var(--bg));
+    border-color: color-mix(in oklab, var(--accent) 30%, var(--bg));
+    color: var(--fg);
+  }
+
+  /* Keywords */
+  .keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .keywords span {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    border-radius: 2px;
+  }
+
+  /* Texture / dot fields */
+  .dots {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, var(--muted) 1px, transparent 0);
+    background-size: 14px 14px;
+    opacity: 0.18;
+  }
+
+  /* Footer picker */
+  .picker {
+    margin-top: 24px;
+    padding: 28px 32px;
+    border: 1px solid #1d1d1d;
+    border-radius: 6px;
+    background: #0f0f0f;
+  }
+  .picker h3 {
+    margin: 0 0 12px;
+    font-family: "Unbounded", sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: #f5f5f5;
+    letter-spacing: -0.01em;
+  }
+  .picker p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #9a9a9a;
+    max-width: 720px;
+  }
+  .picker code {
+    background: #1a1a1a;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #d9b97a;
+    font-size: 12px;
+  }
+
+  /* =========================
+     DIRECTION 1 — STUDIO INSTRUMENT
+     ========================= */
+  .d1 {
+    --bg: #0E0F12;
+    --bg2: #080a0d;
+    --fg: #EDEAE2;
+    --muted: #6a6a6a;
+    --line: #1c1d20;
+    --accent: #C9A86A;        /* champagne gold */
+    --accent-2: #8D7A4D;      /* antique */
+    --display: "Unbounded", sans-serif;
+    --display-weight: 700;
+    --display-tracking: -0.02em;
+    --body: "IBM Plex Mono", monospace;
+    --pad-bg: #14151a;
+  }
+
+  /* =========================
+     DIRECTION 2 — INDUSTRIAL TOOLKIT
+     ========================= */
+  .d2 {
+    --bg: #1a1816;
+    --bg2: #141210;
+    --fg: #F4EFE6;
+    --muted: #7a7165;
+    --line: #2a2622;
+    --accent: #C06A3A;        /* burnt copper */
+    --accent-2: #E8B88A;      /* warm sand */
+    --display: "Antonio", sans-serif;
+    --display-weight: 700;
+    --display-tracking: 0.01em;
+    --body: "IBM Plex Mono", monospace;
+    --pad-bg: #221f1c;
+  }
+
+  /* =========================
+     DIRECTION 3 — EDITORIAL LAB
+     ========================= */
+  .d3 {
+    --bg: #0a0d14;
+    --bg2: #060810;
+    --fg: #E8E9EE;
+    --muted: #5c6478;
+    --line: #181c28;
+    --accent: #B08247;        /* bronze */
+    --accent-2: #3A5AC4;      /* ink blue */
+    --display: "Archivo Narrow", sans-serif;
+    --display-weight: 700;
+    --display-tracking: 0;
+    --body: "IBM Plex Mono", monospace;
+    --pad-bg: #0f1320;
+  }
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="page-header">
+    <div>
+      <div class="meta">PAD WORKS · XPN Builder · Brand exploration · V1 · 20 Apr 2026</div>
+      <h1>Paso 2. Tres direcciones creativas<br/><em>Elige una antes de continuar.</em></h1>
+    </div>
+    <div class="intro">
+      Tres mundos distintos construidos sobre tu brief: ingeniero meticuloso, sin clichés de hip-hop ni tech-bro, abiertos a cobre / champagne / bronze, tipo display fuerte + mono UI. Cada moodboard muestra isotipo, logotipo, paleta, tipografía, UI mock, pads, CTAs y taglines.
+    </div>
+  </header>
+
+  <!-- ============= DIRECTION 1 ============= -->
+  <section class="board d1" data-screen-label="01 Studio Instrument">
+    <div class="board-head">
+      <div class="board-num">01</div>
+      <div class="board-title">
+        <div class="board-kicker">Direction 01 · the meticulous engineer</div>
+        <div class="board-name">Studio Instrument</div>
+      </div>
+      <div class="board-refs">
+        <div class="label">Reference DNA</div>
+        <div class="value">NI Maschine · Elektron · Teenage Engineering</div>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- Lockup -->
+      <div class="cell span-7 xtall lockup" style="background:linear-gradient(180deg,#0E0F12 0%,#0a0b0e 100%);">
+        <div class="cell-label">Logotipo · primary lockup</div>
+        <div class="cell-number">01 / 12</div>
+
+        <div class="lockup-logo">
+          <!-- Isotipo: pad grid with active step -->
+          <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true">
+            <g fill="none" stroke="#C9A86A" stroke-width="1.2">
+              <rect x="4" y="4" width="14" height="14"/>
+              <rect x="22" y="4" width="14" height="14"/>
+              <rect x="40" y="4" width="14" height="14"/>
+              <rect x="4" y="22" width="14" height="14"/>
+              <rect x="22" y="22" width="14" height="14"/>
+              <rect x="40" y="22" width="14" height="14"/>
+              <rect x="4" y="40" width="14" height="14"/>
+              <rect x="22" y="40" width="14" height="14"/>
+              <rect x="40" y="40" width="14" height="14"/>
+            </g>
+            <!-- accent pads forming an X -->
+            <rect x="4"  y="4"  width="14" height="14" fill="#C9A86A"/>
+            <rect x="40" y="4"  width="14" height="14" fill="#C9A86A"/>
+            <rect x="22" y="22" width="14" height="14" fill="#C9A86A"/>
+            <rect x="4"  y="40" width="14" height="14" fill="#C9A86A"/>
+            <rect x="40" y="40" width="14" height="14" fill="#C9A86A"/>
+          </svg>
+          <div>
+            <div class="lockup-word">XPN</div>
+            <div class="lockup-tag">BUILDER · V1</div>
+          </div>
+        </div>
+        <div class="lockup-sub">PAD WORKS — SANTIAGO / CL · EST. 2026</div>
+
+        <div class="tagline-strip" style="padding:0; margin-top:20px;">
+          <div class="t" style="font-size:32px;">Build packs that<br/>sound <em>studio-grade.</em></div>
+          <div class="alt">Alt · "Ship like a label, not a hobbyist."</div>
+        </div>
+      </div>
+
+      <!-- Isotipo showcase -->
+      <div class="cell span-5 xtall" style="padding:0;">
+        <div class="cell-label" style="z-index:2;">Isotipo · marks</div>
+        <div class="cell-number" style="z-index:2;">02 / 12</div>
+        <div class="iso-cell" style="height:100%;">
+          <div class="iso-tile">
+            <svg width="120" height="120" viewBox="0 0 72 72">
+              <g fill="none" stroke="#C9A86A" stroke-width="1.2">
+                <rect x="4" y="4" width="14" height="14"/>
+                <rect x="22" y="4" width="14" height="14"/>
+                <rect x="40" y="4" width="14" height="14"/>
+                <rect x="4" y="22" width="14" height="14"/>
+                <rect x="22" y="22" width="14" height="14"/>
+                <rect x="40" y="22" width="14" height="14"/>
+                <rect x="4" y="40" width="14" height="14"/>
+                <rect x="22" y="40" width="14" height="14"/>
+                <rect x="40" y="40" width="14" height="14"/>
+              </g>
+              <rect x="4"  y="4"  width="14" height="14" fill="#C9A86A"/>
+              <rect x="40" y="4"  width="14" height="14" fill="#C9A86A"/>
+              <rect x="22" y="22" width="14" height="14" fill="#C9A86A"/>
+              <rect x="4"  y="40" width="14" height="14" fill="#C9A86A"/>
+              <rect x="40" y="40" width="14" height="14" fill="#C9A86A"/>
+            </svg>
+          </div>
+          <div class="iso-tile invert">
+            <svg width="120" height="120" viewBox="0 0 72 72">
+              <g fill="none" stroke="#0E0F12" stroke-width="1.2">
+                <rect x="4" y="4" width="14" height="14"/>
+                <rect x="22" y="4" width="14" height="14"/>
+                <rect x="40" y="4" width="14" height="14"/>
+                <rect x="4" y="22" width="14" height="14"/>
+                <rect x="22" y="22" width="14" height="14"/>
+                <rect x="40" y="22" width="14" height="14"/>
+                <rect x="4" y="40" width="14" height="14"/>
+                <rect x="22" y="40" width="14" height="14"/>
+                <rect x="40" y="40" width="14" height="14"/>
+              </g>
+              <rect x="4"  y="4"  width="14" height="14" fill="#0E0F12"/>
+              <rect x="40" y="4"  width="14" height="14" fill="#0E0F12"/>
+              <rect x="22" y="22" width="14" height="14" fill="#0E0F12"/>
+              <rect x="4"  y="40" width="14" height="14" fill="#0E0F12"/>
+              <rect x="40" y="40" width="14" height="14" fill="#0E0F12"/>
+            </svg>
+          </div>
+          <div class="iso-tile">
+            <!-- monogram version -->
+            <div style="font-family:Unbounded;font-weight:900;font-size:64px;color:#C9A86A;letter-spacing:-0.04em;">X</div>
+          </div>
+          <div class="iso-tile" style="background:#C9A86A;">
+            <div style="font-family:Unbounded;font-weight:700;font-size:28px;color:#0E0F12;letter-spacing:-0.02em;">XPN</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Palette -->
+      <div class="cell span-12" style="padding:0;">
+        <div class="cell-label" style="z-index:2;">Palette · studio champagne</div>
+        <div class="cell-number" style="z-index:2;">03 / 12</div>
+        <div class="palette" style="padding-top:28px;">
+          <div class="swatch" style="background:#0E0F12;color:#EDEAE2;"><div class="hex">#0E0F12</div><div class="name">Ink · base</div></div>
+          <div class="swatch" style="background:#17191D;color:#EDEAE2;"><div class="hex">#17191D</div><div class="name">Graphite · panel</div></div>
+          <div class="swatch" style="background:#24262B;color:#EDEAE2;"><div class="hex">#24262B</div><div class="name">Slate · card</div></div>
+          <div class="swatch" style="background:#C9A86A;color:#0E0F12;"><div class="hex">#C9A86A</div><div class="name">Champagne · accent</div></div>
+          <div class="swatch" style="background:#8D7A4D;color:#0E0F12;"><div class="hex">#8D7A4D</div><div class="name">Antique · deep</div></div>
+          <div class="swatch" style="background:#EDEAE2;color:#0E0F12;"><div class="hex">#EDEAE2</div><div class="name">Bone · fg</div></div>
+        </div>
+      </div>
+
+      <!-- Type -->
+      <div class="cell span-8 tall type-sample">
+        <div class="cell-label">Typography · display + body</div>
+        <div class="cell-number">04 / 12</div>
+        <div style="margin-top:24px;">
+          <div class="mono">Heading · Unbounded 700 · −2% tracking</div>
+          <h2>Ship packs.<br/>Keep the craft.</h2>
+          <div class="mono">Body · IBM Plex Mono 400</div>
+          <div class="sub">The only expansion builder that treats your pack like a studio session. Sequencer, sampler edits, auto-assign, multi-kit projects — export to MPC 2.x, 3.x, Ableton and MIDI without a single re-label.</div>
+          <div class="mono">Data · IBM Plex Mono 500</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#C9A86A;margin-top:4px;">128 PADS · 16 KITS · 4 BANKS · 44.1 kHz / 24-BIT</div>
+        </div>
+      </div>
+
+      <!-- UI mock -->
+      <div class="cell span-4 tall">
+        <div class="cell-label">UI tone · export panel</div>
+        <div class="cell-number">05 / 12</div>
+        <div class="ui-mock" style="margin-top:22px;">
+          <div class="row"><span class="k">&gt; pack_name</span><span class="v">midnight_drill_vol2</span></div>
+          <div class="row"><span class="k">&gt; target</span><span class="v">MPC 3.x</span></div>
+          <div class="row"><span class="k">&gt; kits</span><span class="v">12</span></div>
+          <div class="row"><span class="k">&gt; pads_total</span><span class="v">384</span></div>
+          <div class="row"><span class="k">&gt; size</span><span class="v">1.8 GB</span></div>
+          <div class="row"><span class="k">&gt; status</span><span class="v">READY ▸</span></div>
+        </div>
+        <div class="pad-grid">
+          <div class="pad on">A1</div><div class="pad half">A2</div><div class="pad">A3</div><div class="pad on">A4</div>
+          <div class="pad">B1</div><div class="pad on">B2</div><div class="pad half">B3</div><div class="pad">B4</div>
+        </div>
+      </div>
+
+      <!-- Taglines + CTAs -->
+      <div class="cell span-7">
+        <div class="cell-label">Tagline direction</div>
+        <div class="cell-number">06 / 12</div>
+        <div class="tagline-strip" style="padding:24px 0 0;">
+          <div class="t" style="font-size:28px;">The pro expansion<br/>builder for <em>MPC.</em></div>
+          <div class="alt">Alt 01 · "Your sound, shipped."</div>
+          <div class="alt">Alt 02 · "Built by producers who ship."</div>
+        </div>
+      </div>
+      <div class="cell span-5">
+        <div class="cell-label">CTA system</div>
+        <div class="cell-number">07 / 12</div>
+        <div class="cta-row">
+          <button class="cta">Download for macOS</button>
+          <button class="cta ghost">See features</button>
+          <button class="cta soft">Watch demo · 2 min</button>
+        </div>
+        <div class="keywords">
+          <span>premium</span><span>meticulous</span><span>studio</span><span>warm</span><span>confident</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ============= DIRECTION 2 ============= -->
+  <section class="board d2" data-screen-label="02 Industrial Toolkit">
+    <div class="board-head">
+      <div class="board-num">02</div>
+      <div class="board-title">
+        <div class="board-kicker">Direction 02 · the industrial toolkit</div>
+        <div class="board-name">Industrial Toolkit</div>
+      </div>
+      <div class="board-refs">
+        <div class="label">Reference DNA</div>
+        <div class="value">Teenage Engineering · Splice · Output</div>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- Lockup -->
+      <div class="cell span-7 xtall lockup" style="background:#1a1816;">
+        <div class="cell-label">Logotipo · primary lockup</div>
+        <div class="cell-number">01 / 12</div>
+
+        <div class="lockup-logo">
+          <!-- Isotipo: waveform X -->
+          <svg width="80" height="80" viewBox="0 0 80 80" aria-hidden="true">
+            <g stroke="#C06A3A" stroke-width="2.2" stroke-linecap="square" fill="none">
+              <path d="M8 40 L14 28 L20 52 L26 18 L32 62 L38 32 L44 48 L50 22 L56 52 L62 34 L68 46 L72 40"/>
+            </g>
+            <g fill="#C06A3A">
+              <rect x="6" y="38" width="4" height="4"/>
+              <rect x="70" y="38" width="4" height="4"/>
+            </g>
+          </svg>
+          <div>
+            <div class="lockup-word" style="letter-spacing:0.02em;">XPN</div>
+            <div class="lockup-tag">PAD·WORKS / 001</div>
+          </div>
+        </div>
+        <div class="lockup-sub">A TOOL FOR MAKERS OF SOUND — MADE IN SANTIAGO</div>
+
+        <div class="tagline-strip" style="padding:0; margin-top:20px;">
+          <div class="t" style="font-size:32px;">Pack it. <em>Ship it.</em><br/>Get paid.</div>
+          <div class="alt">Alt · "For producers who sell."</div>
+        </div>
+      </div>
+
+      <!-- Isotipo showcase -->
+      <div class="cell span-5 xtall" style="padding:0;">
+        <div class="cell-label" style="z-index:2;">Isotipo · marks</div>
+        <div class="cell-number" style="z-index:2;">02 / 12</div>
+        <div class="iso-cell" style="height:100%;">
+          <div class="iso-tile">
+            <svg width="140" height="80" viewBox="0 0 160 80">
+              <g stroke="#C06A3A" stroke-width="3" stroke-linecap="square" fill="none">
+                <path d="M8 40 L22 20 L36 60 L50 10 L64 70 L78 30 L92 50 L106 18 L120 62 L134 34 L148 46"/>
+              </g>
+            </svg>
+          </div>
+          <div class="iso-tile invert" style="background:#C06A3A;">
+            <div style="font-family:Antonio;font-weight:700;font-size:48px;color:#1a1816;letter-spacing:0.02em;">XPN</div>
+          </div>
+          <div class="iso-tile">
+            <!-- cog / module emblem -->
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="42" fill="none" stroke="#C06A3A" stroke-width="2"/>
+              <circle cx="60" cy="60" r="22" fill="none" stroke="#C06A3A" stroke-width="2"/>
+              <g stroke="#C06A3A" stroke-width="2">
+                <line x1="60" y1="10" x2="60" y2="22"/>
+                <line x1="60" y1="98" x2="60" y2="110"/>
+                <line x1="10" y1="60" x2="22" y2="60"/>
+                <line x1="98" y1="60" x2="110" y2="60"/>
+              </g>
+              <text x="60" y="66" text-anchor="middle" font-family="Antonio" font-weight="700" font-size="22" fill="#C06A3A">X</text>
+            </svg>
+          </div>
+          <div class="iso-tile">
+            <!-- icon sticker -->
+            <div style="width:96px;height:96px;border:2px solid #C06A3A;background:#C06A3A;display:flex;align-items:center;justify-content:center;">
+              <span style="font-family:Antonio;font-weight:700;font-size:56px;color:#1a1816;line-height:1;">X</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Palette -->
+      <div class="cell span-12" style="padding:0;">
+        <div class="cell-label" style="z-index:2;">Palette · workshop copper</div>
+        <div class="cell-number" style="z-index:2;">03 / 12</div>
+        <div class="palette" style="padding-top:28px;">
+          <div class="swatch" style="background:#1a1816;color:#F4EFE6;"><div class="hex">#1A1816</div><div class="name">Tar · base</div></div>
+          <div class="swatch" style="background:#2a2622;color:#F4EFE6;"><div class="hex">#2A2622</div><div class="name">Walnut · panel</div></div>
+          <div class="swatch" style="background:#3d3832;color:#F4EFE6;"><div class="hex">#3D3832</div><div class="name">Iron · rule</div></div>
+          <div class="swatch" style="background:#C06A3A;color:#1a1816;"><div class="hex">#C06A3A</div><div class="name">Copper · accent</div></div>
+          <div class="swatch" style="background:#E8B88A;color:#1a1816;"><div class="hex">#E8B88A</div><div class="name">Sand · warm</div></div>
+          <div class="swatch" style="background:#F4EFE6;color:#1a1816;"><div class="hex">#F4EFE6</div><div class="name">Paper · fg</div></div>
+        </div>
+      </div>
+
+      <!-- Type -->
+      <div class="cell span-8 tall type-sample">
+        <div class="cell-label">Typography · Antonio + Plex Mono</div>
+        <div class="cell-number">04 / 12</div>
+        <div style="margin-top:24px;">
+          <div class="mono">Heading · Antonio 700 · condensed</div>
+          <h2 style="font-size:88px; text-transform:uppercase;">REAL PACKS.<br/>REAL TOOLS.</h2>
+          <div class="mono">Body · IBM Plex Mono 400</div>
+          <div class="sub">Make expansion packs the same way you make beats — fast, tactile, obvious. No menus three layers deep. No XML surgery. Just pads, samples, and ship.</div>
+          <div class="mono" style="color:#C06A3A;">Lot · 001 / Model · XPN-B · Serie · ∞</div>
+        </div>
+      </div>
+
+      <!-- UI mock -->
+      <div class="cell span-4 tall">
+        <div class="cell-label">UI tone · sampler strip</div>
+        <div class="cell-number">05 / 12</div>
+        <div class="ui-mock" style="margin-top:22px;">
+          <div class="row"><span class="k">KIT</span><span class="v">808_workshop</span></div>
+          <div class="row"><span class="k">PADS</span><span class="v">32 / 32</span></div>
+          <div class="row"><span class="k">BPM</span><span class="v">142</span></div>
+          <div class="row"><span class="k">FX</span><span class="v">sat · tape · plate</span></div>
+          <div class="row"><span class="k">OUT</span><span class="v">MPC 3 ▸ MIDI ▸ ALS</span></div>
+        </div>
+        <div class="pad-grid">
+          <div class="pad on">01</div><div class="pad">02</div><div class="pad on">03</div><div class="pad half">04</div>
+          <div class="pad half">05</div><div class="pad on">06</div><div class="pad">07</div><div class="pad">08</div>
+        </div>
+      </div>
+
+      <!-- Taglines + CTAs -->
+      <div class="cell span-7">
+        <div class="cell-label">Tagline direction</div>
+        <div class="cell-number">06 / 12</div>
+        <div class="tagline-strip" style="padding:24px 0 0;">
+          <div class="t" style="font-size:34px;text-transform:uppercase;">Pack it. <em>Ship it.</em></div>
+          <div class="alt">Alt 01 · "The pack-making machine."</div>
+          <div class="alt">Alt 02 · "Pro tools, zero bullshit."</div>
+        </div>
+      </div>
+      <div class="cell span-5">
+        <div class="cell-label">CTA system</div>
+        <div class="cell-number">07 / 12</div>
+        <div class="cta-row">
+          <button class="cta">Get XPN · macOS</button>
+          <button class="cta ghost">Spec sheet</button>
+          <button class="cta soft">Watch · 90s</button>
+        </div>
+        <div class="keywords">
+          <span>tactile</span><span>industrial</span><span>honest</span><span>warm</span><span>rugged</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ============= DIRECTION 3 ============= -->
+  <section class="board d3" data-screen-label="03 Editorial Lab">
+    <div class="board-head">
+      <div class="board-num">03</div>
+      <div class="board-title">
+        <div class="board-kicker">Direction 03 · the sound lab</div>
+        <div class="board-name">Editorial Lab</div>
+      </div>
+      <div class="board-refs">
+        <div class="label">Reference DNA</div>
+        <div class="value">Output · Linear · Vercel · audio science journal</div>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- Lockup -->
+      <div class="cell span-7 xtall lockup" style="background:#0a0d14;">
+        <div class="cell-label">Logotipo · primary lockup</div>
+        <div class="cell-number">01 / 12</div>
+
+        <div class="lockup-logo">
+          <!-- Isotipo: concentric sample disc + X -->
+          <svg width="76" height="76" viewBox="0 0 80 80" aria-hidden="true">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#B08247" stroke-width="1"/>
+            <circle cx="40" cy="40" r="22" fill="none" stroke="#B08247" stroke-width="1"/>
+            <circle cx="40" cy="40" r="10" fill="none" stroke="#B08247" stroke-width="1"/>
+            <path d="M28 28 L52 52 M52 28 L28 52" stroke="#B08247" stroke-width="1.5"/>
+            <circle cx="40" cy="40" r="2.5" fill="#B08247"/>
+          </svg>
+          <div>
+            <div class="lockup-word" style="font-family:'Archivo Narrow';font-weight:700;letter-spacing:0;font-size:68px;">XPN</div>
+            <div class="lockup-tag" style="color:#B08247;">BUILDER — EST. MMXXVI</div>
+          </div>
+        </div>
+        <div class="lockup-sub">A SOUND LAB INSTRUMENT BY PAD WORKS</div>
+
+        <div class="tagline-strip" style="padding:0; margin-top:20px;">
+          <div class="t" style="font-size:36px; font-family:'Fraunces', serif; font-weight:600; letter-spacing:-0.02em;">Composition tools<br/>for the <em>pack era.</em></div>
+          <div class="alt">Alt · "A lab for beatmakers."</div>
+        </div>
+      </div>
+
+      <!-- Isotipo showcase -->
+      <div class="cell span-5 xtall" style="padding:0;">
+        <div class="cell-label" style="z-index:2;">Isotipo · marks</div>
+        <div class="cell-number" style="z-index:2;">02 / 12</div>
+        <div class="iso-cell" style="height:100%;">
+          <div class="iso-tile">
+            <svg width="140" height="140" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="#B08247" stroke-width="1"/>
+              <circle cx="40" cy="40" r="22" fill="none" stroke="#B08247" stroke-width="1"/>
+              <circle cx="40" cy="40" r="10" fill="none" stroke="#B08247" stroke-width="1"/>
+              <path d="M28 28 L52 52 M52 28 L28 52" stroke="#B08247" stroke-width="1.5"/>
+              <circle cx="40" cy="40" r="2.5" fill="#B08247"/>
+            </svg>
+          </div>
+          <div class="iso-tile invert">
+            <svg width="140" height="140" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="#0a0d14" stroke-width="1"/>
+              <circle cx="40" cy="40" r="22" fill="none" stroke="#0a0d14" stroke-width="1"/>
+              <circle cx="40" cy="40" r="10" fill="none" stroke="#0a0d14" stroke-width="1"/>
+              <path d="M28 28 L52 52 M52 28 L28 52" stroke="#0a0d14" stroke-width="1.5"/>
+              <circle cx="40" cy="40" r="2.5" fill="#0a0d14"/>
+            </svg>
+          </div>
+          <div class="iso-tile">
+            <!-- Wordmark only -->
+            <div style="font-family:'Archivo Narrow';font-weight:700;font-size:48px;color:#B08247;letter-spacing:-0.01em;">XPN.</div>
+          </div>
+          <div class="iso-tile" style="background:#B08247;">
+            <div style="font-family:'Fraunces', serif;font-weight:600;font-style:italic;font-size:40px;color:#0a0d14;line-height:1;">Xpn</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Palette -->
+      <div class="cell span-12" style="padding:0;">
+        <div class="cell-label" style="z-index:2;">Palette · ink bronze</div>
+        <div class="cell-number" style="z-index:2;">03 / 12</div>
+        <div class="palette" style="padding-top:28px;">
+          <div class="swatch" style="background:#0a0d14;color:#E8E9EE;"><div class="hex">#0A0D14</div><div class="name">Ink · base</div></div>
+          <div class="swatch" style="background:#141826;color:#E8E9EE;"><div class="hex">#141826</div><div class="name">Deep · panel</div></div>
+          <div class="swatch" style="background:#242A3C;color:#E8E9EE;"><div class="hex">#242A3C</div><div class="name">Pressure · rule</div></div>
+          <div class="swatch" style="background:#B08247;color:#0a0d14;"><div class="hex">#B08247</div><div class="name">Bronze · accent</div></div>
+          <div class="swatch" style="background:#3A5AC4;color:#E8E9EE;"><div class="hex">#3A5AC4</div><div class="name">Signal · alert</div></div>
+          <div class="swatch" style="background:#E8E9EE;color:#0a0d14;"><div class="hex">#E8E9EE</div><div class="name">Chalk · fg</div></div>
+        </div>
+      </div>
+
+      <!-- Type -->
+      <div class="cell span-8 tall type-sample">
+        <div class="cell-label">Typography · Archivo Narrow + Fraunces accent + Plex</div>
+        <div class="cell-number">04 / 12</div>
+        <div style="margin-top:24px;">
+          <div class="mono">Heading · Archivo Narrow 700</div>
+          <h2 style="font-size:84px;">THE PACK<br/>ENGINEER.</h2>
+          <div class="mono">Accent · Fraunces 600 italic</div>
+          <div style="font-family:'Fraunces', serif;font-weight:600;font-style:italic;font-size:28px;line-height:1.1;color:#E8E9EE;margin:6px 0 14px;">"Software for producers<br/>who take the craft seriously."</div>
+          <div class="mono">Body · IBM Plex Mono 400</div>
+          <div class="sub">A laboratory for expansion packs. Twelve genre templates, intelligent auto-assign, dual-engine export (MPC 2.x, 3.x) with perfect parity on Ableton and MIDI. Scientific about signal, not about hype.</div>
+        </div>
+      </div>
+
+      <!-- UI mock -->
+      <div class="cell span-4 tall">
+        <div class="cell-label">UI tone · lab console</div>
+        <div class="cell-number">05 / 12</div>
+        <div class="ui-mock" style="margin-top:22px;">
+          <div class="row"><span class="k">project.xpn</span><span class="v">v1.4</span></div>
+          <div class="row"><span class="k">template</span><span class="v">drill · chilean</span></div>
+          <div class="row"><span class="k">samples</span><span class="v">512 / 1024</span></div>
+          <div class="row"><span class="k">peak</span><span class="v">−3.1 dB</span></div>
+          <div class="row"><span class="k">integrity</span><span class="v" style="color:#3A5AC4;">✓ pass</span></div>
+          <div class="row"><span class="k">export</span><span class="v">.xpn · .als · .mid</span></div>
+        </div>
+        <div class="pad-grid">
+          <div class="pad on">01</div><div class="pad">02</div><div class="pad half">03</div><div class="pad">04</div>
+          <div class="pad">05</div><div class="pad half">06</div><div class="pad on">07</div><div class="pad on">08</div>
+        </div>
+      </div>
+
+      <!-- Taglines + CTAs -->
+      <div class="cell span-7">
+        <div class="cell-label">Tagline direction</div>
+        <div class="cell-number">06 / 12</div>
+        <div class="tagline-strip" style="padding:24px 0 0;">
+          <div class="t" style="font-size:30px;font-family:'Fraunces',serif;font-weight:600;letter-spacing:-0.01em;">Composition tools<br/>for the <em>pack era.</em></div>
+          <div class="alt">Alt 01 · "A lab for beatmakers."</div>
+          <div class="alt">Alt 02 · "Engineered for packmakers."</div>
+        </div>
+      </div>
+      <div class="cell span-5">
+        <div class="cell-label">CTA system</div>
+        <div class="cell-number">07 / 12</div>
+        <div class="cta-row">
+          <button class="cta">Download · macOS</button>
+          <button class="cta ghost">Read the spec</button>
+          <button class="cta soft">Lab notes</button>
+        </div>
+        <div class="keywords">
+          <span>editorial</span><span>laboratorial</span><span>precise</span><span>quiet</span><span>curatorial</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <div class="picker">
+    <h3>Próximo paso — elige una dirección</h3>
+    <p>
+      Dime <code>01 Studio Instrument</code>, <code>02 Industrial Toolkit</code>, o <code>03 Editorial Lab</code>. También puedes mezclar — por ejemplo <em>"01 pero con el isotipo de 03"</em>, o <em>"02 con el gold de 01 en vez del cobre"</em>. Con tu decisión construyo el sistema de identidad completo: logo en todas sus variantes (dark/light/mono/favicon/app icon 1024), tokens de color, escala tipográfica, reglas de uso y un style guide.
+    </p>
+  </div>
+
+</div>
+</body>
+</html>
