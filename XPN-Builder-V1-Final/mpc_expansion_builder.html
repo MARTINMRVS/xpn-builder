@@ -662,6 +662,11 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .pool-item-play:hover{border-color:var(--green);color:var(--green)}
 .pool-item-play svg{width:7px;height:7px;fill:currentColor}
 .pool-item-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.pool-spec{display:inline-flex;width:40px;height:6px;border-radius:2px;overflow:hidden;background:var(--panel3);flex-shrink:0;border:1px solid var(--border)}
+.pool-spec-low{background:#E74C3C;height:100%}
+.pool-spec-mid{background:#F39C12;height:100%}
+.pool-spec-high{background:#3498DB;height:100%}
+.pool-typebadge{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.06em;padding:1px 5px;border-radius:2px;color:#0e0e10;font-weight:600;flex-shrink:0;text-transform:uppercase;line-height:1.2;min-width:30px;text-align:center}
 
 /* dropdown */
 .tb-dropdown{position:relative}
@@ -2377,6 +2382,94 @@ const MATCH_ORDER = [
 // Normalize: map broad hat to hihat_close
 const BROAD_MAP = { hihat_close_broad: 'hihat_close' };
 
+// ════════════════════════════════════════════
+// AUDIO CLASSIFIER (content-based, name-independent)
+// ════════════════════════════════════════════
+// Looks at the buffer's first ~4 frames to estimate energy in low/mid/high
+// bins (rough proxy for spectrum without an FFT lib), measures attack
+// sharpness in the first 50 ms, and combines with duration to guess type.
+// Returns { type, lowRatio, midRatio, highRatio, durationSec, hasSharpAttack }.
+function classifySample(audioBuffer) {
+  if (!audioBuffer || typeof audioBuffer.getChannelData !== 'function') {
+    return { type: 'sampler', lowRatio: 0.33, midRatio: 0.34, highRatio: 0.33, durationSec: 0, hasSharpAttack: false };
+  }
+  const data = audioBuffer.getChannelData(0);
+  const sr = audioBuffer.sampleRate || 44100;
+  const length = data.length;
+  const durationSec = length / sr;
+
+  const isShort = durationSec < 0.5;
+  const isMedium = durationSec >= 0.5 && durationSec < 2.0;
+  const isLong = durationSec >= 2.0;
+
+  // Spectrum proxy: bin abs amplitudes by sample-index buckets across up to
+  // 4 frames of 2048 samples. Cheap and stable for short percussive hits.
+  const fftSize = 2048;
+  const numFrames = Math.min(4, Math.max(1, Math.floor(length / fftSize)));
+  let lowEnergy = 0, midEnergy = 0, highEnergy = 0;
+  for (let f = 0; f < numFrames; f++) {
+    const offset = f * fftSize;
+    for (let i = 0; i < fftSize; i++) {
+      const val = Math.abs(data[offset + i] || 0);
+      if (i < fftSize * 0.1) lowEnergy += val;
+      else if (i < fftSize * 0.4) midEnergy += val;
+      else highEnergy += val;
+    }
+  }
+  const total = lowEnergy + midEnergy + highEnergy || 1;
+  const lowRatio = lowEnergy / total;
+  const midRatio = midEnergy / total;
+  const highRatio = highEnergy / total;
+
+  // Attack: where the peak sits inside the first 50 ms.
+  let peakIdx = 0, peakVal = 0;
+  const attackWindow = Math.min(length, Math.floor(sr * 0.05));
+  for (let i = 0; i < attackWindow; i++) {
+    const v = Math.abs(data[i]);
+    if (v > peakVal) { peakVal = v; peakIdx = i; }
+  }
+  const hasSharpAttack = peakIdx < sr * 0.01;
+
+  let type = 'sampler';
+  if (lowRatio > 0.4 && isShort && hasSharpAttack) type = 'kick';
+  else if (lowRatio > 0.4 && !isShort) type = 'bass';
+  else if (highRatio > 0.5 && durationSec < 0.2) type = 'hihat_close';
+  else if (highRatio > 0.5 && durationSec >= 0.2 && durationSec < 1.0) type = 'hihat_open';
+  else if (highRatio > 0.4 && durationSec >= 1.0) type = 'cymbal';
+  else if (midRatio > 0.3 && highRatio > 0.3 && isShort && hasSharpAttack) type = 'snare';
+  else if (highRatio > 0.35 && midRatio > 0.25 && lowRatio < 0.2 && isShort) type = 'clap';
+  else if (durationSec < 0.1 && midRatio > 0.3) type = 'rim';
+  else if (lowRatio > 0.25 && midRatio > 0.3 && isShort) type = 'tom';
+  else if (isShort && hasSharpAttack) type = 'percussion';
+  else if (isLong && !hasSharpAttack) type = 'fx';
+  else if (midRatio > 0.4 && isMedium) type = 'sampler';
+
+  return { type, lowRatio, midRatio, highRatio, durationSec, hasSharpAttack };
+}
+
+// Short-form labels used by the sample-pool badge (small chip).
+const CLASSIFIER_BADGES = {
+  kick: 'KICK', snare: 'SNR', clap: 'CLAP', rim: 'RIM',
+  hihat_close: 'HH-C', hihat_open: 'HH-O', hihat_pedal: 'HH-P',
+  tom: 'TOM', cymbal: 'CYM', percussion: 'PERC',
+  bass: 'BASS', sampler: 'SMP', fx: 'FX'
+};
+
+// Apply classifier output to a sample object (writes detectedType +
+// spectralProfile). Safe to call with no buffer — falls back to 'sampler'.
+function tagSampleFromBuffer(sample) {
+  if (!sample) return;
+  const result = classifySample(sample.buffer);
+  sample.detectedType = result.type;
+  sample.spectralProfile = {
+    lowRatio: result.lowRatio,
+    midRatio: result.midRatio,
+    highRatio: result.highRatio,
+    durationSec: result.durationSec,
+    hasSharpAttack: result.hasSharpAttack
+  };
+}
+
 function detectSlotType(filename) {
   const base = filename.toLowerCase()
     .replace(/\.[^.]+$/, '')   // remove extension
@@ -2855,7 +2948,9 @@ async function _runAssignment(audioFiles) {
     let buffer = null;
     try { buffer = await audioCtx.decodeAudioData(arrBuf.slice(0)); } catch(e) {}
     const id = Date.now() + Math.random();
-    samples.push({ id, name: item.file.name, file: item.file, buffer, duration: buffer ? buffer.duration : 0, size: item.file.size });
+    const sample = { id, name: item.file.name, file: item.file, buffer, duration: buffer ? buffer.duration : 0, size: item.file.size };
+    tagSampleFromBuffer(sample);
+    samples.push(sample);
     totalSizeBytes += item.file.size;
   }
   // Resolve sample IDs
@@ -4784,6 +4879,7 @@ async function loadAudioFiles(files) {
       buffer, duration: buffer ? buffer.duration : 0,
       size: file.size
     };
+    tagSampleFromBuffer(sample);
     samples.push(sample);
     totalSizeBytes += file.size;
     renderSampleList();
@@ -8701,11 +8797,35 @@ function renderSamplePool() {
     el.className = 'pool-item';
     el.draggable = true;
     el.ondragstart = () => { dragSample = s.id; };
+    // Classifier badge + spectrum bar (P1). When buffer decode failed,
+    // detectedType is missing — fall back to filename-based detection so
+    // the pool still shows useful info instead of a blank chip.
+    const detected = s.detectedType || detectSlotType(s.name) || 'sampler';
+    const badgeText = CLASSIFIER_BADGES[detected] || 'SMP';
+    const badgeBg = SLOT_COLORS[detected] || SLOT_COLORS.sampler;
+    const sp = s.spectralProfile;
+    let specHtml = '';
+    let specTip = '';
+    if (sp) {
+      const lo = Math.round((sp.lowRatio || 0) * 100);
+      const mi = Math.round((sp.midRatio || 0) * 100);
+      const hi = Math.max(0, 100 - lo - mi);
+      specHtml = `<div class="pool-spec" title="LOW ${lo}% · MID ${mi}% · HIGH ${hi}%">
+        <div class="pool-spec-low" style="width:${lo}%"></div>
+        <div class="pool-spec-mid" style="width:${mi}%"></div>
+        <div class="pool-spec-high" style="width:${hi}%"></div>
+      </div>`;
+      specTip = `LOW ${lo}% · MID ${mi}% · HIGH ${hi}%`;
+    } else {
+      specHtml = `<div class="pool-spec" title="Spectrum unavailable (decode failed)"></div>`;
+    }
     el.innerHTML = `
       <div class="pool-item-play" onclick="event.stopPropagation();playSample('${s.id}')">
         <svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9"/></svg>
       </div>
       ${dotColor ? `<div class="pool-item-dot" style="background:${dotColor}"></div>` : '<div class="pool-item-dot"></div>'}
+      ${specHtml}
+      <span class="pool-typebadge" style="background:${badgeBg}" title="Detected: ${detected}${specTip ? ' — ' + specTip : ''}">${badgeText}</span>
       <div class="pool-item-name">${s.name.replace(/\.[^.]+$/, '')}</div>
       <div class="pool-item-meta">${s.duration > 0 ? s.duration.toFixed(1)+'s' : '—'}</div>
     `;
