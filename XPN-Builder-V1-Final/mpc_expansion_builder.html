@@ -268,6 +268,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .pe-mix-lbl{font-family:'IBM Plex Mono',monospace;font-size:7px;color:var(--ink2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pe-mix-mute{width:14px;height:10px;border:1px solid var(--border2);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-family:'IBM Plex Mono',monospace;color:var(--ink3);cursor:pointer}
 .pe-mix-mute.muted{background:var(--red);color:#fff;border-color:var(--red)}
+.pe-mix-bus{width:18px;height:10px;border:1px solid var(--border2);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-family:'IBM Plex Mono',monospace;color:#0e0e10;cursor:pointer;font-weight:600;letter-spacing:.04em;user-select:none}
+.pe-mix-bus[data-bus="Master"]{background:#FFFFFF}
+.pe-mix-bus[data-bus="Sub 1"]{background:#E74C3C;color:#fff}
+.pe-mix-bus[data-bus="Sub 2"]{background:#3498DB;color:#fff}
+.pe-mix-bus[data-bus="Sub 3"]{background:#27AE60;color:#fff}
+.pe-mix-bus[data-bus="Sub 4"]{background:#F1C40F}
 .pe-mix-pan{width:100%;padding:0 3px;display:flex;flex-direction:column;align-items:center;gap:1px}
 .pe-mix-pan-track{width:100%;height:4px;position:relative;background:#111;border:1px solid var(--border2);border-radius:2px;cursor:ew-resize}
 .pe-mix-pan-track::after{content:'';position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:var(--border)}
@@ -7893,6 +7899,29 @@ function renderPeMixer() {
     mute.textContent = 'M';
     mute.onclick = () => peMuteToggle(padIdx);
     col.appendChild(mute);
+
+    // OutputBus cycle button: M → S1 → S2 → S3 → S4 → M. Reads/writes the same
+    // pad.outputBus that the sampler-editor dropdown and the .xpm <OutputBus>
+    // export touch, so all three surfaces stay in sync.
+    if (pad) {
+      const busSeq = ['Master', 'Sub 1', 'Sub 2', 'Sub 3', 'Sub 4'];
+      const busLabels = { 'Master': 'M', 'Sub 1': 'S1', 'Sub 2': 'S2', 'Sub 3': 'S3', 'Sub 4': 'S4' };
+      const bus = document.createElement('div');
+      const setBusVisual = (b) => { bus.dataset.bus = b; bus.textContent = busLabels[b] || 'M'; bus.title = 'Output bus: ' + b + ' — click to cycle'; };
+      bus.className = 'pe-mix-bus';
+      setBusVisual(pad.outputBus || 'Master');
+      bus.onclick = () => {
+        const cur = pad.outputBus || 'Master';
+        const next = busSeq[(busSeq.indexOf(cur) + 1) % busSeq.length];
+        pad.outputBus = next;
+        setBusVisual(next);
+        // Reflect on the sampler-editor dropdown if it's currently open on
+        // this pad. No-op when the detail panel shows a different pad.
+        const sel = document.getElementById('padOutputBus');
+        if (sel && typeof selectedPad !== 'undefined' && selectedPad === padIdx) sel.value = next;
+      };
+      col.appendChild(bus);
+    }
 
     mixer.appendChild(col);
   });
