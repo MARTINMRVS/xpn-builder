@@ -8,6 +8,7 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 700,
     title: 'XPN Builder',
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
