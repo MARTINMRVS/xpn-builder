@@ -1,6 +1,6 @@
 # XPN Builder — BIBLE
 
-**Última actualización:** 2026-04-20
+**Última actualización:** 2026-04-28
 **Autor:** Mrvs (Martín, Santiago)
 
 ---
@@ -318,3 +318,46 @@ scheduler, sparse storage, visual borde punteado, export a
 .mpcpattern). Euclidean rhythm generator (Bjorklund, popover UI
 con hits/steps, tiling). Humanize (velocity jitter +-15, ghost
 notes 30% chance vel 20-35). +222/-12, 64/64 tests.
+
+### 2026-04-27
+appMode lifecycle root-cause fix — PRs #18 + #19 merged. New
+`_appModeReady` gate, `_ensureAppModeChosen` guards both load
+entry points, flow modal opens immediately on first run (no 300ms
+race), topbar mode badge becomes clickable to reopen the chooser
+anytime, dead `_maybeOfferAutoKits` + `autoKitConfirmModal` removed.
+
+### 2026-04-28
+Final release feature set — PR #20 merged (6 commits). 64 → 79
+embedded tests passing.
+
+1. **Audio classifier + spectral viz**: `classifySample()` returns
+   `{type, lowRatio, midRatio, highRatio, durationSec, hasSharpAttack}`,
+   wired into both decode call sites. Sample pool rows render a
+   40×6 spectrum bar (low=red, mid=orange, high=blue) plus a
+   coloured type chip with short labels (KICK / SNR / HH-C ...).
+2. **Smart auto-assign with classifier**: Smart Assign panel shows
+   per-type chips with counts and a "Recommended N kits" CTA based
+   on the most-constrained percussive type.
+   `_buildScoredFromPool` overrides bestType from detectedType when
+   the classifier is confident.
+3. **Drag-move selected steps in PE**: mousedown on a selected step
+   starts a quantised drag with ghost preview. Ctrl/Cmd duplicates
+   instead of moving. Out-of-range targets cancel the whole drag.
+4. **Editable kit names**: double-click on a kit chip → inline
+   input, Enter/blur commits, Esc cancels. `_sanitizeKitName`
+   strips `/ \ : * ? " < > |` so name and exported filename stay
+   aligned. `mpcSafeKitFileName` already produced
+   `Group-Subgroup-Name.{xpm|mpcpattern|mid}`.
+5. **Auto preview + OutputBus**: PE mixer columns gain a
+   click-to-cycle output-bus button (M / S1-4) with bus colours,
+   sharing pad.outputBus with the sampler-editor dropdown and the
+   `<OutputBus>` XML export. Auto preview WAV via `renderKitToWav`
+   was already wired in writeExpansionPackFiles.
+6. **Comprehensive export test (cx1-cx15)**: classifier shape +
+   synthesis, naming convention, XML tag emission,
+   `_buildScoredFromPool` override, `buildExpansionXml` metadata,
+   end-to-end `writeExpansionPackFiles` with 3 named kits asserting
+   Programs/Sequences/Previews layout. JSZip `.async('string')`
+   hangs in jsdom (no native streams) — XML content verified by
+   re-running buildPresetXml directly. Stub kit.previewFile bypasses
+   renderKitToWav (uses OfflineAudioContext, also missing in jsdom).
