@@ -34,3 +34,7 @@ coverage/
 # Claude Code per-machine config
 .claude/launch.json
 BETA_KEYS_PRIVATE.txt
+
+# Local design handoff (kept off the repo)
+XPN BUILDER 01 BRAND/
+XPN BUILDER 01 BRAND.zip
