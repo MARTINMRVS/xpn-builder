@@ -1795,7 +1795,35 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
             <input type="radio" name="fmt"/>
             <div class="format-info">
               <div class="format-name">Ableton Drum Rack</div>
-              <div class="format-desc">.adg + sample folder (Bank A)</div>
+              <div class="format-desc">.adg + samples + MIDI (per kit)</div>
+            </div>
+          </div>
+          <div class="format-option" data-fmt="sp404" onclick="selectFormat(this)">
+            <input type="radio" name="fmt"/>
+            <div class="format-info">
+              <div class="format-name">Roland SP-404 MKII</div>
+              <div class="format-desc">SD card ready (ROLAND/IMPORT/)</div>
+            </div>
+          </div>
+          <div class="format-option" data-fmt="maschine" onclick="selectFormat(this)">
+            <input type="radio" name="fmt"/>
+            <div class="format-info">
+              <div class="format-name">NI Maschine</div>
+              <div class="format-desc">Sample pack + MIDI patterns</div>
+            </div>
+          </div>
+          <div class="format-option" data-fmt="elektron" onclick="selectFormat(this)">
+            <input type="radio" name="fmt"/>
+            <div class="format-info">
+              <div class="format-name">Elektron Analog RYTM</div>
+              <div class="format-desc">48 kHz mono + MIDI (Transfer ready)</div>
+            </div>
+          </div>
+          <div class="format-option" data-fmt="universal" onclick="selectFormat(this)">
+            <input type="radio" name="fmt"/>
+            <div class="format-info">
+              <div class="format-name">Universal Pack</div>
+              <div class="format-desc">WAV folders by type + MIDI</div>
             </div>
           </div>
         </div>
@@ -6451,6 +6479,35 @@ async function buildExpansion(fwVersion) {
     const zip = new JSZip();
     const root = zip.folder(expName);
 
+    // Multi-format export router (anything except MPC takes the dedicated path).
+    const FORMAT_BUILDERS = {
+      universal: { fn: buildUniversalExport, label: 'universal', tag: 'Universal' },
+      sp404:     { fn: buildSP404Export,     label: 'sp404',     tag: 'SP404' },
+      ableton:   { fn: buildAbletonExport,   label: 'ableton',   tag: 'Ableton' },
+      maschine:  { fn: buildMaschineExport,  label: 'maschine',  tag: 'Maschine' },
+      elektron:  { fn: buildElektronExport,  label: 'elektron',  tag: 'Elektron' },
+    };
+    if (FORMAT_BUILDERS[selectedFormat]) {
+      const spec = FORMAT_BUILDERS[selectedFormat];
+      setP(15, 'Building ' + spec.tag + ' pack...');
+      await spec.fn(expName, zip);
+      setP(90, 'Compressing...');
+      const blob2 = await zip.generateAsync({
+        type: 'blob', compression: 'DEFLATE',
+        compressionOptions: {level: 6}
+      }, meta => setP(90 + meta.percent / 10, 'Compressing...'));
+      setP(100, 'Done!');
+      const url2 = URL.createObjectURL(blob2);
+      const a2 = document.createElement('a');
+      a2.href = url2;
+      a2.download = expName.replace(/\s+/g, '_') + '_' + spec.tag + '.zip';
+      a2.click();
+      URL.revokeObjectURL(url2);
+      setStatus('Exported: ' + expName + ' (' + spec.tag + ')');
+      setTimeout(() => closeModal('exportModal'), 1200);
+      return;
+    }
+
     // Fase 6 PASO 4: Expansion Pack flow uses a different file layout
     if (appMode === 'expansion') {
       await writeExpansionPackFiles(root, expName, author, fw, setP);
@@ -6558,9 +6615,6 @@ async function buildExpansion(fwVersion) {
       const gBuf = await globalPreviewFile.arrayBuffer();
       root.file('preview.mp3', gBuf);
     }
-
-    // Additional formats
-    if (selectedFormat === 'ableton') buildAbletonExport(expName, zip);
 
     setP(90, 'Compressing...');
     const blob = await zip.generateAsync({
@@ -10517,6 +10571,26 @@ var XTP_SUITES=[
                paths.some(p=>/Elektron_Test_Pack\/README\.txt$/.test(p));
       } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
     },async:true},
+    {id:'mf_ui1',name:'export modal lists 6 format options (mpc/ableton/sp404/maschine/elektron/universal)',fn:()=>{
+      const opts=[...document.querySelectorAll('#formatSelect .format-option')].map(o=>o.dataset.fmt);
+      return opts.length===6&&['mpc','ableton','sp404','maschine','elektron','universal'].every(f=>opts.includes(f));
+    }},
+    {id:'mf_ui2',name:'selectFormat sets selectedFormat + .selected class',fn:()=>{
+      const saved=selectedFormat;
+      try{
+        const el=document.querySelector('#formatSelect [data-fmt="sp404"]');
+        if(!el)return false;
+        selectFormat(el);
+        const ok=selectedFormat==='sp404'&&el.classList.contains('selected');
+        // exclusivity check
+        const others=[...document.querySelectorAll('#formatSelect .format-option.selected')];
+        return ok&&others.length===1;
+      } finally {
+        selectedFormat=saved;
+        document.querySelectorAll('#formatSelect .format-option').forEach(o=>o.classList.remove('selected'));
+        const mpc=document.querySelector('#formatSelect [data-fmt="mpc"]');if(mpc)mpc.classList.add('selected');
+      }
+    }},
     {id:'mf_el2',name:'_xpnConvertTo48Mono: returns bytes when AudioBuffer is available',fn:async()=>{
       if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       const buf=audioCtx.createBuffer(2,4410,44100);
