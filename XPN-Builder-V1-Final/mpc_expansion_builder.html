@@ -1154,6 +1154,17 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 </head>
 <body>
 
+<!-- ── LOAD PROGRESS OVERLAY (shown while decoding+classifying samples) ── -->
+<div id="loadProgress" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;align-items:center;justify-content:center">
+  <div style="text-align:center;color:var(--ink1)">
+    <div id="loadProgressLabel" style="font-size:14px;margin-bottom:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:.16em">ANALYZING SAMPLES...</div>
+    <div style="width:300px;height:6px;background:var(--panel3);border-radius:3px;overflow:hidden;margin:0 auto">
+      <div id="loadProgressBar" style="width:0%;height:100%;background:var(--accent);transition:width 0.1s"></div>
+    </div>
+    <div id="loadProgressText" style="font-size:11px;color:var(--ink3);margin-top:8px;font-family:'IBM Plex Mono',monospace">0 / 0</div>
+  </div>
+</div>
+
 <!-- ── BETA ACTIVATION (gates the rest of the UI on first run) ── -->
 <div id="betaActivation" class="modal-bg open" style="z-index:9999">
   <div class="modal" style="max-width:400px;text-align:center">
@@ -3036,6 +3047,39 @@ async function runConfirmedAssign() {
   }
 }
 
+// ── Load-progress overlay helpers (Fix 3) ──
+// Shown automatically when decoding 10+ samples; hidden otherwise. The yield
+// between samples lets the browser repaint so the bar actually moves.
+function xpnShowLoadProgress(label) {
+  const el = document.getElementById('loadProgress');
+  if (!el) return;
+  const lbl = document.getElementById('loadProgressLabel');
+  if (lbl && label) lbl.textContent = label;
+  const bar = document.getElementById('loadProgressBar');
+  if (bar) bar.style.width = '0%';
+  const txt = document.getElementById('loadProgressText');
+  if (txt) txt.textContent = '0 / 0';
+  el.style.display = 'flex';
+}
+function xpnSetLoadProgress(done, total) {
+  const bar = document.getElementById('loadProgressBar');
+  const txt = document.getElementById('loadProgressText');
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  if (bar) bar.style.width = pct + '%';
+  if (txt) txt.textContent = done + ' / ' + total;
+}
+function xpnHideLoadProgress() {
+  const el = document.getElementById('loadProgress');
+  if (el) el.style.display = 'none';
+}
+// Yield to the browser so the progress bar actually paints between samples.
+function _xpnYield() {
+  return new Promise(r => {
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => r());
+    else setTimeout(r, 0);
+  });
+}
+
 async function _runAssignment(audioFiles) {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -3058,17 +3102,35 @@ async function _runAssignment(audioFiles) {
   });
   scored.sort((a, b) => b.score !== a.score ? b.score - a.score : a.name.localeCompare(b.name));
 
-  // Load all audio into samples array
-  for (const item of scored) {
-    if (samples.find(s => s.name === item.file.name)) continue;
-    const arrBuf = await item.file.arrayBuffer();
-    let buffer = null;
-    try { buffer = await audioCtx.decodeAudioData(arrBuf.slice(0)); } catch(e) {}
-    const id = Date.now() + Math.random();
-    const sample = { id, name: item.file.name, file: item.file, buffer, duration: buffer ? buffer.duration : 0, size: item.file.size };
-    tagSampleFromBuffer(sample);
-    samples.push(sample);
-    totalSizeBytes += item.file.size;
+  // Load all audio into samples array. For 10+ files we show a fullscreen
+  // progress overlay and yield between samples so the bar paints (decoding
+  // plus classifier blocks the main thread otherwise).
+  const showProgress = scored.length >= 10;
+  if (showProgress) xpnShowLoadProgress('ANALYZING SAMPLES...');
+  let processed = 0;
+  try {
+    for (const item of scored) {
+      if (samples.find(s => s.name === item.file.name)) {
+        processed++;
+        if (showProgress) xpnSetLoadProgress(processed, scored.length);
+        continue;
+      }
+      const arrBuf = await item.file.arrayBuffer();
+      let buffer = null;
+      try { buffer = await audioCtx.decodeAudioData(arrBuf.slice(0)); } catch(e) {}
+      const id = Date.now() + Math.random();
+      const sample = { id, name: item.file.name, file: item.file, buffer, duration: buffer ? buffer.duration : 0, size: item.file.size };
+      tagSampleFromBuffer(sample);
+      samples.push(sample);
+      totalSizeBytes += item.file.size;
+      processed++;
+      if (showProgress) {
+        xpnSetLoadProgress(processed, scored.length);
+        await _xpnYield();
+      }
+    }
+  } finally {
+    if (showProgress) xpnHideLoadProgress();
   }
   // Resolve sample IDs
   scored.forEach(item => { item.sampleId = samples.find(s => s.name === item.file.name)?.id ?? null; });
@@ -10808,6 +10870,26 @@ var XTP_SUITES=[
         if(panel){panel.innerHTML='';panel.classList.remove('visible');}
         kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode;
       }
+    }},
+    {id:'ux_prog1',name:'load-progress overlay exists with bar + text + label',fn:()=>{
+      return !!document.getElementById('loadProgress')&&
+             !!document.getElementById('loadProgressBar')&&
+             !!document.getElementById('loadProgressText')&&
+             !!document.getElementById('loadProgressLabel');
+    }},
+    {id:'ux_prog2',name:'xpnShowLoadProgress / xpnSetLoadProgress / xpnHideLoadProgress wire bar width + text',fn:()=>{
+      const el=document.getElementById('loadProgress');
+      const bar=document.getElementById('loadProgressBar');
+      const txt=document.getElementById('loadProgressText');
+      try{
+        xpnShowLoadProgress('TEST');
+        if(el.style.display!=='flex')return false;
+        xpnSetLoadProgress(50,200);
+        if(bar.style.width!=='25%')return false;
+        if(txt.textContent!=='50 / 200')return false;
+        xpnHideLoadProgress();
+        return el.style.display==='none';
+      } finally { xpnHideLoadProgress(); }
     }},
     {id:'ux_font1',name:'appZoom default is 100 (was 90)',fn:()=>{
       // The IIFE either restored a localStorage value (any 70-130) or fell
