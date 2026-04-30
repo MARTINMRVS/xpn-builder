@@ -1,6 +1,6 @@
 # XPN Builder — BIBLE
 
-**Última actualización:** 2026-04-29
+**Última actualización:** 2026-04-29 (UX overhaul)
 **Autor:** Mrvs (Martín, Santiago)
 
 ---
@@ -325,6 +325,50 @@ appMode lifecycle root-cause fix — PRs #18 + #19 merged. New
 entry points, flow modal opens immediately on first run (no 300ms
 race), topbar mode badge becomes clickable to reopen the chooser
 anytime, dead `_maybeOfferAutoKits` + `autoKitConfirmModal` removed.
+
+### 2026-04-29 (UX overhaul)
+UX overhaul based on beta-tester feedback — PR #22 merged. 5
+commits on `fix-ux-overhaul`.
+
+1. **One-button kit creation** in expansion: bulk loads no
+   longer auto-fill the current kit. Samples land in the pool,
+   and the new Smart Build panel shows a classifier breakdown,
+   the recommended kit count, a **genre dropdown** (Trap /
+   Boom Bap / Drill / House / Afrobeat / Reggaeton / Lo-Fi /
+   Dancehall / Jersey Club / 4/4) and a single big BUILD N
+   KITS button. New helpers: `xpnBuildKitsWithPattern` (wraps
+   `autoKitFillAll` + `_xpnApplyPatternToKit`) and the
+   `SMART_BUILD_GENRES` registry. Single-file drops still
+   auto-assign in extended mode but stop in expansion.
+2. **Larger fonts app-wide**: `appZoom` default 90 → 100. CSS
+   sweep bumps every non-PE/PT/XTP rule with `font-size <10px`
+   to 10 px; topbar (`.tb-label`, `.tb-btn`, `.app-name`,
+   `.mode-badge`, `.format-badge`, `.app-logo`, `.tb-input`)
+   → 11 px; kit names + modal headings → 12 px; sample names
+   → 11 px. Pattern Editor / Preview Track / test panel keep
+   their compact sizes intentionally.
+3. **Progress bar for large imports**: fullscreen overlay
+   `#loadProgress` shown when `_runAssignment` processes 10+
+   samples. The decode loop yields via `requestAnimationFrame`
+   between samples so the bar actually paints. Helpers
+   `xpnShowLoadProgress` / `xpnSetLoadProgress` /
+   `xpnHideLoadProgress`.
+4. **Transparent logo**: topbar "XPN" text replaced with the
+   Pad Works 9-tile mark (5 filled, 4 outline rects) inlined
+   as SVG using `currentColor`. Source: `landing/assets/mark.svg`.
+5. **Cleaner expansion UI**: `updateModeVisibility` now hides
+   `#autoAssignWrap` (LONG/KIT/FILL is bank-only) alongside
+   the existing REORDER hide and the smart-suggest panel
+   clear. Switching back to extended restores AUTO ASSIGN.
+   bankInfo "16 pads · Bank A" caption lives inside the
+   already-hidden `#bankRow`. Duplicate `xpn-mode-grid`
+   layout preview was already disabled (line 12552 forced
+   return) — only `liveTplPreview` renders.
+
+Embedded test suite gained 13 tests: ux1-ux4 (smart build),
+ux_font1/2 (zoom + CSS minimums), ux_prog1/2 (progress
+overlay), ux_logo (SVG mark), ux_clean1/2/3 (visibility +
+no-duplicate). Jest wrapper still 1 test passing.
 
 ### 2026-04-29
 Multi-format export — PR #21 merged. 6 commits on
