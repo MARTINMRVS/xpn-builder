@@ -67,7 +67,9 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--ink
 .statusbar{background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:12px;font-size:10px;letter-spacing:.1em;color:var(--ink3)}
 
 /* ── TOPBAR ── */
-.app-logo{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--accent);margin-right:2px}
+.app-logo{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--accent);margin-right:2px;display:inline-flex;align-items:center;gap:6px}
+.app-logo svg{width:18px;height:18px;flex-shrink:0;display:block}
+.app-logo svg rect[data-fill]{fill:var(--accent)}
 .app-name{font-size:11px;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase}
 .mode-badge{font-size:11px;letter-spacing:.18em;color:var(--ink);background:var(--border2);padding:2px 7px;border-radius:20px;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;margin-left:6px;cursor:pointer;user-select:none;transition:opacity .15s}
 .mode-badge:hover{opacity:.75;outline:1px solid var(--accent)}
@@ -1182,7 +1184,21 @@ body,.topbar,.statusbar,.left-panel,.center-panel,.right-panel{transition:backgr
 
 <!-- ── TOPBAR (outside zoom) ── -->
 <div class="topbar">
-  <span class="app-logo">XPN</span>
+  <span class="app-logo" title="XPN Builder · Pad Works">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.1" stroke-opacity="0.5">
+        <rect x="4" y="4" width="14" height="14"/><rect x="22" y="4" width="14" height="14"/><rect x="40" y="4" width="14" height="14"/>
+        <rect x="4" y="22" width="14" height="14"/><rect x="22" y="22" width="14" height="14"/><rect x="40" y="22" width="14" height="14"/>
+        <rect x="4" y="40" width="14" height="14"/><rect x="22" y="40" width="14" height="14"/><rect x="40" y="40" width="14" height="14"/>
+      </g>
+      <rect x="4"  y="4"  width="14" height="14" data-fill="1"/>
+      <rect x="40" y="4"  width="14" height="14" data-fill="1"/>
+      <rect x="22" y="22" width="14" height="14" data-fill="1"/>
+      <rect x="4"  y="40" width="14" height="14" data-fill="1"/>
+      <rect x="40" y="40" width="14" height="14" data-fill="1"/>
+    </svg>
+    XPN
+  </span>
   <span class="app-name">Pad Works XPN</span>
   <span class="mode-badge" id="modeBadge" onclick="openFlowModal(true)" title="Click to switch workflow (Expansion Pack ↔ Extended)">EXTENDED</span>
   <div class="tb-sep"></div>
@@ -10870,6 +10886,16 @@ var XTP_SUITES=[
         if(panel){panel.innerHTML='';panel.classList.remove('visible');}
         kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode;
       }
+    }},
+    {id:'ux_logo',name:'topbar app-logo contains SVG mark with 9 grid rects + transparent background',fn:()=>{
+      const el=document.querySelector('.app-logo svg');
+      if(!el)return false;
+      const rects=el.querySelectorAll('rect');
+      // 9 outline rects + 5 filled rects = 14 minimum
+      const filled=el.querySelectorAll('rect[data-fill]').length;
+      // No fill on the <svg> background → transparent.
+      const bg=el.getAttribute('style')||'';
+      return rects.length>=14&&filled===5&&!/background/i.test(bg);
     }},
     {id:'ux_prog1',name:'load-progress overlay exists with bar + text + label',fn:()=>{
       return !!document.getElementById('loadProgress')&&
