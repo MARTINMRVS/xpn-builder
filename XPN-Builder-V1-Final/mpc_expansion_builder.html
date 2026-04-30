@@ -6927,6 +6927,89 @@ async function buildSP404Export(expName, zip) {
 
 
 // ════════════════════════════════════════════
+// FORMAT 4 — NI Maschine sample pack
+// .mxgrp is closed/proprietary, so we ship a folder layout the user
+// drops onto Maschine pads in order. Includes One-Shots/ categorised
+// dump, Patterns/ MIDIs and Tags.txt for manual tagging in NI Browser.
+// ════════════════════════════════════════════
+async function buildMaschineExport(expName, zip) {
+  const root = zip.folder('Maschine_' + _xpnSafeFile(expName, 'Pack'));
+  const exportKits = _xpnGetExportKits();
+  const bpm = (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90;
+
+  const dedupAcrossPack = new Set();
+  const tagLines = [];
+
+  // Per-kit folders with PadNN_ ordering so the user drag-drops in sequence
+  for (let ki = 0; ki < exportKits.length; ki++) {
+    const k = exportKits[ki];
+    const kitFolder = root.folder(_xpnSafeFile(k.name, 'Kit_' + (ki + 1)));
+    for (let pi = 0; pi < Math.min(16, k.pads.length); pi++) {
+      const pad = k.pads[pi];
+      if (!pad || pad.sampleId == null) continue;
+      const sample = (samples || []).find(s => s.id === pad.sampleId);
+      if (!sample) continue;
+      const bytes = await _xpnGetSampleBytes(sample);
+      if (!bytes) continue;
+      const padLabel = 'Pad' + String(pi + 1).padStart(2, '0');
+      const base = mpcSafeName(sample.name).toLowerCase();
+      kitFolder.file(padLabel + '_' + base + '.wav', bytes);
+    }
+  }
+
+  // One-Shots/<Category>/<sample>.wav — categorised dump of every used sample
+  const usedIds = new Set();
+  exportKits.forEach(k => (k.pads || []).forEach(p => {
+    if (p && p.sampleId != null) usedIds.add(p.sampleId);
+  }));
+  const oneShots = root.folder('One-Shots');
+  for (const sample of (samples || []).filter(s => usedIds.has(s.id))) {
+    const cat = _xpnCategorize(sample);
+    const base = mpcSafeName(sample.name).toLowerCase();
+    let cand = base, n = 2;
+    const key = cat + '/' + cand;
+    let finalKey = key;
+    while (dedupAcrossPack.has(finalKey)) { cand = base + '_' + n++; finalKey = cat + '/' + cand; }
+    dedupAcrossPack.add(finalKey);
+    const bytes = await _xpnGetSampleBytes(sample);
+    if (bytes) oneShots.folder(cat).file(cand + '.wav', bytes);
+    tagLines.push(cand + '.wav\t' + (sample.detectedType || 'sampler'));
+  }
+
+  // Patterns/<kit>.mid
+  const patternsFolder = root.folder('Patterns');
+  exportKits.forEach((k, i) => {
+    const fakeKit = { sequenceData: k.sequenceData };
+    const midiBuf = buildMidiFileForKit(fakeKit, bpm);
+    patternsFolder.file(_xpnSafeFile(k.name, 'Kit_' + (i + 1)) + '_pattern.mid', midiBuf);
+  });
+
+  root.file('Tags.txt',
+    'XPN Builder — Maschine pack tag list\n' +
+    'sample\\ttype\n' +
+    tagLines.join('\n') + '\n');
+
+  const date = new Date().toISOString().slice(0, 10);
+  const author = (document.getElementById('expAuthor') || {}).value || 'Unknown';
+  const readme =
+    'XPN Builder — NI Maschine sample pack\n' +
+    '======================================\n\n' +
+    'Pack: ' + expName + '\n' +
+    'Author: ' + author + '\n' +
+    'Date: ' + date + '\n' +
+    'Kits: ' + exportKits.length + '\n\n' +
+    'Folders:\n' +
+    '  <KitName>/PadNN_*.wav  — drag onto Maschine pads in numeric order\n' +
+    '  One-Shots/<Type>/      — flat browser dump\n' +
+    '  Patterns/*.mid         — MIDI patterns at pack BPM\n' +
+    '  Tags.txt               — sample → type list for NI Browser tagging\n';
+  root.file('README.txt', readme);
+
+  return root;
+}
+
+
+// ════════════════════════════════════════════
 // FORMAT 3 — Ableton Drum Rack (.adg)
 // One .adg per kit (gzipped Live XML), shared Samples/ folder,
 // MIDI/ siblings. Pad N → MIDI note 36+N.
@@ -10325,6 +10408,29 @@ var XTP_SUITES=[
              xml.includes('<ReceivingNote Value="37"/>')&&
              xml.includes('<RelativePath Value="Samples/kick.wav"/>');
     }},
+    {id:'mf_ms1',name:'buildMaschineExport: per-kit PadNN_ folder layout + One-Shots + Patterns + Tags.txt',fn:async()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        const fakeFile={arrayBuffer:async()=>new ArrayBuffer(8)};
+        samples=[
+          {id:'ms1',name:'kick.wav',detectedType:'kick',file:fakeFile},
+          {id:'ms2',name:'snare.wav',detectedType:'snare',file:fakeFile},
+        ];
+        kits=[makeKit('Trap')];currentKit=0;
+        kits[0].pads[0].sampleId='ms1';kits[0].pads[1].sampleId='ms2';
+        const zip=new JSZip();
+        await buildMaschineExport('Test Pack', zip);
+        const paths=Object.keys(zip.files);
+        return paths.some(p=>/Maschine_Test_Pack\/Trap\/Pad01_kick\.wav$/.test(p))&&
+               paths.some(p=>/Maschine_Test_Pack\/Trap\/Pad02_snare\.wav$/.test(p))&&
+               paths.some(p=>/One-Shots\/Kicks\/kick\.wav$/.test(p))&&
+               paths.some(p=>/One-Shots\/Snares\/snare\.wav$/.test(p))&&
+               paths.some(p=>/Patterns\/Trap_pattern\.mid$/.test(p))&&
+               paths.some(p=>/Maschine_Test_Pack\/Tags\.txt$/.test(p))&&
+               paths.some(p=>/Maschine_Test_Pack\/README\.txt$/.test(p));
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
+    },async:true},
     {id:'mf_ab2',name:'buildAbletonExport: emits .adg per kit + Samples/ + MIDI/',fn:async()=>{
       const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
       try{
