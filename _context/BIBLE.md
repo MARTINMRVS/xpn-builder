@@ -1,6 +1,6 @@
 # XPN Builder — BIBLE
 
-**Última actualización:** 2026-04-28
+**Última actualización:** 2026-04-29
 **Autor:** Mrvs (Martín, Santiago)
 
 ---
@@ -325,6 +325,51 @@ appMode lifecycle root-cause fix — PRs #18 + #19 merged. New
 entry points, flow modal opens immediately on first run (no 300ms
 race), topbar mode badge becomes clickable to reopen the chooser
 anytime, dead `_maybeOfferAutoKits` + `autoKitConfirmModal` removed.
+
+### 2026-04-29
+Multi-format export — PR #21 merged. 6 commits on
+feat-multi-export. 5 new export builders driven by the modal
+format selector (which replaced the 2-option MPC/Ableton
+widget). Build routes through a `FORMAT_BUILDERS` table — non-
+MPC formats short-circuit the MPC plist/programs/sequences
+pipeline and produce a single-purpose ZIP with a format-tagged
+filename (`<pack>_<Tag>.zip`).
+
+1. **Universal Sample Pack** (`buildUniversalExport`): WAV
+   folders by `detectedType` (Kicks/Snares/HiHats/Claps/
+   Percussion/Bass/FX/Melodic) + MIDI/ per kit + README.txt.
+2. **Roland SP-404 MKII** (`buildSP404Export`):
+   `ROLAND/IMPORT/<pack>/{A..J}/NNN_name.wav` — max 10 banks
+   × 16 pads, global 001-160 numbering, README.txt at the
+   IMPORT root.
+3. **Ableton Drum Rack** (`buildAbletonExport`): replaces the
+   prior single-bank stub. Per-kit `.adg` (gzipped Live XML
+   via `CompressionStream`, raw-bytes fallback for jsdom),
+   shared `Samples/`, and `MIDI/<kit>_pattern.mid`. Pad N →
+   MIDI note 36+N.
+4. **NI Maschine** (`buildMaschineExport`): closed `.mxgrp`
+   isn't generated — instead per-kit folders with
+   `Pad01_…Pad16_` filenames for ordered drag-drop, plus
+   `One-Shots/<Type>/` flat dump, `Patterns/*.mid`, and a
+   `Tags.txt` companion file for NI Browser tagging.
+5. **Elektron Analog RYTM** (`buildElektronExport`): RYTM-
+   native 48 kHz / mono WAVs in `Samples/<Kit>/NN_name.wav`.
+   Real conversion via `OfflineAudioContext` when an
+   `AudioBuffer` is available, falls back to original bytes
+   otherwise. Per-kit MIDI patterns, `PadMap.txt`, Transfer-
+   flow README. SysEx (.syx) deferred to v2.
+
+Shared helpers introduced: `_xpnGetExportKits` (normalises
+`kits[]` ↔ `banks[]` for a single export-time view),
+`_xpnGetSampleBytes` (file → AudioBuffer fallback chain),
+`_xpnSafeFile` (cross-platform filename slug), `_xpnCategorize`
+(detectedType → folder name), `_xpnGzip` (CompressionStream +
+fallback), `_xpnConvertTo48Mono` (RYTM resample/mixdown),
+`_xpnBuildAdgXml` (Live DrumRack XML emitter).
+
+Embedded test suite: +12 tests (mf1-mf5, mf_sp1/sp2, mf_ab1/ab2,
+mf_ms1, mf_el1/el2, mf_ui1/ui2). 64 Jest wrapper unchanged
+(still 1 passing wrapper containing the full embedded suite).
 
 ### 2026-04-28
 Final release feature set — PR #20 merged (6 commits). 64 → 79
