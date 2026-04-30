@@ -1,6 +1,6 @@
 # XPN Builder — BIBLE
 
-**Última actualización:** 2026-04-29 (UX overhaul)
+**Última actualización:** 2026-04-29 (v1.0.0-beta2 release)
 **Autor:** Mrvs (Martín, Santiago)
 
 ---
@@ -175,6 +175,37 @@ Nivel avanzado, solo expansiones premium oficiales de Akai. Fuera del alcance ac
 
 ---
 
+## 5C. Estado de release v1.0.0-beta2 (2026-04-29)
+
+| Pieza | Estado |
+|---|---|
+| DMG (99 MB, unsigned) | https://github.com/MARTINMRVS/xpn-builder/releases/tag/v1.0.0-beta2 |
+| DMG asset | https://github.com/MARTINMRVS/xpn-builder/releases/download/v1.0.0-beta2/XPN.Builder-1.0.0.dmg |
+| Landing | https://padworks.io (commit `836fd5f` on `xpn-landing`) |
+| Beta keys | 100 (30 originales + 70 nuevas; lista privada gitignored) |
+| Tests | embedded suite passing (Jest wrapper 1/1) |
+| PRs cerrados en este sprint | #21 (multi-format export), #22 (UX overhaul), #23 (release polish) |
+| Code signing | sin certificado — ship unsigned, instrucción "right-click → Open" en la landing pendiente |
+
+### Funcionalidades shipped en beta-2 vs beta-1
+- 5 nuevos exporters (Universal, SP-404 MKII, Ableton Drum
+  Rack, NI Maschine, Elektron RYTM) detrás de un selector de
+  6 formatos en el modal de export.
+- Smart Build panel con dropdown de género y un solo botón
+  BUILD N KITS — los kits se llenan con el classifier y se
+  les escribe el patrón del género elegido.
+- Audio classifier con visualizador espectral en cada item
+  del sample pool y chips por tipo en el panel.
+- Topbar con SVG transparente del mark Pad Works.
+- Progress bar fullscreen para imports grandes (≥10
+  samples), con yield a `requestAnimationFrame` por sample.
+- Fonts ≥10 px global, topbar 11 px, kit names + modales
+  12 px. Default zoom 90 → 100.
+- Limpieza de UI en expansion: AUTO ASSIGN + REORDER ocultos,
+  smart-suggest panel se limpia al cambiar de modo.
+
+---
+
 ## 6. Roadmap de fases
 
 - ✅ Fase 0 — Estabilizar tests (64/64)
@@ -325,6 +356,30 @@ appMode lifecycle root-cause fix — PRs #18 + #19 merged. New
 entry points, flow modal opens immediately on first run (no 300ms
 race), topbar mode badge becomes clickable to reopen the chooser
 anytime, dead `_maybeOfferAutoKits` + `autoKitConfirmModal` removed.
+
+### 2026-04-29 (release v1.0.0-beta2)
+Final cut for the public beta-2 drop — PR #23 merged. 1
+commit on `final-polish` plus a sibling commit in the
+`xpn-landing` repo.
+
+- **Beta key pool 30 → 100**. Private list regenerated
+  (gitignored), `_BETA_KEYS_B64` re-encoded with all 100
+  entries. Existing keys still validate.
+- **GitHub release**: `v1.0.0-beta` deleted,
+  `v1.0.0-beta2` published with the freshly-built unsigned
+  DMG (99 MB). Asset URL: https://github.com/MARTINMRVS/xpn-builder/releases/download/v1.0.0-beta2/XPN.Builder-1.0.0.dmg
+- **Landing** (sibling repo): 4 download links retargeted
+  to v1.0.0-beta2, size copy bumped, **form swapped to
+  fetch + JS redirect** so submit lands the user on the DMG
+  instead of Formspree's confirmation page (Formspree still
+  records the lead). Favicon **regenerated from the mark
+  spec at 4 native sizes** (16/32/48/64) via Pillow + a
+  hand-written ICO header — Pillow's `append_images` was
+  rescaling the 16 px base for every size, which is why the
+  old icon looked off-centre.
+- **Code signing**: skipped. `security find-identity -v -p
+  codesigning` returns 0 valid identities; ship unsigned for
+  beta-2. Users right-click → Open on first launch.
 
 ### 2026-04-29 (UX overhaul)
 UX overhaul based on beta-tester feedback — PR #22 merged. 5
