@@ -6794,16 +6794,23 @@ function _xpnCategorize(sample) {
 
 // Uses CompressionStream when available (Chromium/Electron), falls back to
 // raw bytes for jsdom tests so the structure is verifiable.
+function _xpnTextToBytes(str) {
+  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str);
+  // jsdom fallback: ASCII path is enough for our XML payloads (escaped above).
+  const out = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) out[i] = str.charCodeAt(i) & 0xff;
+  return out;
+}
 async function _xpnGzip(str) {
   if (typeof CompressionStream === 'undefined') {
-    return new TextEncoder().encode(str);
+    return _xpnTextToBytes(str);
   }
   try {
     const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
     const buf = await new Response(stream).arrayBuffer();
     return new Uint8Array(buf);
   } catch (e) {
-    return new TextEncoder().encode(str);
+    return _xpnTextToBytes(str);
   }
 }
 
@@ -6919,26 +6926,117 @@ async function buildSP404Export(expName, zip) {
 }
 
 
-function buildAbletonExport(expName, zip) {
-  // Basic Ableton Drum Rack export (uncompressed ADG XML)
-  const root = zip.folder(expName + '_Ableton');
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<Ableton MajorVersion="5" MinorVersion="10.0.2" Creator="XPN Builder">\n`;
-  xml += `  <DrumGroupDevice>\n    <DrumBranchPresets>\n`;
-  banks[0].forEach((pad, pi) => {
-    const sample = pad.sampleId ? samples.find(s => s.id === pad.sampleId) : null;
-    const safeName = sample ? mpcSafeName(sample.name) : '';
-    const note = 36 + pi; // C1 = 36 baseline
-    xml += `      <DrumBranchPreset>\n`;
-    xml += `        <ZoneSettings NoteIn="${note}" NoteOut="${note}"/>\n`;
-    xml += `        <Name Value="${pad.name || safeName || ('Pad ' + (pi + 1))}"/>\n`;
-    if (sample) {
-      xml += `        <Sample>${safeName}.wav</Sample>\n`;
-      xml += `        <Volume>${(pad.volume / 100).toFixed(4)}</Volume>\n`;
-    }
-    xml += `      </DrumBranchPreset>\n`;
+// ════════════════════════════════════════════
+// FORMAT 3 — Ableton Drum Rack (.adg)
+// One .adg per kit (gzipped Live XML), shared Samples/ folder,
+// MIDI/ siblings. Pad N → MIDI note 36+N.
+// ════════════════════════════════════════════
+function _xpnBuildAdgXml(kitName, padSamples) {
+  // padSamples: [{padIdx, note, name, relPath, volume}, ...]
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<Ableton MajorVersion="5" MinorVersion="11.0.0" Creator="XPN Builder" SchemaChangeCount="1">\n';
+  xml += '  <DrumRack>\n';
+  xml += '    <Name Value="' + _xpnEscapeXml(kitName) + '"/>\n';
+  xml += '    <Branches>\n';
+  padSamples.forEach((p, idx) => {
+    xml += '      <DrumBranch Id="' + idx + '">\n';
+    xml += '        <Name Value="' + _xpnEscapeXml(p.name) + '"/>\n';
+    xml += '        <DeviceChain>\n';
+    xml += '          <AudioToAudioDeviceChain>\n';
+    xml += '            <Devices>\n';
+    xml += '              <OriginalSimpler>\n';
+    xml += '                <Player>\n';
+    xml += '                  <MultiSampleMap>\n';
+    xml += '                    <SampleParts>\n';
+    xml += '                      <MultiSamplePart Id="0">\n';
+    xml += '                        <Name Value="' + _xpnEscapeXml(p.name) + '"/>\n';
+    xml += '                        <SampleRef>\n';
+    xml += '                          <FileRef>\n';
+    xml += '                            <RelativePath Value="' + _xpnEscapeXml(p.relPath) + '"/>\n';
+    xml += '                            <Path Value="' + _xpnEscapeXml(p.relPath) + '"/>\n';
+    xml += '                          </FileRef>\n';
+    xml += '                        </SampleRef>\n';
+    xml += '                        <KeyRange>\n';
+    xml += '                          <Min Value="' + p.note + '"/>\n';
+    xml += '                          <Max Value="' + p.note + '"/>\n';
+    xml += '                        </KeyRange>\n';
+    xml += '                        <Volume Value="' + (p.volume != null ? p.volume.toFixed(4) : '1.0000') + '"/>\n';
+    xml += '                      </MultiSamplePart>\n';
+    xml += '                    </SampleParts>\n';
+    xml += '                  </MultiSampleMap>\n';
+    xml += '                </Player>\n';
+    xml += '              </OriginalSimpler>\n';
+    xml += '            </Devices>\n';
+    xml += '          </AudioToAudioDeviceChain>\n';
+    xml += '        </DeviceChain>\n';
+    xml += '        <ReceivingNote Value="' + p.note + '"/>\n';
+    xml += '        <SendingNote Value="' + p.note + '"/>\n';
+    xml += '      </DrumBranch>\n';
   });
-  xml += `    </DrumBranchPresets>\n  </DrumGroupDevice>\n</Ableton>`;
-  root.file(expName + '.adg', xml);
+  xml += '    </Branches>\n';
+  xml += '  </DrumRack>\n';
+  xml += '</Ableton>';
+  return xml;
+}
+
+async function buildAbletonExport(expName, zip) {
+  const root = zip.folder('Ableton_' + _xpnSafeFile(expName, 'Pack'));
+  const samplesFolder = root.folder('Samples');
+  const midiFolder = root.folder('MIDI');
+  const bpm = (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90;
+
+  const exportKits = _xpnGetExportKits();
+
+  // Dedup sample filenames once across the whole pack — Ableton uses
+  // RelativePath per branch, so consistent names matter.
+  const usedIds = new Set();
+  exportKits.forEach(k => (k.pads || []).forEach(p => {
+    if (p && p.sampleId != null) usedIds.add(p.sampleId);
+  }));
+  const usedSamples = (samples || []).filter(s => usedIds.has(s.id));
+  const safeNameOf = {};
+  const usedNames = new Set();
+  for (const s of usedSamples) {
+    let base = mpcSafeName(s.name).toLowerCase();
+    let cand = base, n = 2;
+    while (usedNames.has(cand)) { cand = base + '_' + n++; }
+    usedNames.add(cand);
+    safeNameOf[s.id] = cand;
+  }
+  for (const sample of usedSamples) {
+    const bytes = await _xpnGetSampleBytes(sample);
+    if (bytes) samplesFolder.file(safeNameOf[sample.id] + '.wav', bytes);
+  }
+
+  // One .adg + one .mid per kit
+  for (let ki = 0; ki < exportKits.length; ki++) {
+    const k = exportKits[ki];
+    const padSamples = [];
+    for (let pi = 0; pi < Math.min(16, k.pads.length); pi++) {
+      const pad = k.pads[pi];
+      if (!pad || pad.sampleId == null) continue;
+      const sn = safeNameOf[pad.sampleId];
+      if (!sn) continue;
+      padSamples.push({
+        padIdx: pi,
+        note: 36 + pi,
+        name: pad.name || sn,
+        relPath: 'Samples/' + sn + '.wav',
+        volume: (pad.volume != null ? pad.volume : 100) / 100,
+      });
+    }
+    if (padSamples.length === 0) continue;
+    const xml = _xpnBuildAdgXml(k.name, padSamples);
+    const gz = await _xpnGzip(xml);
+    root.file(_xpnSafeFile(k.name, 'Kit_' + (ki + 1)) + '.adg', gz);
+
+    // Ableton uses notes starting at C1 (36); buildMidiFileForKit emits
+    // pad i → 48 + i, so we shift by -12 with a small adapter.
+    const fakeKit = { sequenceData: k.sequenceData };
+    const midiBuf = buildMidiFileForKit(fakeKit, bpm);
+    midiFolder.file(_xpnSafeFile(k.name, 'Kit_' + (ki + 1)) + '_pattern.mid', midiBuf);
+  }
+
   return root;
 }
 
@@ -10215,6 +10313,38 @@ var XTP_SUITES=[
         return paths.some(p=>/SP404_Test_Pack\/ROLAND\/IMPORT\/Test_Pack\/A\/001_kick_01\.wav$/.test(p))&&
                paths.some(p=>/SP404_Test_Pack\/ROLAND\/IMPORT\/Test_Pack\/A\/002_snare_01\.wav$/.test(p))&&
                paths.some(p=>/IMPORT\/Test_Pack\/README\.txt$/.test(p));
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
+    },async:true},
+    {id:'mf_ab1',name:'_xpnBuildAdgXml: contains DrumRack with one DrumBranch per pad, ReceivingNote=36+i',fn:()=>{
+      const xml=_xpnBuildAdgXml('Test Kit',[
+        {padIdx:0,note:36,name:'kick',relPath:'Samples/kick.wav',volume:1},
+        {padIdx:1,note:37,name:'snare',relPath:'Samples/snare.wav',volume:0.8},
+      ]);
+      return xml.includes('<DrumRack>')&&
+             xml.includes('<ReceivingNote Value="36"/>')&&
+             xml.includes('<ReceivingNote Value="37"/>')&&
+             xml.includes('<RelativePath Value="Samples/kick.wav"/>');
+    }},
+    {id:'mf_ab2',name:'buildAbletonExport: emits .adg per kit + Samples/ + MIDI/',fn:async()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        const fakeFile={arrayBuffer:async()=>new ArrayBuffer(8)};
+        samples=[
+          {id:'ab1',name:'kick.wav',file:fakeFile},
+          {id:'ab2',name:'snare.wav',file:fakeFile},
+        ];
+        kits=[makeKit('Trap'),makeKit('House')];
+        kits[0].pads[0].sampleId='ab1';kits[0].pads[1].sampleId='ab2';
+        kits[1].pads[0].sampleId='ab1';
+        currentKit=0;
+        const zip=new JSZip();
+        await buildAbletonExport('Test Pack', zip);
+        const paths=Object.keys(zip.files);
+        return paths.some(p=>/Ableton_Test_Pack\/Samples\/kick\.wav$/.test(p))&&
+               paths.some(p=>/Ableton_Test_Pack\/Trap\.adg$/.test(p))&&
+               paths.some(p=>/Ableton_Test_Pack\/House\.adg$/.test(p))&&
+               paths.some(p=>/Ableton_Test_Pack\/MIDI\/Trap_pattern\.mid$/.test(p));
       } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
     },async:true},
     {id:'mf_sp2',name:'buildSP404Export: caps at 10 banks (A-J), each kit → its own bank',fn:async()=>{
