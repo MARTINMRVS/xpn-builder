@@ -3076,33 +3076,26 @@ async function _runAssignment(audioFiles) {
   const bankStats = Array.from({length: NUM_BANKS}, () => ({ total: 0, matched: 0 }));
   let totalAssigned = 0;
 
-  // Fase 6 follow-up: in expansion mode the long/kit/fill distinction doesn't
-  // apply — a kit is a single named 16-pad target. Delegate to the kit-aware
-  // path and short-circuit the bank-wise summary below.
+  // Expansion mode: bulk loads no longer auto-fill the current kit.
+  // Samples land in the pool, the Smart Build panel takes over with a
+  // single BUILD N KITS action driven by the audio classifier + a genre
+  // selector. This keeps the user from fighting an opinionated first
+  // assignment they didn't ask for.
   if (appMode === 'expansion') {
-    totalAssigned = _assignExpansion(scored, mode, bankStats, addLog);
-    const kitLabel = (kits[currentKit] && kits[currentKit].name) || ('Kit ' + (currentKit + 1));
     addLog('─────────────────────────────────────', '');
-    addLog(`${kitLabel}: ${bankStats[0].matched}/${bankStats[0].total} matched`, bankStats[0].matched === bankStats[0].total ? 'log-ok' : 'log-warn');
-    addLog(`Total: ${totalAssigned}/${audioFiles.length} assigned → ${kitLabel}`, totalAssigned === audioFiles.length ? 'log-ok' : 'log-warn');
+    addLog(`Loaded ${audioFiles.length} samples to pool`, 'log-ok');
     if (!_xpnAllowBankDuplicates) addLog('No-duplicate mode active', 'log-ok');
     renderPadGrid();
     renderSampleList();
+    if (typeof renderSamplePool === 'function') renderSamplePool();
     updateStatus();
     if (typeof renderKitList === 'function') renderKitList();
     const pool = samples.filter(s => {
-      // sample in pool = not assigned to any kit
       return !kits.some(k => (k.pads || []).some(p => p && p.sampleId === s.id));
     }).length;
-    const kitSuffix = pool > 0
-      ? ` — ${pool} in pool, create another kit to assign more.`
-      : '';
-    setStatus(`${totalAssigned} assigned to ${kitLabel}.${kitSuffix}`);
-    // Diagnostic (stays for future regression tracking): confirms the expansion
-    // branch runs to completion with the correct pool count before we hand off
-    // to the Smart Assign panel, which now owns the auto-kit CTA inline.
-    console.log('[XPN AutoKit] _runAssignment expansion done — appMode=', appMode, 'pool=', pool, 'kits=', kits.length);
-    showSmartSuggestions(audioFiles.length, totalAssigned, pool);
+    setStatus(`${audioFiles.length} samples analyzed — choose a genre and BUILD KITS.`);
+    console.log('[XPN SmartBuild] _runAssignment expansion done — pool=', pool, 'kits=', kits.length);
+    showSmartSuggestions(audioFiles.length, 0, pool);
     return;
   }
 
@@ -5056,7 +5049,10 @@ async function loadAudioFiles(files) {
     renderSamplePool();
     updateStatus();
     setStatus(`Loaded: ${file.name}`);
-    autoAssignPad(sample);
+    // Single-file drops still auto-assign in extended mode (the bank-cascading
+    // behaviour was the original 1-shot UX). Expansion mode leaves it in the
+    // pool so the user keeps full control over kit composition.
+    if (appMode !== 'expansion') autoAssignPad(sample);
   }
 }
 
@@ -5780,52 +5776,132 @@ function _recommendedKitCount(groups, poolCount) {
   return Math.min(7, Math.max(1, recommended));
 }
 
+// Genres exposed in the Smart Build panel — keys must exist in PT_PATTERNS.
+const SMART_BUILD_GENRES = [
+  { key: 'trap',        label: 'Trap' },
+  { key: 'boom_bap',    label: 'Boom Bap' },
+  { key: 'drill',       label: 'Drill' },
+  { key: 'house',       label: 'House' },
+  { key: 'afrobeat',    label: 'Afrobeat' },
+  { key: 'reggaeton',   label: 'Reggaeton' },
+  { key: 'lofi',        label: 'Lo-Fi' },
+  { key: 'dancehall',   label: 'Dancehall' },
+  { key: 'jersey_club', label: 'Jersey Club' },
+  { key: 'classic44',   label: '4/4 (default)' },
+];
+
 function showSmartSuggestions(totalFiles, assignedCount, poolOverride) {
   const panel = document.getElementById('smartSuggestPanel');
   if (!panel) return;
-  const unassigned = totalFiles - assignedCount;
   const isExpansion = (typeof appMode !== 'undefined' && appMode === 'expansion');
   let pool = poolOverride;
   if (isExpansion && (pool == null)) pool = _expansionPoolSamples().length;
-  const autoKitCount = isExpansion && pool >= 16 ? Math.min(7, Math.floor(pool / 16)) : 0;
 
+  // ── Expansion mode: Smart Build panel (one big button) ────────────
+  if (isExpansion) {
+    const groups = _groupPoolByDetectedType();
+    const recommended = pool >= 16 ? _recommendedKitCount(groups, pool) : 0;
+    const order = ['kick','snare','clap','rim','hihat_close','hihat_open','hihat_pedal','tom','cymbal','percussion','bass','sampler','fx'];
+    const breakdown = order
+      .filter(t => (groups[t] || []).length > 0)
+      .map(t => `${groups[t].length} ${(CLASSIFIER_BADGES[t] || t).toString().toLowerCase()}`)
+      .join(' · ');
+
+    let html = `<div class="smart-suggest-title">${totalFiles} samples analyzed</div>`;
+    if (breakdown) {
+      html += `<div class="smart-suggest-row" style="font-size:11px;line-height:1.5;color:var(--ink2);font-family:'IBM Plex Mono',monospace">${breakdown}</div>`;
+    }
+    if (recommended > 0) {
+      html += `<div class="smart-suggest-row" style="font-size:12px;color:var(--ink1);margin-top:4px">Recommended: <b style="color:var(--accent)">${recommended} kit${recommended > 1 ? 's' : ''}</b></div>`;
+      html += `<div class="smart-suggest-row" style="margin-top:6px;align-items:center;gap:8px">
+        <label style="font-size:11px;color:var(--ink2)">Genre</label>
+        <select id="smartBuildGenre" style="flex:1;background:var(--panel3);color:var(--ink1);border:1px solid var(--border);border-radius:var(--radius);padding:4px 6px;font-size:12px">
+          ${SMART_BUILD_GENRES.map((g, i) => `<option value="${g.key}"${i === 0 ? ' selected' : ''}>${g.label}</option>`).join('')}
+        </select>
+      </div>`;
+      html += `<button id="smartBuildBtn" onclick="xpnSmartBuildClick()" style="margin-top:10px;width:100%;padding:14px 12px;background:var(--accent);color:#1a1a1a;border:0;border-radius:var(--radius);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.14em;cursor:pointer">BUILD ${recommended} KIT${recommended > 1 ? 'S' : ''}</button>`;
+      html += `<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">
+        <span class="smart-suggest-action" onclick="dismissSmartSuggest()" style="color:var(--ink3);border-color:var(--border2)">Load to pool only</span>
+      </div>`;
+    } else {
+      html += `<div class="smart-suggest-row" style="font-size:11px;color:var(--ink3);line-height:1.5">Pool has ${pool} sample${pool === 1 ? '' : 's'}. Need at least 16 to recommend a kit. Drag to a pad or load more.</div>`;
+      html += `<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">
+        <span class="smart-suggest-action" onclick="dismissSmartSuggest()" style="color:var(--ink3);border-color:var(--border2)">Dismiss</span>
+      </div>`;
+    }
+    panel.innerHTML = html;
+    panel.classList.add('visible');
+    return;
+  }
+
+  // ── Extended mode: legacy Smart Assign panel ──────────────────────
+  const unassigned = totalFiles - assignedCount;
   let html = `<div class="smart-suggest-title">Smart Assign — ${totalFiles} samples analyzed</div>`;
   html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#10003; ${assignedCount} samples assigned to pads</span></div>`;
   if (unassigned > 0) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">&#9888; ${unassigned} unmatched (in sample pool)</span></div>`;
-  if (!isExpansion && totalFiles > 16) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">Distribute optimally across all 8 banks</span></div>`;
-
-  // Classifier breakdown: chips with counts per detected type. Only shown in
-  // expansion mode when the pool has anything to summarise.
-  if (isExpansion && pool > 0) {
-    const groups = _groupPoolByDetectedType();
-    const order = ['kick','snare','clap','rim','hihat_close','hihat_open','hihat_pedal','tom','cymbal','percussion','bass','sampler','fx'];
-    const chips = order
-      .filter(t => (groups[t] || []).length > 0)
-      .map(t => `<span class="pool-typebadge" style="background:${SLOT_COLORS[t] || SLOT_COLORS.sampler}" title="${groups[t].length} ${t} sample(s) detected">${CLASSIFIER_BADGES[t] || t.toUpperCase()} ${groups[t].length}</span>`)
-      .join(' ');
-    if (chips) {
-      html += `<div class="smart-suggest-row" style="flex-wrap:wrap;gap:4px;display:flex">${chips}</div>`;
-    }
-  }
-
-  if (autoKitCount > 0) {
-    const groups = _groupPoolByDetectedType();
-    const recommended = _recommendedKitCount(groups, pool);
-    html += `<div class="autokit-offer" style="margin-top:8px;padding:8px;border:1px solid var(--accent);border-radius:var(--radius);display:flex;flex-direction:column;gap:6px">
-      <span style="font-size:11px;color:var(--ink2);line-height:1.5">Recommended: <b>${recommended}</b> balanced kit${recommended > 1 ? 's' : ''} from ${pool} pool samples.</span>
-      <span style="font-size:8px;color:var(--ink3);font-family:'IBM Plex Mono',monospace;letter-spacing:.08em">Distribution uses the audio classifier — kicks/snares/hats are spread evenly across kits.</span>
-      <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
-        <button class="tb-btn ghost" onclick="autoKitFillAll(1)" style="padding:5px 12px;font-size:10px">Create 1 kit</button>
-        <button class="tb-btn primary" onclick="autoKitFillAll(${recommended})" style="padding:5px 12px;font-size:10px">Create ${recommended} kit${recommended > 1 ? 's' : ''}</button>
-      </div>
-    </div>`;
-  }
-
+  if (totalFiles > 16) html += `<div class="smart-suggest-row"><span class="smart-suggest-label">Distribute optimally across all 8 banks</span></div>`;
   html += `<div style="display:flex;gap:6px;justify-content:flex-end;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">`;
-  if (!isExpansion && totalFiles > 16) html += `<span class="smart-suggest-action" onclick="optimizeAcrossBanks()">Optimize</span>`;
+  if (totalFiles > 16) html += `<span class="smart-suggest-action" onclick="optimizeAcrossBanks()">Optimize</span>`;
   html += `<span class="smart-suggest-action" onclick="dismissSmartSuggest()" style="color:var(--ink3);border-color:var(--border2)">Dismiss</span></div>`;
   panel.innerHTML = html;
   panel.classList.add('visible');
+}
+
+// Reads the genre dropdown + recommended count, builds N kits, and applies
+// the genre's pattern template to each one. Wired to the BUILD KITS button.
+function xpnSmartBuildClick() {
+  const sel = document.getElementById('smartBuildGenre');
+  const genre = sel ? sel.value : 'classic44';
+  const groups = _groupPoolByDetectedType();
+  const pool = _expansionPoolSamples().length;
+  const recommended = pool >= 16 ? _recommendedKitCount(groups, pool) : 1;
+  xpnBuildKitsWithPattern(recommended, genre);
+}
+
+// Fills kit.sequenceData using a PT_PATTERNS entry, mapping pattern rows
+// (kick / snare / hihat_close / ...) to the kit pads whose sample matches
+// that detectedType. No-op for empty kits or unknown genre keys.
+function _xpnApplyPatternToKit(kit, patKey) {
+  if (!kit || !PT_PATTERNS[patKey]) return;
+  const pat = PT_PATTERNS[patKey];
+  if (!kit.sequenceData) kit.sequenceData = {};
+  const seq = kit.sequenceData;
+
+  const typeToPads = {};
+  (kit.pads || []).forEach((pad, i) => {
+    if (!pad || pad.sampleId == null) return;
+    const sample = (samples || []).find(s => s.id === pad.sampleId);
+    const t = (sample && sample.detectedType) ||
+              (sample && typeof detectSlotType === 'function' && detectSlotType(sample.name)) ||
+              'sampler';
+    if (!typeToPads[t]) typeToPads[t] = [];
+    typeToPads[t].push(i);
+  });
+
+  Object.entries(pat).forEach(([rowType, rawSteps]) => {
+    const indices = typeToPads[rowType] || [];
+    if (indices.length === 0) return;
+    const steps = rawSteps.map(v => (v === 1 ? 100 : (v === 0 ? 0 : v)));
+    const padIdx = indices[0];
+    if (!seq[padIdx]) seq[padIdx] = Array(16).fill(0);
+    for (let s = 0; s < 16; s++) seq[padIdx][s] = steps[s] || 0;
+  });
+}
+
+// Convenience wrapper used by the Smart Build button: creates `targetCount`
+// kits via autoKitFillAll, then writes a genre pattern into each new kit's
+// sequenceData. Returns the number of kits actually created.
+function xpnBuildKitsWithPattern(targetCount, genreKey) {
+  if (typeof autoKitFillAll !== 'function') return 0;
+  const before = (kits || []).length;
+  autoKitFillAll(targetCount);
+  const after = kits.length;
+  for (let i = before; i < after; i++) {
+    _xpnApplyPatternToKit(kits[i], genreKey || 'classic44');
+  }
+  if (typeof renderKitList === 'function') renderKitList();
+  if (typeof renderPadGrid === 'function') renderPadGrid();
+  return after - before;
 }
 
 // Inline auto-fill: create N kits and fill each using the pool-aware scoring
@@ -10679,6 +10755,74 @@ var XTP_SUITES=[
         return paths.includes('used.wav')&&!paths.includes('unused.wav');
       } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
     },async:true},
+  ]},
+  {name:'UX Overhaul',tests:[
+    {id:'ux1',name:'_xpnApplyPatternToKit: writes velocity steps into kit.sequenceData by detectedType',fn:()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice();
+      try{
+        samples=[
+          {id:'ux_k',name:'kick.wav',detectedType:'kick'},
+          {id:'ux_s',name:'snare.wav',detectedType:'snare'},
+        ];
+        const k=makeKit('Test');
+        k.pads[0].sampleId='ux_k';
+        k.pads[1].sampleId='ux_s';
+        _xpnApplyPatternToKit(k,'classic44');
+        const kickRow=k.sequenceData[0]||[];
+        const snareRow=k.sequenceData[1]||[];
+        return kickRow[0]===100&&kickRow[8]===100&&snareRow[4]===100&&snareRow[12]===100;
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples; }
+    }},
+    {id:'ux2',name:'xpnBuildKitsWithPattern: creates N kits and applies genre',fn:()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        // Pool of 32 mixed samples (enough for 2 balanced kits)
+        samples=[];
+        for(let i=0;i<8;i++)samples.push({id:'ux_kk_'+i,name:'kick_'+i+'.wav',detectedType:'kick'});
+        for(let i=0;i<8;i++)samples.push({id:'ux_sn_'+i,name:'snare_'+i+'.wav',detectedType:'snare'});
+        for(let i=0;i<8;i++)samples.push({id:'ux_hh_'+i,name:'hh_'+i+'.wav',detectedType:'hihat_close'});
+        for(let i=0;i<8;i++)samples.push({id:'ux_cl_'+i,name:'clap_'+i+'.wav',detectedType:'clap'});
+        kits=[];currentKit=0;
+        const created=xpnBuildKitsWithPattern(2,'trap');
+        if(created!==2)return false;
+        // Each kit should have at least one filled sequence row from the trap pattern
+        const k0Filled=Object.values(kits[0].sequenceData||{}).some(r=>Array.isArray(r)&&r.some(v=>v>0));
+        const k1Filled=Object.values(kits[1].sequenceData||{}).some(r=>Array.isArray(r)&&r.some(v=>v>0));
+        return k0Filled&&k1Filled;
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
+    }},
+    {id:'ux3',name:'showSmartSuggestions(expansion): renders Smart Build panel with BUILD button + genre selector when pool>=16',fn:()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        samples=[];
+        for(let i=0;i<20;i++)samples.push({id:'sb_'+i,name:'k_'+i+'.wav',detectedType:i%2?'kick':'snare'});
+        kits=[];currentKit=0;
+        showSmartSuggestions(20,0,20);
+        const panel=document.getElementById('smartSuggestPanel');
+        const html=panel?panel.innerHTML:'';
+        return html.includes('smartBuildBtn')&&html.includes('smartBuildGenre')&&!html.includes('Optimize')&&!html.includes('across all 8 banks');
+      } finally {
+        const panel=document.getElementById('smartSuggestPanel');
+        if(panel){panel.innerHTML='';panel.classList.remove('visible');}
+        kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode;
+      }
+    }},
+    {id:'ux4',name:'showSmartSuggestions(extended): does NOT render the new BUILD button',fn:()=>{
+      const savedMode=appMode;
+      try{
+        appMode='extended';
+        showSmartSuggestions(20,5);
+        const panel=document.getElementById('smartSuggestPanel');
+        const html=panel?panel.innerHTML:'';
+        return !html.includes('smartBuildBtn')&&html.includes('Smart Assign');
+      } finally {
+        const panel=document.getElementById('smartSuggestPanel');
+        if(panel){panel.innerHTML='';panel.classList.remove('visible');}
+        appMode=savedMode;
+      }
+    }},
   ]},
 ];
 
