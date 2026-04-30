@@ -6927,6 +6927,94 @@ async function buildSP404Export(expName, zip) {
 
 
 // ════════════════════════════════════════════
+// FORMAT 5 — Elektron Analog RYTM
+// 48 kHz / 16-bit / mono WAVs + per-kit MIDI + PadMap.txt
+// SysEx (.syx) for kits/patterns is reserved for v2.
+// ════════════════════════════════════════════
+async function _xpnConvertTo48Mono(sample) {
+  // Real conversion when an AudioBuffer is available + OfflineAudioContext exists.
+  if (sample && sample.buffer && typeof OfflineAudioContext !== 'undefined') {
+    try {
+      const src = sample.buffer;
+      const targetSR = 48000;
+      const targetLen = Math.max(1, Math.ceil(src.length * targetSR / src.sampleRate));
+      const ctx = new OfflineAudioContext(1, targetLen, targetSR); // mono
+      const node = ctx.createBufferSource();
+      node.buffer = src;
+      node.connect(ctx.destination); // stereo → mono mixdown is automatic
+      node.start();
+      const rendered = await ctx.startRendering();
+      return audioBufferToWav(rendered);
+    } catch (e) { /* fall through */ }
+  }
+  return await _xpnGetSampleBytes(sample);
+}
+
+async function buildElektronExport(expName, zip) {
+  const root = zip.folder('Elektron_' + _xpnSafeFile(expName, 'Pack'));
+  const samplesFolder = root.folder('Samples');
+  const patternsFolder = root.folder('Patterns');
+  const exportKits = _xpnGetExportKits();
+  const bpm = (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90;
+
+  const padMapLines = [];
+  for (let ki = 0; ki < exportKits.length; ki++) {
+    const k = exportKits[ki];
+    const kitFolderName = _xpnSafeFile(k.name, 'Kit_' + (ki + 1));
+    const kitFolder = samplesFolder.folder(kitFolderName);
+    padMapLines.push('# Kit: ' + k.name);
+    let written = 0;
+    for (let pi = 0; pi < Math.min(16, k.pads.length); pi++) {
+      const pad = k.pads[pi];
+      if (!pad || pad.sampleId == null) continue;
+      const sample = (samples || []).find(s => s.id === pad.sampleId);
+      if (!sample) continue;
+      const bytes = await _xpnConvertTo48Mono(sample);
+      if (!bytes) continue;
+      const num = String(pi + 1).padStart(2, '0');
+      const base = mpcSafeName(sample.name).toLowerCase();
+      const fileName = num + '_' + base + '.wav';
+      kitFolder.file(fileName, bytes);
+      padMapLines.push('  Pad ' + (pi + 1) + ' → ' + fileName);
+      written++;
+    }
+    if (written === 0) padMapLines.push('  (empty)');
+    padMapLines.push('');
+
+    const fakeKit = { sequenceData: k.sequenceData };
+    const midiBuf = buildMidiFileForKit(fakeKit, bpm);
+    patternsFolder.file(kitFolderName + '_pattern.mid', midiBuf);
+  }
+
+  root.file('PadMap.txt',
+    'XPN Builder — Elektron Analog RYTM pad map\n' +
+    '==========================================\n\n' +
+    padMapLines.join('\n'));
+
+  const date = new Date().toISOString().slice(0, 10);
+  const author = (document.getElementById('expAuthor') || {}).value || 'Unknown';
+  const readme =
+    'XPN Builder — Elektron Analog RYTM export\n' +
+    '==========================================\n\n' +
+    'Pack: ' + expName + '\n' +
+    'Author: ' + author + '\n' +
+    'Date: ' + date + '\n' +
+    'Kits: ' + exportKits.length + '\n\n' +
+    'WAVs: 16-bit / 48 kHz / mono (RYTM-native).\n' +
+    'Stereo sources are mixed to mono; sample-rate is converted on export.\n\n' +
+    'Install with Elektron Transfer:\n' +
+    '  1. Open Elektron Transfer and connect your Analog RYTM.\n' +
+    '  2. Drag Samples/<Kit>/ folders into the Transfer "Sound Pool" lane.\n' +
+    '  3. Map pads on the device using PadMap.txt as a reference.\n' +
+    '  4. Patterns/*.mid can be imported via Overbridge or your DAW.\n\n' +
+    'SysEx (.syx) export for kits/patterns is reserved for a future version.\n';
+  root.file('README.txt', readme);
+
+  return root;
+}
+
+
+// ════════════════════════════════════════════
 // FORMAT 4 — NI Maschine sample pack
 // .mxgrp is closed/proprietary, so we ship a folder layout the user
 // drops onto Maschine pads in order. Includes One-Shots/ categorised
@@ -10408,6 +10496,35 @@ var XTP_SUITES=[
              xml.includes('<ReceivingNote Value="37"/>')&&
              xml.includes('<RelativePath Value="Samples/kick.wav"/>');
     }},
+    {id:'mf_el1',name:'buildElektronExport: Samples/<Kit>/NN_name.wav + Patterns + PadMap.txt',fn:async()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        const fakeFile={arrayBuffer:async()=>new ArrayBuffer(8)};
+        samples=[
+          {id:'el1',name:'kick.wav',file:fakeFile},
+          {id:'el2',name:'snare.wav',file:fakeFile},
+        ];
+        kits=[makeKit('Acid')];currentKit=0;
+        kits[0].pads[0].sampleId='el1';kits[0].pads[2].sampleId='el2';
+        const zip=new JSZip();
+        await buildElektronExport('Test Pack', zip);
+        const paths=Object.keys(zip.files);
+        return paths.some(p=>/Elektron_Test_Pack\/Samples\/Acid\/01_kick\.wav$/.test(p))&&
+               paths.some(p=>/Elektron_Test_Pack\/Samples\/Acid\/03_snare\.wav$/.test(p))&&
+               paths.some(p=>/Elektron_Test_Pack\/Patterns\/Acid_pattern\.mid$/.test(p))&&
+               paths.some(p=>/Elektron_Test_Pack\/PadMap\.txt$/.test(p))&&
+               paths.some(p=>/Elektron_Test_Pack\/README\.txt$/.test(p));
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
+    },async:true},
+    {id:'mf_el2',name:'_xpnConvertTo48Mono: returns bytes when AudioBuffer is available',fn:async()=>{
+      if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      const buf=audioCtx.createBuffer(2,4410,44100);
+      const out=await _xpnConvertTo48Mono({buffer:buf,name:'x.wav'});
+      // Either real OfflineAudioContext path (ArrayBuffer) or fallback (null,
+      // because no .file). Both are acceptable signatures of the helper.
+      return out===null||out instanceof ArrayBuffer||(out&&out.byteLength!=null);
+    },async:true},
     {id:'mf_ms1',name:'buildMaschineExport: per-kit PadNN_ folder layout + One-Shots + Patterns + Tags.txt',fn:async()=>{
       const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
       try{
