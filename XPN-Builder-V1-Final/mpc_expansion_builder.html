@@ -6868,6 +6868,57 @@ async function buildUniversalExport(expName, zip) {
 }
 
 
+// ════════════════════════════════════════════
+// FORMAT 2 — Roland SP-404 MKII
+// SD-card-ready ROLAND/IMPORT/PackName/{A..J}/NNN_name.wav
+// One bank per kit (max 10 banks), 16 samples per bank.
+// ════════════════════════════════════════════
+async function buildSP404Export(expName, zip) {
+  const safePack = _xpnSafeFile(expName, 'Pack');
+  const root = zip.folder('SP404_' + safePack);
+  const importFolder = root.folder('ROLAND').folder('IMPORT').folder(safePack);
+
+  const exportKits = _xpnGetExportKits().slice(0, 10); // SP-404 caps at 10 banks
+  const banksLetters = 'ABCDEFGHIJ';
+
+  let globalIdx = 0; // 1-160 numbering across banks
+  for (let ki = 0; ki < exportKits.length; ki++) {
+    const k = exportKits[ki];
+    const bankFolder = importFolder.folder(banksLetters[ki]);
+    const padCount = Math.min(16, k.pads.length);
+    for (let pi = 0; pi < padCount; pi++) {
+      const pad = k.pads[pi];
+      if (!pad || pad.sampleId == null) continue;
+      const sample = (samples || []).find(s => s.id === pad.sampleId);
+      if (!sample) continue;
+      globalIdx++;
+      const num = String(globalIdx).padStart(3, '0');
+      const baseName = mpcSafeName(sample.name).toLowerCase();
+      const bytes = await _xpnGetSampleBytes(sample);
+      if (bytes) bankFolder.file(num + '_' + baseName + '.wav', bytes);
+    }
+  }
+
+  const date = new Date().toISOString().slice(0, 10);
+  const author = (document.getElementById('expAuthor') || {}).value || 'Unknown';
+  const readme =
+    'XPN Builder — Roland SP-404 MKII export\n' +
+    '========================================\n\n' +
+    'Pack: ' + expName + '\n' +
+    'Author: ' + author + '\n' +
+    'Date: ' + date + '\n' +
+    'Banks: ' + exportKits.length + ' (' + banksLetters.slice(0, exportKits.length) + ')\n\n' +
+    'Install:\n' +
+    '  1. Copy the ROLAND/ folder to the root of your SP-404 MKII SD card.\n' +
+    '  2. On the SP-404 MKII, choose "Import" and select "' + safePack + '".\n' +
+    '  3. Choose target banks and confirm.\n\n' +
+    'WAVs are 16-bit / 44.1 kHz (or the source format if already compatible).\n';
+  importFolder.file('README.txt', readme);
+
+  return root;
+}
+
+
 function buildAbletonExport(expName, zip) {
   // Basic Ableton Drum Rack export (uncompressed ADG XML)
   const root = zip.folder(expName + '_Ableton');
@@ -10145,6 +10196,43 @@ var XTP_SUITES=[
                paths.some(p=>p.includes('MIDI/'))&&
                paths.some(p=>/_pattern\.mid$/.test(p))&&
                paths.some(p=>/README\.txt$/.test(p));
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
+    },async:true},
+    {id:'mf_sp1',name:'buildSP404Export: ROLAND/IMPORT/<pack>/A/NNN_name.wav layout',fn:async()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        const fakeFile={arrayBuffer:async()=>new ArrayBuffer(8)};
+        samples=[
+          {id:'sp1',name:'kick_01.wav',file:fakeFile},
+          {id:'sp2',name:'snare_01.wav',file:fakeFile},
+        ];
+        kits=[makeKit('K1')];currentKit=0;
+        kits[0].pads[0].sampleId='sp1';kits[0].pads[1].sampleId='sp2';
+        const zip=new JSZip();
+        await buildSP404Export('Test Pack', zip);
+        const paths=Object.keys(zip.files);
+        return paths.some(p=>/SP404_Test_Pack\/ROLAND\/IMPORT\/Test_Pack\/A\/001_kick_01\.wav$/.test(p))&&
+               paths.some(p=>/SP404_Test_Pack\/ROLAND\/IMPORT\/Test_Pack\/A\/002_snare_01\.wav$/.test(p))&&
+               paths.some(p=>/IMPORT\/Test_Pack\/README\.txt$/.test(p));
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
+    },async:true},
+    {id:'mf_sp2',name:'buildSP404Export: caps at 10 banks (A-J), each kit → its own bank',fn:async()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        const fakeFile={arrayBuffer:async()=>new ArrayBuffer(8)};
+        samples=[{id:'spk',name:'kick.wav',file:fakeFile}];
+        kits=[];
+        for (let i=0;i<12;i++){ const k=makeKit('K'+i); k.pads[0].sampleId='spk'; kits.push(k); }
+        currentKit=0;
+        const zip=new JSZip();
+        await buildSP404Export('Big', zip);
+        const paths=Object.keys(zip.files).join('|');
+        const hasA=/IMPORT\/Big\/A\//.test(paths);
+        const hasJ=/IMPORT\/Big\/J\//.test(paths);
+        const noK=!/IMPORT\/Big\/K\//.test(paths);
+        return hasA&&hasJ&&noK;
       } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
     },async:true},
     {id:'mf5',name:'buildUniversalExport: only references samples used by kits',fn:async()=>{
