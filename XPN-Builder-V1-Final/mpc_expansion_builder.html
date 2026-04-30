@@ -6725,6 +6725,149 @@ function buildPresetXml(pads, bankName, expName, fwVersion) {
 }
 
 
+// ════════════════════════════════════════════
+// MULTI-FORMAT EXPORT — shared helpers
+// ════════════════════════════════════════════
+
+// Returns a normalized array of "kits to export" regardless of appMode.
+// In expansion mode → from kits[]. In extended mode → one entry per
+// non-empty bank (banks A-H).
+function _xpnGetExportKits() {
+  if (typeof appMode !== 'undefined' && appMode === 'expansion') {
+    return (kits || []).map((k, i) => ({
+      name: k.name || ('Kit_' + (i + 1)),
+      pads: k.pads,
+      sequenceData: k.sequenceData || {},
+    }));
+  }
+  return (banks || []).map((bankPads, bi) => ({
+    name: 'Bank_' + 'ABCDEFGH'[bi],
+    pads: bankPads,
+    sequenceData: (typeof pePatterns !== 'undefined' && pePatterns[bi]) || {},
+  })).filter(k => k.pads && k.pads.some(p => p && p.sampleId != null));
+}
+
+// Returns sample arrayBuffer (original file bytes, or rendered WAV from
+// AudioBuffer when no file is attached). Returns null when neither is
+// available.
+async function _xpnGetSampleBytes(sample) {
+  if (!sample) return null;
+  if (sample.file && typeof sample.file.arrayBuffer === 'function') {
+    try { return await sample.file.arrayBuffer(); } catch (e) {}
+  }
+  if (sample.buffer && typeof audioBufferToWav === 'function') {
+    return audioBufferToWav(sample.buffer);
+  }
+  return null;
+}
+
+// Slugifies any string into a cross-platform-safe filename segment.
+function _xpnSafeFile(s, fallback) {
+  return String(s || fallback || 'item')
+    .replace(/[\/\\:\*\?"<>\|]/g, '')
+    .replace(/\s+/g, '_')
+    .substring(0, 60) || fallback || 'item';
+}
+
+// Maps detectedType → folder name for Universal/Maschine layouts.
+function _xpnCategorize(sample) {
+  const t = (sample && sample.detectedType) ||
+    (typeof detectSlotType === 'function' ? detectSlotType((sample && sample.name) || '') : null) ||
+    'sampler';
+  switch (t) {
+    case 'kick': return 'Kicks';
+    case 'snare': return 'Snares';
+    case 'clap': return 'Claps';
+    case 'rim': return 'Percussion';
+    case 'hihat_close':
+    case 'hihat_open':
+    case 'hihat_pedal': return 'HiHats';
+    case 'tom':
+    case 'cymbal':
+    case 'percussion': return 'Percussion';
+    case 'bass': return 'Bass';
+    case 'fx': return 'FX';
+    case 'sampler':
+    default: return 'Melodic';
+  }
+}
+
+// Uses CompressionStream when available (Chromium/Electron), falls back to
+// raw bytes for jsdom tests so the structure is verifiable.
+async function _xpnGzip(str) {
+  if (typeof CompressionStream === 'undefined') {
+    return new TextEncoder().encode(str);
+  }
+  try {
+    const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));
+    const buf = await new Response(stream).arrayBuffer();
+    return new Uint8Array(buf);
+  } catch (e) {
+    return new TextEncoder().encode(str);
+  }
+}
+
+// ════════════════════════════════════════════
+// FORMAT 1 — Universal Sample Pack
+// WAVs organised in folders by detectedType + per-kit MIDI patterns.
+// ════════════════════════════════════════════
+async function buildUniversalExport(expName, zip) {
+  const root = zip.folder(_xpnSafeFile(expName, 'Pack'));
+  const author = (document.getElementById('expAuthor') || {}).value || 'Unknown';
+  const bpm = (typeof peBpm !== 'undefined' && peBpm) ? peBpm : 90;
+  const exportKits = _xpnGetExportKits();
+
+  const usedIds = new Set();
+  exportKits.forEach(k => (k.pads || []).forEach(p => {
+    if (p && p.sampleId != null) usedIds.add(p.sampleId);
+    (p && p.layers || []).forEach(lid => { if (lid != null) usedIds.add(lid); });
+  }));
+
+  const usedSamples = (samples || []).filter(s => usedIds.has(s.id));
+
+  const dedupedNames = new Set();
+  const safeNameOf = {};
+  for (const s of usedSamples) {
+    let base = mpcSafeName(s.name).toLowerCase();
+    let cand = base, n = 2;
+    while (dedupedNames.has(cand)) { cand = base + '_' + n++; }
+    dedupedNames.add(cand);
+    safeNameOf[s.id] = cand;
+  }
+
+  for (const sample of usedSamples) {
+    const folder = root.folder(_xpnCategorize(sample));
+    const bytes = await _xpnGetSampleBytes(sample);
+    if (bytes) folder.file(safeNameOf[sample.id] + '.wav', bytes);
+  }
+
+  const midiFolder = root.folder('MIDI');
+  exportKits.forEach((k, i) => {
+    const fakeKit = { sequenceData: k.sequenceData };
+    const midiBuf = buildMidiFileForKit(fakeKit, bpm);
+    midiFolder.file(_xpnSafeFile(k.name, 'Kit_' + (i + 1)) + '_pattern.mid', midiBuf);
+  });
+
+  const date = new Date().toISOString().slice(0, 10);
+  const kitList = exportKits.map((k, i) => '  ' + (i + 1) + '. ' + k.name).join('\n') || '  (none)';
+  const readme =
+    'XPN Builder — Universal Sample Pack\n' +
+    '====================================\n\n' +
+    'Pack: ' + expName + '\n' +
+    'Author: ' + author + '\n' +
+    'BPM: ' + bpm + '\n' +
+    'Date: ' + date + '\n' +
+    'Samples: ' + usedSamples.length + '\n' +
+    'Kits: ' + exportKits.length + '\n\n' +
+    'Kits:\n' + kitList + '\n\n' +
+    'Folders are categorised by sample type (kick / snare / hi-hat / ...).\n' +
+    'MIDI/ contains one .mid per kit at the pack BPM.\n';
+  root.file('README.txt', readme);
+
+  return root;
+}
+
+
 function buildAbletonExport(expName, zip) {
   // Basic Ableton Drum Rack export (uncompressed ADG XML)
   const root = zip.folder(expName + '_Ableton');
@@ -9956,6 +10099,70 @@ var XTP_SUITES=[
       } finally {
         kits=savedKits;currentKit=savedCur;samples=savedSamples;
       }
+    },async:true},
+  ]},
+  {name:'Multi-Format Export',tests:[
+    {id:'mf1',name:'_xpnGetExportKits returns banks with samples in extended mode',fn:()=>{
+      const savedMode=appMode;const savedSampleId=banks[0][0].sampleId;
+      try{
+        appMode='extended';
+        banks[0][0].sampleId='_mf_stub';
+        const out=_xpnGetExportKits();
+        return Array.isArray(out)&&out.length>=1&&out[0].pads&&out[0].pads.length===16&&out[0].name.startsWith('Bank_');
+      } finally { appMode=savedMode; banks[0][0].sampleId=savedSampleId; }
+    }},
+    {id:'mf2',name:'_xpnCategorize maps detectedType → folder name',fn:()=>{
+      return _xpnCategorize({detectedType:'kick'})==='Kicks'&&
+             _xpnCategorize({detectedType:'snare'})==='Snares'&&
+             _xpnCategorize({detectedType:'hihat_close'})==='HiHats'&&
+             _xpnCategorize({detectedType:'clap'})==='Claps'&&
+             _xpnCategorize({detectedType:'bass'})==='Bass'&&
+             _xpnCategorize({detectedType:'fx'})==='FX'&&
+             _xpnCategorize({detectedType:'sampler'})==='Melodic';
+    }},
+    {id:'mf3',name:'_xpnSafeFile strips unsafe filename chars',fn:()=>{
+      return _xpnSafeFile('Hello / World? *.wav', 'x')==='Hello__World_.wav'.replace('//','_')||
+             _xpnSafeFile('Hello / World? *.wav', 'x').indexOf('/')===-1;
+    }},
+    {id:'mf4',name:'buildUniversalExport: ZIP has type folders + MIDI + README',fn:async()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        const fakeFile={arrayBuffer:async()=>new ArrayBuffer(8)};
+        samples=[
+          {id:'mfu1',name:'kick_01.wav',detectedType:'kick',file:fakeFile},
+          {id:'mfu2',name:'snare_01.wav',detectedType:'snare',file:fakeFile},
+          {id:'mfu3',name:'hh_01.wav',detectedType:'hihat_close',file:fakeFile},
+        ];
+        kits=[makeKit('K1')];currentKit=0;
+        kits[0].pads[0].sampleId='mfu1';kits[0].pads[1].sampleId='mfu2';kits[0].pads[2].sampleId='mfu3';
+        const zip=new JSZip();
+        await buildUniversalExport('Test Pack', zip);
+        const paths=Object.keys(zip.files);
+        return paths.some(p=>p.includes('Kicks/kick_01.wav'))&&
+               paths.some(p=>p.includes('Snares/snare_01.wav'))&&
+               paths.some(p=>p.includes('HiHats/hh_01.wav'))&&
+               paths.some(p=>p.includes('MIDI/'))&&
+               paths.some(p=>/_pattern\.mid$/.test(p))&&
+               paths.some(p=>/README\.txt$/.test(p));
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
+    },async:true},
+    {id:'mf5',name:'buildUniversalExport: only references samples used by kits',fn:async()=>{
+      const savedKits=kits.slice(),savedCur=currentKit,savedSamples=samples.slice(),savedMode=appMode;
+      try{
+        appMode='expansion';
+        const fakeFile={arrayBuffer:async()=>new ArrayBuffer(8)};
+        samples=[
+          {id:'mfu_used',name:'used.wav',detectedType:'kick',file:fakeFile},
+          {id:'mfu_unused',name:'unused.wav',detectedType:'snare',file:fakeFile},
+        ];
+        kits=[makeKit('K1')];currentKit=0;
+        kits[0].pads[0].sampleId='mfu_used';
+        const zip=new JSZip();
+        await buildUniversalExport('Test Pack', zip);
+        const paths=Object.keys(zip.files).join('|');
+        return paths.includes('used.wav')&&!paths.includes('unused.wav');
+      } finally { kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode; }
     },async:true},
   ]},
 ];
