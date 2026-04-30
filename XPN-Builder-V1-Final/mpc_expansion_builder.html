@@ -4334,13 +4334,19 @@ function updateModeVisibility() {
     if (appMode === 'expansion') descField.style.removeProperty('display');
     else descField.style.display = 'none';
   }
-  // Hide Extended-only controls in expansion mode (bank-wise concepts)
+  // Hide Extended-only controls in expansion mode (bank-wise concepts).
+  // REORDER, AUTO ASSIGN (LONG/KIT/FILL distribute-across-A-H), and the
+  // bankInfo "16 pads · Bank X" caption are all about banks. Expansion's
+  // unit is a kit, so they have no place here.
   const reorderBtn = document.getElementById('reorderBtn');
-  if (reorderBtn && appMode === 'expansion') reorderBtn.style.display = 'none';
-  // Dismiss any stale "Optimize across 8 banks" panel on mode flip
+  const autoAssignWrap = document.getElementById('autoAssignWrap');
   if (appMode === 'expansion') {
+    if (reorderBtn) reorderBtn.style.display = 'none';
+    if (autoAssignWrap) autoAssignWrap.style.display = 'none';
     const sPanel = document.getElementById('smartSuggestPanel');
     if (sPanel) { sPanel.classList.remove('visible'); sPanel.innerHTML = ''; }
+  } else {
+    if (autoAssignWrap) autoAssignWrap.style.removeProperty('display');
   }
   renderPadGrid();
 }
@@ -10886,6 +10892,38 @@ var XTP_SUITES=[
         if(panel){panel.innerHTML='';panel.classList.remove('visible');}
         kits=savedKits;currentKit=savedCur;samples=savedSamples;appMode=savedMode;
       }
+    }},
+    {id:'ux_clean1',name:'updateModeVisibility(expansion): hides REORDER + AUTO ASSIGN, dismisses smart panel',fn:()=>{
+      const savedMode=appMode;
+      try{
+        appMode='expansion';
+        // Inject some content into the smart panel to verify it gets dismissed
+        const sp=document.getElementById('smartSuggestPanel');
+        if(sp){sp.classList.add('visible');sp.innerHTML='stale';}
+        updateModeVisibility();
+        const reorder=document.getElementById('reorderBtn');
+        const aa=document.getElementById('autoAssignWrap');
+        const reorderHidden=!reorder||reorder.style.display==='none';
+        const aaHidden=!aa||aa.style.display==='none';
+        const panelDismissed=!sp||(!sp.classList.contains('visible')&&sp.innerHTML==='');
+        return reorderHidden&&aaHidden&&panelDismissed;
+      } finally { appMode=savedMode; updateModeVisibility(); }
+    }},
+    {id:'ux_clean2',name:'updateModeVisibility(extended): restores AUTO ASSIGN visibility',fn:()=>{
+      const savedMode=appMode;
+      try{
+        appMode='expansion';updateModeVisibility();
+        appMode='extended';updateModeVisibility();
+        const aa=document.getElementById('autoAssignWrap');
+        return !!aa&&aa.style.display!=='none';
+      } finally { appMode=savedMode; updateModeVisibility(); }
+    }},
+    {id:'ux_clean3',name:'BEAT LAYOUT preview is rendered by exactly one element (no duplicate)',fn:()=>{
+      // Old xpn-mode-grid is forced hidden; only liveTplPreview renders the layout preview.
+      const oldGrid=document.getElementById('xpn-mode-grid');
+      const isHidden=!oldGrid||oldGrid.style.display==='none';
+      const liveCount=document.querySelectorAll('#liveTplGrid').length;
+      return isHidden&&liveCount===1;
     }},
     {id:'ux_logo',name:'topbar app-logo contains SVG mark with 9 grid rects + transparent background',fn:()=>{
       const el=document.querySelector('.app-logo svg');
